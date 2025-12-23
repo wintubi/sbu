@@ -1,0 +1,159 @@
+# ---- Secrets / Env ----
+.env
+.env.*
+!.env.example
+!.env.template
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+*.so
+*.dll
+
+# Packaging
+build/
+dist/
+.eggs/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Testing / Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+
+# Type check / Linters
+.mypy_cache/
+.pyre/
+.pytype/
+.ruff_cache/
+.pyright/
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+
+# ---- Jupyter ----
+.ipynb_checkpoints/
+.jupyter/
+
+# ---- VS Code / IDE ----
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.iml
+
+# ---- OS ----
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ---- Logs / Temp ----
+logs/
+*.log
+*.tmp
+*.temp
+
+# ---- Data (可按需保留) ----
+data/
+datasets/
+
+# ---- Caches ----
+.cache/
+__pypackages__/
+```// filepath: vscode-vfs://github/wintubi/sbu/.gitignore
+# ---- Secrets / Env ----
+.env
+.env.*
+!.env.example
+!.env.template
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+*.so
+*.dll
+
+# Packaging
+build/
+dist/
+.eggs/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Testing / Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+
+# Type check / Linters
+.mypy_cache/
+.pyre/
+.pytype/
+.ruff_cache/
+.pyright/
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+
+# ---- Jupyter ----
+.ipynb_checkpoints/
+.jupyter/
+
+# ---- VS Code / IDE ----
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.iml
+
+# ---- OS ----
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ---- Logs / Temp ----
+logs/
+*.log
+*.tmp
+*.temp
+
+# ---- Data (可按需保留) ----
+data/
+datasets/
+
+# ---- Caches ----
+.cache/
+__pypackages__/
