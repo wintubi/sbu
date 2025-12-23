@@ -52,6 +52,7 @@ with GraphDatabase.driver(URI, auth=(USERNAME, PASSWORD)) as driver:
         )
     )
 
+
     # (c) 使用 execute_query 查询数据
     print("▶ 查询所有有好友的 Person 名字...")
     records, summary, keys = driver.execute_query(
