@@ -12,17 +12,26 @@ from hello_agents.context import ContextBuilder, ContextConfig
 from hello_agents.tools import MemoryTool, RAGTool
 from hello_agents.core.message import Message
 from datetime import datetime
+import os
+from pathlib import Path
+from dotenv import load_dotenv
 
+# 优先加载与脚本同目录的 .env（保证 EMBED_* 与 LLM_* 生效）
+_env_path = Path(__file__).with_name('.env')
+load_dotenv(dotenv_path=str(_env_path) if _env_path.exists() else None)
 
 def main():
     print("=" * 80)
     print("ContextBuilder 基础使用示例")
     print("=" * 80 + "\n")
 
-    # 1. 初始化工具（Optional）
-    print("1. 初始化工具...")
+    # # 1. 初始化工具（Optional）
+    # print("1. 初始化工具...")
     # memory_tool = MemoryTool(user_id="user123")
     # rag_tool = RAGTool(knowledge_base_path="./knowledge_base")
+    # 1. 初始化工具（已禁用，避免外部依赖）
+    memory_tool = None
+    rag_tool = None
 
     # 2. 创建 ContextBuilder
     print("2. 创建 ContextBuilder...")
@@ -34,8 +43,8 @@ def main():
     )
 
     builder = ContextBuilder(
-        # memory_tool=memory_tool,
-        # rag_tool=rag_tool,
+        memory_tool=memory_tool,
+        rag_tool=rag_tool,
         config=config
     )
 
@@ -48,8 +57,8 @@ def main():
         Message(content="不错的选择!Pandas在数据处理方面非常强大。接下来您可能需要考虑数据清洗和转换。", role="assistant", timestamp=datetime.now()),
     ]
 
-    # 4. 添加一些记忆
-    print("4. 添加记忆...")
+    # # 4. 添加一些记忆
+    # print("4. 添加记忆...")
     # memory_tool.execute(
     #     "add",
     #     content="用户正在开发数据分析工具,使用Python和Pandas",
@@ -88,12 +97,21 @@ def main():
     ]
 
     from hello_agents.core.llm import HelloAgentsLLM
-    llm = HelloAgentsLLM(
-        model="ZhipuAI/GLM-4.6",
-        api_key="6ff5219e-410a-4293-8772-0c948bfa691c",
-        base_url="https://api-inference.modelscope.cn/v1/",
-        provider="modelscope"
-    )
+    # 使用 .env 中的通用配置初始化 LLM
+    model = os.getenv("LLM_MODEL_ID", "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B")
+    api_key = os.getenv("LLM_API_KEY")
+    base_url = os.getenv("LLM_BASE_URL", "https://api.siliconflow.cn/v1")
+    if not api_key:
+        raise RuntimeError("缺少 LLM_API_KEY，请在同目录 .env 中配置")
+    provider = os.getenv("LLM_PROVIDER")
+    if not provider:
+        if os.getenv("MODELSCOPE_API_KEY"):
+            provider = "modelscope"
+        elif base_url and "siliconflow" in base_url:
+            provider = "siliconflow"
+        else:
+            provider = "openai"
+    llm = HelloAgentsLLM(model=model, api_key=api_key, base_url=base_url, provider=provider)
     # 注意: 实际使用时需要配置 LLM
     response = llm.invoke(messages)
     print(f"LLM 回答: {response}")
