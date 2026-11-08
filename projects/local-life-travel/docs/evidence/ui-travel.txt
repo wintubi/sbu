@@ -1,0 +1,19 @@
+Travel UI — real Chrome/CDP (2026-11-08)
+Server: TRAVEL_REPLAY_PORT=8766, fresh SQLite
+Script: scripts/ui_travel_cdp.py
+
+Output:
+F01=verified_feasible F07=infeasible F11=needs_input F16=failed
+issues_visible=F07:True F16:True ambiguity:True
+screenshot=docs/evidence/ui-travel.png
+
+F16 screenshot shows: status failed, quality unverified, stage fetch_facts,
+tool=poi status=format_error error_code=TOOL_FORMAT_ERROR, no result objects,
+so a provider format error is not disguised as a successful itinerary.
+
+Not used: Playwright (still blocked by temp-dir EPERM); this is Chrome headless
+via DevTools Protocol. It is a real browser interaction, not Playwright.
+
+2026-11-08 regression run after live budget fix:
+F01=verified_feasible F07=infeasible F11=needs_input F16=failed
+issues_visible=F07:True F16:True ambiguity:True

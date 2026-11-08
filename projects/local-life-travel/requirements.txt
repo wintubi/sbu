@@ -1,0 +1,8 @@
+# Direct/runtime compatibility pins from the independently tested Python 3.12.9 environment.
+# This is not a complete transitive lock file.
+fastapi==0.115.12
+pydantic==2.11.2
+starlette==0.46.1
+uvicorn==0.34.0
+tzdata==2025.2
+httpx==0.28.1
