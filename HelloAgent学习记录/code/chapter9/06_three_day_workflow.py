@@ -263,7 +263,7 @@ def main():
         project_name="demo_codebase",
         #实际使用的时候替换代码路径
         codebase_path="/Users/suntao/Documents/GitHub/hello-agents/code/chapter9/codebase",
-        llm=HelloAgentsLLM(provider="deepseek",model="deepseek-chat",api_key="os.environ["DEEPSEEK_API_KEY"]",base_url="https://api.deepseek.com")
+        llm=HelloAgentsLLM(provider="deepseek",model="deepseek-chat",api_key=os.environ["DEEPSEEK_API_KEY"],base_url="https://api.deepseek.com")
     )
 
     # 执行三天工作流
