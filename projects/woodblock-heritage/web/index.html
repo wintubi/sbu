@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>木版年画证据审核 · 本地切片</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="masthead">
+    <div>
+      <p class="eyebrow">LOCAL REVIEW / SYNTHETIC DATA</p>
+      <h1>木版年画证据审核</h1>
+      <p class="lede">来源 → 候选 → 结构校验 → 人工裁决 → 本地发布快照。不调用真实 OCR/VLM/Neo4j。</p>
+    </div>
+    <div class="stamp">证据<br>先行</div>
+  </header>
+
+  <div id="error" class="error" role="alert" hidden></div>
+
+  <main class="layout">
+    <section class="panel">
+      <h2>1. 登记来源</h2>
+      <p class="hint">只接受 PNG/JPEG；同一内容重复登记会复用原来源，元数据冲突会拒绝。</p>
+      <form id="source-form">
+        <label>文件<input id="source-file" type="file" accept="image/png,image/jpeg" required></label>
+        <div class="row">
+          <label>来源说明<input id="source-note" value="合成演示页；不是真实年画原件" required></label>
+          <label>许可<input id="access-policy" value="synthetic-only" required></label>
+        </div>
+        <div class="row">
+          <label>物理页序<input id="physical-index" type="number" min="1" placeholder="未知留空"></label>
+          <label>印刷页码<input id="printed-label" placeholder="例如 040"></label>
+        </div>
+        <button type="submit">登记来源</button>
+      </form>
+      <div id="source-result" class="source-result" hidden>
+        <div class="image-wrap">
+          <img id="source-image" alt="已登记来源预览">
+          <canvas id="region-canvas"></canvas>
+        </div>
+        <dl id="source-meta"></dl>
+        <p id="region-info" class="region-info"></p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>2. 导入候选</h2>
+      <p class="hint">客户端不能设置“已批准”；导入后统一为 unreviewed/insufficient，并重新做结构校验。</p>
+      <button id="make-sample" type="button" class="secondary">用当前来源生成示例候选</button>
+      <textarea id="work-json" spellcheck="false" placeholder="先登记来源，或手工粘贴 heritage-review-v1 JSON"></textarea>
+      <button id="import-work" type="button">导入为候选 v1</button>
+      <h3>本机候选</h3>
+      <ul id="work-list" class="work-list"></ul>
+    </section>
+
+    <section class="panel wide" id="work-panel">
+      <h2>3. 审核与发布</h2>
+      <div id="work-empty" class="empty">导入或选择一个候选后，这里显示断言、问题、审核历史和发布入口。</div>
+      <div id="work-detail" hidden>
+        <div id="work-header"></div>
+        <div class="work-grid">
+          <div>
+            <h3>断言与证据</h3>
+            <div id="claims"></div>
+          </div>
+          <aside>
+            <h3>问题</h3>
+            <ul id="issues" class="issues"></ul>
+            <h3>审核历史</h3>
+            <ol id="events" class="events"></ol>
+          </aside>
+        </div>
+        <div class="review-box">
+          <h3>提交裁决</h3>
+          <div class="row">
+            <label>审核者<input id="reviewer" value="local-reviewer"></label>
+            <label>发布/审核理由<input id="review-reason" placeholder="说明依据；发布前也会记录"></label>
+          </div>
+          <p class="hint">批准要求 support_status=supported 且结构有效、值/证据非空；结构问题不能只靠理由关闭。</p>
+          <button id="submit-review" type="button">提交审核</button>
+          <button id="publish" type="button" class="secondary">发布当前审核版本</button>
+        </div>
+        <div class="review-box">
+          <h3>发布历史</h3>
+          <p class="hint">同一作品的历史快照保留；旧版本标记为 historical，不代表当前知识。</p>
+          <div id="publication-history" class="knowledge"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel wide">
+      <h2>4. 当前知识</h2>
+      <p class="hint">只显示“发布版本 == 当前审核版本”的快照；历史快照保留但不在当前视图。</p>
+      <button id="refresh-knowledge" type="button" class="secondary">刷新当前知识</button>
+      <div id="knowledge" class="knowledge"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>本地可信单用户切片；审核者标签是自述，不是认证。合成数据不代表年画领域效果。</p>
+  </footer>
+</body>
+</html>
