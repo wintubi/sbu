@@ -1,0 +1,8 @@
+/openspec/.ff0-ack
+**/.outside-voice/
+**/impl-reports/*review-package*.diff
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+data/

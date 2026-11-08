@@ -1,0 +1,17 @@
+﻿Full Chrome/CDP UI flow (synthetic data)
+Command: python scripts/ui_full_e2e_cdp.py (server on 127.0.0.1:8770)
+Output:
+work=work_032052bf62bb4e78 upload=true revise=true conflict_reload=true publish=true
+knowledge=合成门神示例（修订）pub_79b92e98b95347b4 · 作品 v6 · 1 条
+source_title = 合成门神示例（修订）
+history_switch=true (v2 read-only, then back to v6)
+Screenshot: docs/evidence/ui-full-e2e.png
+Covered: file upload, candidate import, source preview/canvas width, approve, stale-version 409 + reload, revise, approve, issue resolution, publish, current knowledge, historical version read-only switch.
+Not covered: drag/drop, canvas hit-testing, multi-tab UI, hostile-text browser check.
+
+2026-11-08 regression run after policy/image/gold fixes:
+work=work_6c9e1b0b9a87409d upload=true revise=true conflict_reload=true publish=true
+knowledge=合成门神示例（修订）pub_21753c7290ad4840 · 作品 v6 · 1 条
+2026-11-08 UI reject run:
+work=work_5f362e4ed4284d90 upload=true revise=true conflict_reload=true publish=true ui_reject=true
+knowledge=合成门神示例（修订）pub_f46959a630ac4de9 · 作品 v6 · 1 条

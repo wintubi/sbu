@@ -1,0 +1,175 @@
+:root {
+  --paper: #f4efe4;
+  --paper-2: #fbf8f0;
+  --ink: #262019;
+  --muted: #6e6255;
+  --line: #d7cbb8;
+  --cinnabar: #a63c2e;
+  --cinnabar-dark: #7f2a20;
+  --jade: #3f6b5a;
+  --amber: #9a6a1f;
+  --shadow: 0 10px 30px rgba(60, 45, 30, 0.08);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background:
+    linear-gradient(90deg, rgba(120, 95, 65, 0.045) 1px, transparent 1px) 0 0 / 26px 26px,
+    var(--paper);
+  font: 15px/1.65 "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+}
+
+.masthead {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-end;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 40px 24px 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--cinnabar);
+  font: 700 11px/1.2 "Consolas", monospace;
+  letter-spacing: 0.16em;
+}
+
+h1 {
+  margin: 0;
+  font: 700 40px/1.15 "Songti SC", "SimSun", "Noto Serif SC", serif;
+  letter-spacing: 0.04em;
+}
+
+.lede { margin: 10px 0 0; color: var(--muted); max-width: 760px; }
+
+.stamp {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  color: var(--cinnabar);
+  border: 2px solid var(--cinnabar);
+  font: 700 16px/1.35 "Songti SC", "SimSun", serif;
+  text-align: center;
+  transform: rotate(-4deg);
+  opacity: 0.85;
+}
+
+.layout {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 22px 24px 48px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.panel {
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+
+.panel.wide { grid-column: 1 / -1; }
+.panel h2 { margin: 0 0 6px; font: 700 21px/1.3 "Songti SC", "SimSun", serif; }
+.panel h3 { margin: 18px 0 8px; font: 700 15px/1.3 "Songti SC", "SimSun", serif; }
+
+.hint { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+label { display: block; margin: 8px 0; font-size: 13px; color: var(--muted); }
+input, textarea, select, button { font: inherit; }
+input, textarea, select {
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 9px;
+  color: var(--ink);
+  background: #fffdf8;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+textarea { min-height: 230px; resize: vertical; font: 12.5px/1.55 "Consolas", monospace; }
+input:focus, textarea:focus, select:focus { outline: 2px solid rgba(166, 60, 46, 0.25); border-color: var(--cinnabar); }
+
+button {
+  margin-top: 8px;
+  padding: 9px 16px;
+  color: #fff9ef;
+  background: var(--cinnabar);
+  border: 1px solid var(--cinnabar-dark);
+  border-radius: 2px;
+  cursor: pointer;
+}
+button:hover { background: var(--cinnabar-dark); }
+button:disabled { opacity: 0.5; cursor: wait; }
+button.secondary { color: var(--ink); background: transparent; border-color: var(--line); }
+button.secondary:hover { background: #efe7d8; }
+
+.error {
+  max-width: 1240px;
+  margin: 18px auto 0;
+  padding: 12px 16px;
+  color: #5d1b13;
+  background: #f7e3dc;
+  border: 1px solid #d9a79b;
+  white-space: pre-wrap;
+}
+
+.source-result { margin-top: 14px; }
+.image-wrap { position: relative; display: inline-block; max-width: 100%; background: #1f1b17; }
+.image-wrap img { display: block; max-width: 100%; max-height: 360px; }
+.image-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: auto; cursor: crosshair; }
+.region-info { min-height: 1.4em; margin: 8px 0 0; color: var(--muted); font-size: 12.5px; }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 10px 0 0; font-size: 12.5px; }
+dt { color: var(--muted); } dd { margin: 0; overflow-wrap: anywhere; }
+
+#version-select { width: auto; margin: 8px 0 0; padding: 4px 6px; font-size: 12px; }
+.work-list { list-style: none; margin: 0; padding: 0; }
+.work-list li { border-top: 1px dashed var(--line); padding: 9px 0; }
+.work-list button { margin: 0; padding: 4px 8px; font-size: 12px; }
+.work-list .meta { color: var(--muted); font-size: 12px; }
+
+.empty { color: var(--muted); padding: 18px 0; }
+.work-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.9fr); gap: 20px; }
+.review-box { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; vertical-align: top; padding: 7px 6px; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 600; font-size: 12px; }
+td code { font: 12px/1.4 "Consolas", monospace; overflow-wrap: anywhere; }
+
+.badge { display: inline-block; padding: 1px 6px; border: 1px solid currentColor; border-radius: 999px; font-size: 11px; white-space: nowrap; }
+.badge.valid, .badge.approved, .badge.supported { color: var(--jade); }
+.badge.invalid, .badge.rejected { color: var(--cinnabar); }
+.badge.unreviewed, .badge.insufficient { color: var(--amber); }
+.claim-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.claim-actions select { width: auto; margin: 0; padding: 3px 5px; font-size: 12px; }
+.claim-actions input { width: 130px; margin: 0; padding: 3px 5px; font-size: 12px; }
+.revise-fields { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.revise-fields[hidden] { display: none; }
+
+.issues, .events { margin: 0; padding-left: 18px; font-size: 13px; }
+.issues li, .events li { margin: 7px 0; }
+.issues .resolved { color: var(--muted); text-decoration: line-through; }
+.issue-meta { color: var(--muted); font-size: 12px; }
+.knowledge { margin-top: 12px; display: grid; gap: 10px; }
+.knowledge article { border: 1px solid var(--line); padding: 12px; background: #fffdf8; }
+.knowledge h3 { margin: 0 0 4px; }
+
+.footer { max-width: 1240px; margin: 0 auto; padding: 0 24px 40px; color: var(--muted); font-size: 12px; }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; }
+  .panel.wide { grid-column: auto; }
+  .work-grid { grid-template-columns: 1fr; }
+  .row { grid-template-columns: 1fr; }
+  h1 { font-size: 30px; }
+  .stamp { width: 58px; height: 58px; font-size: 13px; }
+}

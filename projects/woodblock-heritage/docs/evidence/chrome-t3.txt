@@ -1,0 +1,15 @@
+Chrome/CDP T3 checks (synthetic data; 2026-11-08)
+Server: HERITAGE_PORT=8770
+
+1) Canvas hit-testing (ui_full_e2e_cdp.py):
+   click at normalized (0.3, 0.1) -> "命中 r-title（text）：合成门神示例"
+
+2) Hostile text (ui_security_cdp.py):
+   work=work_e12db152098d43b2 injected_elements=0 xss=undefined literal_text=true
+   Value `<b>不是标签</b><img src=x onerror="window.__xss=1">` rendered as text.
+
+3) Two tabs (ui_multitab_cdp.py):
+   work=work_3b8ca37ff8294efc tab_a=v2 tab_b_reloaded_v2 conflict_handled=true
+   Tab A review wins; tab B stale submit gets 409 and reloads current v2.
+
+Still not covered: canvas drag/drop, drag-to-resize, touch gestures.
