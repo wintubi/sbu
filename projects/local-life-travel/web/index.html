@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>单日行程判官 · REPLAY 本地回放演示</title>
+<style>
+  :root { color-scheme: light; }
+  body { font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; margin: 0; background: #f5f6f8; color: #1b1f24; }
+  .replay-banner { background: #7a3e00; color: #fff; padding: 12px 20px; font-weight: 700; letter-spacing: .02em; }
+  .replay-banner small { display: block; font-weight: 400; opacity: .92; margin-top: 3px; }
+  .wrap { max-width: 1120px; margin: 18px auto; padding: 0 16px 60px; }
+  h1 { font-size: 20px; margin: 4px 0 14px; }
+  h2 { font-size: 15px; margin: 18px 0 8px; border-left: 3px solid #2f6feb; padding-left: 8px; }
+  .card { background: #fff; border: 1px solid #dfe3e8; border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+  label { display: block; font-size: 12px; color: #57606a; margin: 6px 0 2px; }
+  input, select, textarea { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #cfd6de; border-radius: 5px; font: inherit; font-size: 13px; }
+  textarea { min-height: 74px; font-family: ui-monospace, Consolas, monospace; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px 12px; }
+  button { background: #2f6feb; color: #fff; border: 0; border-radius: 5px; padding: 9px 16px; cursor: pointer; font-size: 13px; margin: 10px 6px 0 0; }
+  button.secondary { background: #6e7781; }
+  button.danger { background: #b42318; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .st-queued { background: #eef1f5; color: #57606a; }
+  .st-running { background: #ddf4ff; color: #0969da; }
+  .st-needs_input { background: #fff4c2; color: #7a4b00; }
+  .st-completed { background: #dafbe1; color: #116329; }
+  .st-failed { background: #ffebe9; color: #a40e26; }
+  .st-cancelled { background: #f0f0f0; color: #6e7781; }
+  .q-verified_feasible { background: #dafbe1; color: #116329; }
+  .q-infeasible { background: #ffebe9; color: #a40e26; }
+  .q-partially_verified { background: #fff4c2; color: #7a4b00; }
+  .q-unverified { background: #eef1f5; color: #57606a; }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th, td { border-bottom: 1px solid #eaeef2; text-align: left; padding: 6px 8px; vertical-align: top; }
+  th { color: #57606a; font-weight: 600; background: #fafbfc; }
+  .muted { color: #6e7781; font-size: 12px; }
+  .issue { border-left: 3px solid #d0a500; background: #fffbe6; padding: 7px 10px; margin: 5px 0; font-size: 12.5px; }
+  .issue.blocker { border-color: #b42318; background: #fff1f0; }
+  .issue.info { border-color: #2f6feb; background: #f0f6ff; }
+  pre { background: #f6f8fa; padding: 10px; overflow: auto; font-size: 11.5px; border-radius: 5px; }
+  .kv { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 12.5px; }
+  .kv b { color: #57606a; font-weight: 600; }
+  .warn { color: #7a4b00; }
+</style>
+</head>
+<body>
+<div class="replay-banner">
+  REPLAY / 本地回放演示 — 单日「行程判官」
+  <small>不连接真实地图、天气或模型服务；POI、路线与天气均来自仓库内固定 fixture，<b>结果不表示地点已核验</b>，也不可用于真实出行决策。</small>
+</div>
+<div class="wrap">
+  <h1>提交一份同城单日候选清单，判断它能否执行</h1>
+
+  <div class="card">
+    <label>回放场景（载入后可直接提交，也可修改表单）</label>
+    <select id="scenario"></select>
+    <div class="grid" style="margin-top:8px">
+      <div><label>城市 city</label><input id="city" value="杭州"></div>
+      <div><label>日期 date</label><input id="date" value="2026-11-08"></div>
+      <div><label>IANA 时区 timezone</label><input id="timezone" value="Asia/Shanghai"></div>
+      <div><label>UTC 偏移</label><input id="offset" value="+08:00"></div>
+      <div><label>出发位置 origin</label><input id="origin" value="杭州东站"></div>
+      <div><label>交通方式 transport</label><select id="transport">
+        <option value="transit">transit 公共交通</option><option value="walking">walking 步行</option>
+        <option value="driving">driving 驾车</option><option value="bicycling">bicycling 骑行</option>
+      </select></div>
+      <div><label>开始 HH:MM</label><input id="start" value="09:00"></div>
+      <div><label>结束 HH:MM</label><input id="end" value="18:00"></div>
+    </div>
+    <label>候选地点（每行：名称,停留秒数；3–6 个）</label>
+    <textarea id="candidates">西湖,7200
+灵隐寺,5400
+河坊街,3600</textarea>
+    <button id="submit">提交回放运行</button>
+    <button class="secondary" id="load">载入所选场景</button>
+    <span class="muted" id="formMsg"></span>
+    <details><summary>已载入场景的附加条件（随请求保留）</summary>
+      <p class="muted">人工事实、预约时间窗和偏好会保留；修改同名地点的停留时长不会删除预约。切换场景后请重新载入。</p>
+      <pre id="scenarioExtras">尚未载入附加条件。</pre>
+    </details>
+  </div>
+
+  <div id="result"></div>
+</div>
+
+<script>
+const API = "/api/v1/travel/runs";
+let currentRunId = null, pollTimer = null, loadedScenarioRequest = null;
+
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function fmt(v) { return v == null || v === "" ? "<span class='muted'>null（未知，未猜测）</span>" : esc(v); }
+
+function buildRequest() {
+  const date = document.getElementById("date").value.trim();
+  const off = document.getElementById("offset").value.trim();
+  const lines = document.getElementById("candidates").value.split("\n").map(s => s.trim()).filter(Boolean);
+  const sel = document.getElementById("scenario");
+  const base = loadedScenarioRequest && loadedScenarioRequest.scenario_id === sel.value
+    ? JSON.parse(JSON.stringify(loadedScenarioRequest)) : {};
+  const candidates = lines.map(line => {
+    const parts = line.split(",").map(s => s.trim());
+    const original = (base.candidates || []).find(c => c.name === parts[0]) || {};
+    return { ...original, name: parts[0], stay_seconds: Number(parts[1]) };
+  });
+  return {
+    ...base,
+    mode: "replay",
+    scenario_id: sel.value,
+    city: document.getElementById("city").value.trim(),
+    date: date,
+    timezone: document.getElementById("timezone").value.trim(),
+    origin: document.getElementById("origin").value.trim(),
+    time_window: { start: `${date}T${document.getElementById("start").value.trim()}:00${off}`,
+                   end: `${date}T${document.getElementById("end").value.trim()}:00${off}` },
+    transport: document.getElementById("transport").value,
+    candidates: candidates,
+    preferences: base.preferences || {}, manual_facts: base.manual_facts || [],
+    selected_poi_ids: base.selected_poi_ids || {}
+  };
+}
+
+async function loadScenarios() {
+  const r = await fetch("/fixtures");
+  const d = await r.json();
+  const sel = document.getElementById("scenario");
+  d.scenarios.forEach(s => {
+    const o = document.createElement("option");
+    o.value = s.id;
+    o.textContent = `${s.id} · [${s.category}] ${s.label}`;
+    sel.appendChild(o);
+  });
+}
+
+function loadSelected() {
+  const id = document.getElementById("scenario").value;
+  fetch("/fixtures").then(r => r.json()).then(d => {
+    const s = d.scenarios.find(x => x.id === id);
+    if (!s) return;
+    const q = s.request;
+    loadedScenarioRequest = JSON.parse(JSON.stringify(q));
+    document.getElementById("scenarioExtras").textContent = JSON.stringify({
+      manual_facts: q.manual_facts || [], preferences: q.preferences || {},
+      appointments: q.candidates.filter(c => c.optional_time_window).map(c => ({
+        name: c.name, optional_time_window: c.optional_time_window
+      }))
+    }, null, 2);
+    document.getElementById("city").value = q.city;
+    document.getElementById("date").value = q.date;
+    document.getElementById("timezone").value = q.timezone;
+    document.getElementById("origin").value = q.origin;
+    document.getElementById("transport").value = q.transport;
+    document.getElementById("start").value = q.time_window.start.substring(11, 16);
+    document.getElementById("end").value = q.time_window.end.substring(11, 16);
+    const off = q.time_window.start.slice(-6);
+    document.getElementById("offset").value = off;
+    document.getElementById("candidates").value = q.candidates.map(c => `${c.name},${c.stay_seconds}`).join("\n");
+    document.getElementById("formMsg").textContent = `已载入 ${id}（${s.category}）`;
+  });
+}
+
+function statusPill(s) { return `<span class="pill st-${esc(s)}">${esc(s)}</span>`; }
+function qualityPill(q) { return q ? `<span class="pill q-${esc(q)}">${esc(q)}</span>` : ""; }
+
+function render(d) {
+  currentRunId = d.run_id;
+  const st = d.status, q = d.quality_status;
+  let html = `<div class="card">
+    <h2>运行结果 <span class="muted">REPLAY · 非实时查询</span></h2>
+    <div class="kv">
+      <span><b>run_id</b> ${esc(d.run_id)}</span>
+      <span><b>status</b> ${statusPill(st)}</span>
+      <span><b>quality</b> ${qualityPill(q)}</span>
+      <span><b>revision</b> ${d.revision}</span>
+      <span><b>stage</b> ${esc(d.current_stage)}</span>
+      <span><b>场景</b> ${esc(d.scenario_id)}</span>
+      <span><b>父运行</b> ${esc(d.parent_run_id || "—")}</span>
+    </div>
+    <p class="muted">completed 仅表示处理结束，不代表行程可行；needs_input / failed / partially_verified / infeasible 均单独标示。所有地点均来自 replay fixture，未核验真实 POI。</p>
+    <div class="kv">
+      <span><b>工具调用</b> ${d.budget.tool_calls}/${d.budget.max_tool_calls}</span>
+      <span><b>调整轮次</b> ${d.budget.adjustment_rounds}/${d.budget.max_adjustment_rounds}</span>
+      <span><b>预算状态</b> ${esc(d.budget.status)}</span>
+      <span><b>已执行阶段</b> ${d.executed_stages}</span>
+    </div>`;
+
+  if (st !== "needs_input" && st !== "failed" && st !== "cancelled") {
+    html += `<button class="danger" id="cancelBtn">取消运行</button>`;
+  }
+  html += `</div>`;
+
+  // Replay input echo
+  html += `<div class="card"><h2>输入（回放）</h2><pre>${esc(JSON.stringify(d.request, null, 2))}</pre></div>`;
+
+  // POI matches
+  html += `<div class="card"><h2>地点匹配（provider = replay-fixture）</h2>`;
+  if (!d.poi_records.length) html += `<p class="muted">尚无地点记录。</p>`;
+  else {
+    html += `<table><tr><th>候选</th><th>match_status</th><th>provider_poi_id</th><th>名称</th><th>坐标</th><th>evidence_refs</th></tr>`;
+    d.poi_records.forEach(p => {
+      const coord = p.coordinates ? `${p.coordinates.lon}, ${p.coordinates.lat}` : "null（未生成）";
+      html += `<tr><td>${esc(p.candidate_key)}</td><td>${esc(p.match_status)}</td><td>${fmt(p.provider_poi_id)}</td><td>${esc(p.name)}</td><td>${esc(coord)}</td><td>${esc((p.evidence_refs||[]).join(", "))}</td></tr>`;
+    });
+    html += `</table>`;
+  }
+  html += `</div>`;
+
+  // Ambiguity input
+  if (d.candidates_for_input && d.candidates_for_input.length) {
+    html += `<div class="card"><h2>需要用户输入（地点歧义）</h2><p class="warn">系统未静默选择地点。请选择后提交修订，将创建新的父级关联运行。</p>`;
+    d.candidates_for_input.forEach(g => {
+      html += `<p><b>${esc(g.candidate)}</b></p>`;
+      (g.options || []).forEach(o => {
+        html += `<label><input type="radio" name="pick_${esc(g.candidate)}" value="${esc(o.provider_poi_id)}"> ${esc(o.name)} (${esc(o.provider_poi_id)})</label>`;
+      });
+    });
+    html += `<button id="revisionBtn">提交选择并创建修订</button></div>`;
+  }
+
+  // Timeline / legs / issues / changes
+  const r = d.result;
+  if (r) {
+    html += `<div class="card"><h2>时间线与路线依据</h2>`;
+    html += `<table><tr><th>#</th><th>地点</th><th>poi_id</th><th>到达</th><th>离开</th><th>停留(秒)</th></tr>`;
+    (r.visits || []).forEach((v, i) => {
+      html += `<tr><td>${i+1}</td><td>${esc(v.name)}</td><td>${fmt(v.poi_id)}</td><td>${fmt(v.arrival)}</td><td>${fmt(v.departure)}</td><td>${v.stay_seconds}</td></tr>`;
+    });
+    html += `</table><h2>路线段（来自回放矩阵）</h2><table><tr><th>from</th><th>to</th><th>transport</th><th>时长(秒)</th><th>距离(米)</th><th>source_ref</th></tr>`;
+    (r.legs || []).forEach(l => {
+      html += `<tr><td>${esc(l.from_poi_id)}</td><td>${esc(l.to_poi_id)}</td><td>${esc(l.transport)}</td><td>${l.duration_seconds}</td><td>${l.distance_meters}</td><td>${esc(l.source_ref)}</td></tr>`;
+    });
+    html += `</table></div>`;
+
+    html += `<div class="card"><h2>问题清单（失败/未知不伪装成功）</h2>`;
+    if (!(r.issues || []).length) html += `<p class="muted">无问题记录。</p>`;
+    (r.issues || []).forEach(i => {
+      html += `<div class="issue ${esc(i.severity)}"><b>${esc(i.code)}</b> [${esc(i.severity)}] ${esc(i.message)}${i.subject ? ` <span class="muted">(${esc(i.subject)})</span>` : ""}</div>`;
+    });
+    html += `</div>`;
+
+    html += `<div class="card"><h2>调整说明</h2>`;
+    if (!(r.changes || []).length) html += `<p class="muted">未做调整。</p>`;
+    (r.changes || []).forEach(c => { html += `<div class="issue info"><b>${esc(c.kind)}</b> ${esc(c.detail)} — ${esc(c.reason)}</div>`; });
+    html += `</div>`;
+  } else {
+    html += `<div class="card"><h2>结果</h2><p class="muted">尚无行程结果（needs_input / failed / cancelled 时不会构造占位方案）。</p></div>`;
+  }
+
+  // Tool results + facts + events
+  html += `<div class="card"><h2>规范化工具结果（T-03）</h2><table><tr><th>tool</th><th>status</th><th>source_ref</th><th>error_code</th><th>message</th></tr>`;
+  (d.tool_results || []).forEach(t => {
+    html += `<tr><td>${esc(t.tool)}</td><td>${esc(t.status)}</td><td>${esc(t.source_ref)}</td><td>${fmt(t.error_code)}</td><td>${fmt(t.message)}</td></tr>`;
+  });
+  html += `</table><h2>事实记录</h2><table><tr><th>subject</th><th>field</th><th>value</th><th>source_type</th><th>provider_status</th></tr>`;
+  (d.facts || []).forEach(f => {
+    html += `<tr><td>${esc(f.subject_id)}</td><td>${esc(f.field)}</td><td>${fmt(f.value)}</td><td>${esc(f.source_type)}</td><td>${esc(f.provider_status)}</td></tr>`;
+  });
+  html += `</table></div>`;
+
+  html += `<div class="card"><h2>执行事件（重启恢复证据）</h2><table><tr><th>#</th><th>stage</th><th>action</th><th>reason</th></tr>`;
+  (d.events || []).forEach(e => { html += `<tr><td>${e.id}</td><td>${esc(e.stage)}</td><td>${esc(e.action)}</td><td>${esc(e.reason)}</td></tr>`; });
+  html += `</table></div>`;
+
+  document.getElementById("result").innerHTML = html;
+  bindRunButtons(d);
+  if (st === "queued" || st === "running") {
+    clearTimeout(pollTimer);
+    pollTimer = setTimeout(() => fetchRun(d.run_id), 350);
+  } else {
+    clearTimeout(pollTimer);
+  }
+}
+
+function bindRunButtons(d) {
+  const c = document.getElementById("cancelBtn");
+  if (c) c.onclick = () => fetch(`${API}/${d.run_id}/cancel`, {method:"POST"}).then(r=>r.json()).then(fetchRun.bind(null,d.run_id));
+  const rv = document.getElementById("revisionBtn");
+  if (rv) rv.onclick = () => {
+    const selected = {};
+    (d.candidates_for_input || []).forEach(g => {
+      const el = document.querySelector(`input[name="pick_${CSS.escape(g.candidate)}"]:checked`);
+      if (el) selected[g.candidate] = el.value;
+    });
+    fetch(`${API}/${d.run_id}/revisions`, {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({selected_poi_ids: selected, reason: "用户在 UI 选择歧义候选"})
+    }).then(r => r.json()).then(x => { if (x.run_id) fetchRun(x.run_id); else alert(JSON.stringify(x)); });
+  };
+}
+
+async function fetchRun(id) {
+  const r = await fetch(`${API}/${id}`);
+  if (!r.ok) { document.getElementById("formMsg").textContent = `查询失败 ${r.status}`; return; }
+  render(await r.json());
+}
+
+document.getElementById("submit").onclick = async () => {
+  const body = buildRequest();
+  const r = await fetch(API, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
+  const d = await r.json();
+  if (!r.ok) { document.getElementById("formMsg").textContent = `提交失败 ${r.status}: ${d.code || ""} ${d.message || ""}`; return; }
+  document.getElementById("formMsg").textContent = `已创建 ${d.run_id}（REPLAY）`;
+  render(d);
+};
+document.getElementById("load").onclick = loadSelected;
+loadScenarios();
+</script>
+</body>
+</html>

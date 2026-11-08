@@ -1,0 +1,255 @@
+{
+  "version": "1.0",
+  "mode": "replay",
+  "notice": "本文件是本地固定回放数据，不是真实 POI / 天气 / 路线记录。所有地点 provider=replay-fixture，不表示已由真实供应商核验。",
+  "source": "人工构造的演示级回放 fixture（SPEC-DRAFT v0.2 §9 建议的 6/4/3/2/3/2 分组）",
+  "frozen_on": "2026-11-07",
+  "defaults": {
+    "request": {
+      "mode": "replay",
+      "city": "杭州",
+      "date": "2026-11-08",
+      "timezone": "Asia/Shanghai",
+      "origin": "杭州东站",
+      "time_window": {
+        "start": "2026-11-08T09:00:00+08:00",
+        "end": "2026-11-08T18:00:00+08:00"
+      },
+      "transport": "transit",
+      "preferences": {},
+      "manual_facts": [],
+      "selected_poi_ids": {}
+    },
+    "candidates": [
+      {"name": "西湖", "stay_seconds": 7200},
+      {"name": "灵隐寺", "stay_seconds": 5400},
+      {"name": "河坊街", "stay_seconds": 3600}
+    ],
+    "tools": {
+      "poi": [
+        {"candidate": "西湖", "status": "matched", "provider_poi_id": "rp-hz-001", "name": "西湖风景区", "city": "杭州", "lon": 120.15, "lat": 30.24},
+        {"candidate": "灵隐寺", "status": "matched", "provider_poi_id": "rp-hz-002", "name": "灵隐寺", "city": "杭州", "lon": 120.10, "lat": 30.24},
+        {"candidate": "河坊街", "status": "matched", "provider_poi_id": "rp-hz-003", "name": "河坊街", "city": "杭州", "lon": 120.17, "lat": 30.23},
+        {"candidate": "雷峰塔", "status": "matched", "provider_poi_id": "rp-hz-004", "name": "雷峰塔", "city": "杭州", "lon": 120.15, "lat": 30.23},
+        {"candidate": "宋城", "status": "matched", "provider_poi_id": "rp-hz-005", "name": "宋城", "city": "杭州", "lon": 120.10, "lat": 30.20},
+        {"candidate": "西溪湿地", "status": "matched", "provider_poi_id": "rp-hz-006", "name": "西溪湿地", "city": "杭州", "lon": 120.06, "lat": 30.27}
+      ],
+      "weather": {"status": "valid", "forecast_date": "2026-11-08", "summary": "晴"},
+      "hours": {
+        "status": "valid",
+        "windows": {
+          "西湖": ["08:00", "21:00"], "灵隐寺": ["08:00", "21:00"],
+          "河坊街": ["08:00", "21:00"], "雷峰塔": ["08:00", "21:00"],
+          "宋城": ["08:00", "21:00"], "西溪湿地": ["08:00", "21:00"]
+        }
+      },
+      "routes": {
+        "status": "valid",
+        "matrix": {
+          "__origin__|西湖": [900, 3000], "__origin__|灵隐寺": [2700, 11000],
+          "__origin__|河坊街": [1200, 4500], "__origin__|雷峰塔": [1500, 5000],
+          "__origin__|宋城": [3600, 15000], "__origin__|西溪湿地": [3000, 13000],
+          "西湖|灵隐寺": [1800, 8000], "西湖|河坊街": [900, 3500],
+          "西湖|雷峰塔": [600, 2000], "西湖|宋城": [3000, 12000],
+          "西湖|西溪湿地": [2400, 10000], "灵隐寺|河坊街": [2400, 11000],
+          "灵隐寺|雷峰塔": [2100, 9000], "灵隐寺|宋城": [3300, 14000],
+          "灵隐寺|西溪湿地": [1500, 7000], "河坊街|雷峰塔": [1200, 4000],
+          "河坊街|宋城": [2700, 11000], "河坊街|西溪湿地": [3000, 12000],
+          "雷峰塔|宋城": [2700, 11000], "雷峰塔|西溪湿地": [2700, 11000],
+          "宋城|西溪湿地": [1800, 8000]
+        }
+      }
+    }
+  },
+  "scenarios": [
+    {
+      "id": "F01", "category": "feasible", "label": "三地点、全部事实已知、可行",
+      "expect": {"status": "completed", "quality_status": "verified_feasible", "issue_codes": [], "visit_count": 3, "has_changes": false}
+    },
+    {
+      "id": "F02", "category": "feasible", "label": "四地点、步行方式、可行",
+      "request_overrides": {
+        "candidates": [
+          {"name": "西湖", "stay_seconds": 7200}, {"name": "灵隐寺", "stay_seconds": 5400},
+          {"name": "河坊街", "stay_seconds": 3600}, {"name": "雷峰塔", "stay_seconds": 3600}
+        ],
+        "transport": "walking"
+      },
+      "expect": {"status": "completed", "quality_status": "verified_feasible", "issue_codes": [], "visit_count": 4, "has_changes": false}
+    },
+    {
+      "id": "F03", "category": "feasible", "label": "五地点、延长时间窗后可行",
+      "request_overrides": {
+        "candidates": [
+          {"name": "西湖", "stay_seconds": 7200}, {"name": "灵隐寺", "stay_seconds": 5400},
+          {"name": "河坊街", "stay_seconds": 3600}, {"name": "雷峰塔", "stay_seconds": 3600},
+          {"name": "宋城", "stay_seconds": 7200}
+        ],
+        "time_window": {"start": "2026-11-08T09:00:00+08:00", "end": "2026-11-08T20:00:00+08:00"}
+      },
+      "expect": {"status": "completed", "quality_status": "verified_feasible", "issue_codes": [], "visit_count": 5, "has_changes": false}
+    },
+    {
+      "id": "F04", "category": "feasible", "label": "六地点、长时间窗、可行",
+      "request_overrides": {
+        "candidates": [
+          {"name": "西湖", "stay_seconds": 7200}, {"name": "灵隐寺", "stay_seconds": 5400},
+          {"name": "河坊街", "stay_seconds": 3600}, {"name": "雷峰塔", "stay_seconds": 3600},
+          {"name": "宋城", "stay_seconds": 7200}, {"name": "西溪湿地", "stay_seconds": 5400}
+        ],
+        "time_window": {"start": "2026-11-08T08:00:00+08:00", "end": "2026-11-08T21:00:00+08:00"}
+      },
+      "expect": {"status": "completed", "quality_status": "verified_feasible", "issue_codes": [], "visit_count": 6, "has_changes": false}
+    },
+    {
+      "id": "F05", "category": "feasible", "label": "供应商无营业信息、用户人工补充后可行",
+      "request_overrides": {
+        "manual_facts": [
+          {"subject": "西湖", "field": "opening_window", "value": "08:00-21:00", "reason": "用户查官网后填写"},
+          {"subject": "灵隐寺", "field": "opening_window", "value": "08:00-21:00", "reason": "用户查官网后填写"},
+          {"subject": "河坊街", "field": "opening_window", "value": "08:00-21:00", "reason": "用户查官网后填写"}
+        ]
+      },
+      "tools_overrides": {"hours": {"status": "unsupported", "windows": {}}},
+      "expect": {"status": "completed", "quality_status": "verified_feasible", "issue_codes": [], "visit_count": 3, "has_changes": false}
+    },
+    {
+      "id": "F06", "category": "feasible", "label": "初始顺序超窗、贪心重排后可行",
+      "request_overrides": {
+        "candidates": [
+          {"name": "宋城", "stay_seconds": 3600}, {"name": "西湖", "stay_seconds": 3600},
+          {"name": "河坊街", "stay_seconds": 3600}
+        ],
+        "time_window": {"start": "2026-11-08T09:00:00+08:00", "end": "2026-11-08T14:00:00+08:00"}
+      },
+      "expect": {"status": "completed", "quality_status": "verified_feasible", "issue_codes": [], "visit_count": 3, "has_changes": true}
+    },
+
+    {
+      "id": "F07", "category": "time_conflict", "label": "时间窗过短，重排后仍超窗",
+      "request_overrides": {
+        "time_window": {"start": "2026-11-08T09:00:00+08:00", "end": "2026-11-08T12:00:00+08:00"}
+      },
+      "expect": {"status": "completed", "quality_status": "infeasible", "issue_codes": ["TIME_WINDOW_EXCEEDED"], "visit_count": 3}
+    },
+    {
+      "id": "F08", "category": "time_conflict", "label": "开放时段冲突",
+      "tools_overrides": {"hours": {"status": "valid", "windows": {"灵隐寺": ["13:00", "14:00"]}}},
+      "expect": {"status": "completed", "quality_status": "infeasible", "issue_codes": ["OPENING_WINDOW_VIOLATION"], "visit_count": 3}
+    },
+    {
+      "id": "F09", "category": "time_conflict", "label": "用户指定预约时段冲突",
+      "request_overrides": {
+        "candidates": [
+          {"name": "西湖", "stay_seconds": 7200}, {"name": "灵隐寺", "stay_seconds": 5400},
+          {"name": "河坊街", "stay_seconds": 3600, "optional_time_window": {"start": "16:00", "end": "17:00"}}
+        ]
+      },
+      "expect": {"status": "completed", "quality_status": "infeasible", "issue_codes": ["OPENING_WINDOW_VIOLATION"], "visit_count": 3}
+    },
+    {
+      "id": "F10", "category": "time_conflict", "label": "六地点长停留超出九小时窗",
+      "request_overrides": {
+        "candidates": [
+          {"name": "西湖", "stay_seconds": 7200}, {"name": "灵隐寺", "stay_seconds": 5400},
+          {"name": "河坊街", "stay_seconds": 3600}, {"name": "雷峰塔", "stay_seconds": 3600},
+          {"name": "宋城", "stay_seconds": 7200}, {"name": "西溪湿地", "stay_seconds": 5400}
+        ]
+      },
+      "expect": {"status": "completed", "quality_status": "infeasible", "issue_codes": ["TIME_WINDOW_EXCEEDED"], "visit_count": 6}
+    },
+
+    {
+      "id": "F11", "category": "ambiguity", "label": "一个同名地点双候选",
+      "tools_overrides": {"poi": {"灵隐寺": {"candidate": "灵隐寺", "status": "ambiguous", "options": [
+        {"provider_poi_id": "rp-hz-002a", "name": "灵隐寺（飞来峰景区）", "city": "杭州", "lon": 120.10, "lat": 30.24},
+        {"provider_poi_id": "rp-hz-002b", "name": "灵隐寺（北高峰）", "city": "杭州", "lon": 120.12, "lat": 30.26}
+      ]}}},
+      "expect": {"status": "needs_input", "quality_status": "unverified", "issue_codes": ["AMBIGUOUS_POI"]}
+    },
+    {
+      "id": "F12", "category": "ambiguity", "label": "两个同名地点多候选",
+      "tools_overrides": {"poi": {
+        "西湖": {"candidate": "西湖", "status": "ambiguous", "options": [
+          {"provider_poi_id": "rp-hz-001a", "name": "西湖（湖滨）", "city": "杭州", "lon": 120.16, "lat": 30.25},
+          {"provider_poi_id": "rp-hz-001b", "name": "西湖（杨公堤）", "city": "杭州", "lon": 120.13, "lat": 30.24}
+        ]},
+        "河坊街": {"candidate": "河坊街", "status": "ambiguous", "options": [
+          {"provider_poi_id": "rp-hz-003a", "name": "河坊街（上城段）", "city": "杭州", "lon": 120.17, "lat": 30.23},
+          {"provider_poi_id": "rp-hz-003b", "name": "河坊街（南宋御街）", "city": "杭州", "lon": 120.16, "lat": 30.22}
+        ]}
+      }},
+      "expect": {"status": "needs_input", "quality_status": "unverified", "issue_codes": ["AMBIGUOUS_POI"]}
+    },
+    {
+      "id": "F13", "category": "ambiguity", "label": "歧义与未匹配并存",
+      "tools_overrides": {"poi": {
+        "灵隐寺": {"candidate": "灵隐寺", "status": "ambiguous", "options": [
+          {"provider_poi_id": "rp-hz-002a", "name": "灵隐寺（飞来峰景区）", "city": "杭州", "lon": 120.10, "lat": 30.24},
+          {"provider_poi_id": "rp-hz-002b", "name": "灵隐寺（北高峰）", "city": "杭州", "lon": 120.12, "lat": 30.26}
+        ]},
+        "河坊街": {"candidate": "河坊街", "status": "unmatched"}
+      }},
+      "expect": {"status": "needs_input", "quality_status": "unverified", "issue_codes": ["AMBIGUOUS_POI"]}
+    },
+
+    {
+      "id": "F14", "category": "weather_coverage", "label": "天气预报日期不覆盖目标日",
+      "tools_overrides": {"weather": {"status": "valid", "forecast_date": "2026-11-10", "summary": "晴"}},
+      "expect": {"status": "completed", "quality_status": "partially_verified", "issue_codes": ["WEATHER_DATE_NOT_COVERED"], "visit_count": 3}
+    },
+    {
+      "id": "F15", "category": "weather_coverage", "label": "天气服务明确返回 unavailable",
+      "tools_overrides": {"weather": {"status": "unavailable", "message": "供应商仅提供未来 3 天预报，目标日超出覆盖范围"}},
+      "expect": {"status": "completed", "quality_status": "partially_verified", "issue_codes": ["WEATHER_DATE_NOT_COVERED"], "visit_count": 3}
+    },
+
+    {
+      "id": "F16", "category": "tool_error", "label": "POI 响应格式错误，禁止伪成功",
+      "tools_overrides": {"poi": {"status": "format_error", "message": "返回体不是可解析的 POI 列表"}},
+      "expect": {"status": "failed", "quality_status": "unverified", "issue_codes": ["TOOL_FORMAT_ERROR"]}
+    },
+    {
+      "id": "F17", "category": "tool_error", "label": "路线工具超时，约束降级为部分核验",
+      "tools_overrides": {"routes": {"status": "timeout", "message": "路线服务 5s 未响应"}},
+      "expect": {"status": "completed", "quality_status": "partially_verified", "issue_codes": ["TOOL_TIMEOUT", "ROUTE_UNKNOWN"], "visit_count": 3}
+    },
+    {
+      "id": "F18", "category": "tool_error", "label": "天气供应商错误 + 营业信息不支持",
+      "tools_overrides": {
+        "weather": {"status": "provider_error", "message": "上游 503"},
+        "hours": {"status": "unsupported", "windows": {}}
+      },
+      "expect": {"status": "completed", "quality_status": "partially_verified", "issue_codes": ["TOOL_PROVIDER_ERROR"], "visit_count": 3}
+    },
+
+    {
+      "id": "F19", "category": "condition_modification", "label": "删除一个地点后重算",
+      "request_overrides": {
+        "candidates": [
+          {"name": "西湖", "stay_seconds": 7200}, {"name": "灵隐寺", "stay_seconds": 5400},
+          {"name": "河坊街", "stay_seconds": 3600}, {"name": "雷峰塔", "stay_seconds": 3600}
+        ]
+      },
+      "expect": {"status": "completed", "quality_status": "verified_feasible", "issue_codes": [], "visit_count": 4},
+      "revision": {"remove_candidates": ["雷峰塔"], "reason": "用户删除一个地点"},
+      "revision_expect": {"status": "completed", "quality_status": "verified_feasible", "visit_count": 3}
+    },
+    {
+      "id": "F20", "category": "condition_modification", "label": "延长时间窗后由不可行转可行",
+      "request_overrides": {
+        "candidates": [
+          {"name": "西湖", "stay_seconds": 7200}, {"name": "灵隐寺", "stay_seconds": 5400},
+          {"name": "河坊街", "stay_seconds": 3600}, {"name": "雷峰塔", "stay_seconds": 3600}
+        ],
+        "time_window": {"start": "2026-11-08T09:00:00+08:00", "end": "2026-11-08T15:00:00+08:00"}
+      },
+      "expect": {"status": "completed", "quality_status": "infeasible", "issue_codes": ["TIME_WINDOW_EXCEEDED"], "visit_count": 4},
+      "revision": {
+        "time_window": {"start": "2026-11-08T09:00:00+08:00", "end": "2026-11-08T18:00:00+08:00"},
+        "reason": "用户把结束时间从 15:00 延到 18:00"
+      },
+      "revision_expect": {"status": "completed", "quality_status": "verified_feasible", "visit_count": 4}
+    }
+  ]
+}
