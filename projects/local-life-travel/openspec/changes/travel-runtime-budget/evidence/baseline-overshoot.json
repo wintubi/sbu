@@ -1,0 +1,17 @@
+{
+  "observed_on": "2026-11-09",
+  "baseline_commit": "6a785607e4bdb52e6c1af95e7b7b585d1b5d035b",
+  "scope": "offline MockTransport; synthetic data; baseline reproduction, not a fix",
+  "command": "C:/Miniconda3/python.exe openspec/changes/travel-runtime-budget/evidence/reproduce_budget.py",
+  "exit_code": 0,
+  "limit": 2,
+  "transport_attempts": 3,
+  "client_calls": 3,
+  "persisted_count": 2,
+  "run_status": "failed",
+  "budget_status": "exhausted",
+  "path_categories": ["/v3/geocode/geo", "/v3/place/text", "/v3/place/text"],
+  "issue_codes": ["BUDGET_EXHAUSTED"],
+  "oversent": true,
+  "acceptance_delta": "target is transport_attempts <= limit, with persisted attempts equal to actual admitted sends"
+}
