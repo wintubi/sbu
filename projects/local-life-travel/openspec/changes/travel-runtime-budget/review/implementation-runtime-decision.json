@@ -1,0 +1,14 @@
+{
+  "recorded_on": "2026-11-11",
+  "source": "actual human answer to functions.ask_user_question in this conversation, before quota interruption",
+  "question_id": "t11_dsh_implementation_adapter",
+  "selected": "批准DSH适配并继续（推荐）",
+  "scope": "this T11 change stage-three runtime dispatch only",
+  "approved_exception": ["HOST=unknown hard stop at implementation entry", "native host-specific dispatch transport replaced by actual DSH tools"],
+  "requirements_preserved": ["independent fresh implementer", "Standards and Spec review roles", "tests and evidence", "authoritative gates and anchors", "single actual model route truthfully recorded", "skip merge"],
+  "host_signal_spoofing": false,
+  "global_toolchain_modified": false,
+  "product_implemented_by_this_record": false,
+  "new_project_directions_automatically_approved": false,
+  "note": "Approval was already received; do not ask the same question again. Subsequent user request prioritizes updated interview documents and adds future project directions."
+}
