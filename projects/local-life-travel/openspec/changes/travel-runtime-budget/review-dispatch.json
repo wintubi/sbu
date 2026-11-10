@@ -55,7 +55,7 @@
   ],
   "native_strategy_plan_domain_adversarial_grounding_fanout": "not executed: host unknown",
   "cross_model_voice": "not executed: host unknown; only one available model route discovered",
-  "design_approved": false,
+  "design_approved": true,
   "model_usage_cost": "not collected",
   "amendment_artifact_sha256": {
     "proposal.md": "e7a8904f97998c5e646b3524be0cfc8f723f7d68d27849ffd2d97e39e1960af4",
@@ -68,5 +68,6 @@
     "design.md": "fe3fb6ab0997138e72dcb328bfc890b3807af0818cb47d9c7b06374a9687e534",
     "specs\\live-runtime-control\\spec.md": "8b1465842084be9691608244565f7bd7daa7a21cc48b774250663f444a9e90bf",
     "tasks.md": "3f90a2614af257e605693fefe94bec21d530aedd90e9944a09dff90f2e2b9476"
-  }
+  },
+  "approval_source": "human t11_design_gate; review/design-decision.json"
 }

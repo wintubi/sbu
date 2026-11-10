@@ -1,6 +1,12 @@
+---
+ship-gate:
+  design_approved: true
+  reviewed_sha: 1599aa286ab35a26dda880db737e1cce04c85dc6b62e4ff8d96d32d64ed81898
+  reviewed_manifest: MTAwNjQ0IGJsb2IgYWU1YWViOGFjMzQxM2FiNDVkYTY1NjlkZmJlZTc5N2FkNDdmMTc3MglvcGVuc3BlYy9jaGFuZ2VzL3RyYXZlbC1ydW50aW1lLWJ1ZGdldC9kZXNpZ24ubWQAMTAwNjQ0IGJsb2IgYjljZWJkZmIwYWQzOTE2Yjk0Mjg3OGM2ZDQ5ZWIwY2M5OTM4MmQzMwlvcGVuc3BlYy9jaGFuZ2VzL3RyYXZlbC1ydW50aW1lLWJ1ZGdldC9wcm9wb3NhbC5tZAAxMDA2NDQgYmxvYiBjMTdmNmQ4Yjk4OWZiNjEwZGFhYzMyMTRlNTRjMGUyY2UwNmVhMDcxCW9wZW5zcGVjL2NoYW5nZXMvdHJhdmVsLXJ1bnRpbWUtYnVkZ2V0L3NwZWNzL2xpdmUtcnVudGltZS1jb250cm9sL3NwZWMubWQ=
+---
 # T11 LIVE运行控制设计评审
 
-状态：冷审、增量及最后定点复核完成，发现已在规格层关闭；建议进入真人设计门，尚未批准、产品未实现。日期2026-11-10（Asia/Shanghai）。
+状态：冷审、增量及最后定点复核完成，发现已在规格层关闭；真人已批准推荐组合，产品待实现。日期2026-11-10（Asia/Shanghai）。
 
 ## 评审执行与可信边界
 
@@ -21,9 +27,9 @@
 
 ### 拍板三问
 
-- Q-scope 范围划界认不认？自答：只做单次LIVE成本/时间/证据/资源契约；原POST等待、无后台平台。推荐把真实API取消纳入，协作式deadline不叫90秒硬返回；见proposal Non-Goals及DQ-001/002。待用户认/不认。
-- Q-deps 依赖/顺序认不认？自答：tasks的三张建议票：发送准入/正常生命周期 → deadline与真实取消/原子终态 → 异常清理与全回归。15项仍未实现，测试与说明随各票交付；P18/P19为候选，不扩张本T11 PR。待用户认/不认。
-- Q-risk 风险赌注与对策认不认？自答：上方hr-tg为已声明触发的机械交集；通过真实传输计数、批内子证据、短事务、closing占位和固定错误文本防失真。剩余同步I/O硬中断、在途撤销、崩溃账本/生产容量未承诺；本次仅同模型冷审，未获得native跨模型能力。待用户认/不认。
+- Q-scope 范围划界认不认？自答：只做单次LIVE成本/时间/证据/资源契约；原POST等待、无后台平台。推荐把真实API取消纳入，协作式deadline不叫90秒硬返回；见proposal Non-Goals及DQ-001/002。用户已在t11_design_gate批准推荐组合。
+- Q-deps 依赖/顺序认不认？自答：tasks的三张建议票：发送准入/正常生命周期 → deadline与真实取消/原子终态 → 异常清理与全回归。15项仍未实现，测试与说明随各票交付；P18/P19为候选，不扩张本T11 PR。用户已在t11_design_gate批准推荐组合。
+- Q-risk 风险赌注与对策认不认？自答：上方hr-tg为已声明触发的机械交集；通过真实传输计数、批内子证据、短事务、closing占位和固定错误文本防失真。剩余同步I/O硬中断、在途撤销、崩溃账本/生产容量未承诺；本次仅同模型冷审，未获得native跨模型能力。用户已在t11_design_gate批准推荐组合。
 
 <!-- sdflow:gate-questions v1 q="scope,deps,risk" -->
 
@@ -39,7 +45,7 @@
 
 这五项是满足已给目标的可逆技术补齐，没有因“现状不支持”砍目标，也不推给T12/P17后再假装T11闭环。所有原始发现保留；本轮没有被静默裁掉的finding。
 
-### 需真人拍板：推荐组合
+### 真人已批准的推荐组合
 
 **DQ-001 截止语义。推荐协作式90秒。** 系统：复用单调预算与HTTPX剩余操作timeout，无新进程平台；用户：截止后停止新请求/拒绝晚结果，但挂起调用或close可能更久；开发循环：假clock/MockTransport可确定性验收，局限持续可见。备选为严格90秒墙钟返回，需要可终止执行边界及跨边界结果/资源协议，须重设计。主次：本地项目先确保准入与结果诚实，不把它命名为硬SLA。可行性锚：已读Amap集中发送点和HTTPX官方超时说明（纪要C5）。
 
@@ -49,7 +55,7 @@ DQ-002可行性亲验：已读本机Starlette concurrency.py:35–37，helper调
 
 ### 已裁掉/延后
 
-无裁掉finding。两项行为选择仍未批准；P17结构化日志、T12 replay阶段事件原子性等独立结果继续原任务，不把本轮LIVE必需原子归一与错误脱敏推走。真实Key、供应商计费/准确率、领域gold、生产容量/灾备和本人掌握仍未验收。
+无裁掉finding。两项行为选择已获真人批准；P17结构化日志、T12 replay阶段事件原子性等独立结果继续原任务，不把本轮LIVE必需原子归一与错误脱敏推走。真实Key、供应商计费/准确率、领域gold、生产容量/灾备和本人掌握仍未验收。
 
 ## 修订与窄复核
 
@@ -59,6 +65,6 @@ DQ-002可行性亲验：已读本机Starlette concurrency.py:35–37，helper调
 
 ## 完成与下一步
 
-当前建议：进入真人设计门，一次性批准上述范围/依赖/风险与DQ推荐组合；所有规格层残差已完成窄复核。批准后由权威anchor_writeback写内容锚，再走ticket管线实现。用户已经授权完成后提交本次PR，未授权自动合并。GitHub CLI凭据失效属于提交认证问题，不阻塞本地规格/证据准备；没有因此读取或公开其他应用凭据。
+真人在t11_design_gate选择“按推荐方案继续（推荐）”，已批准范围/依赖/风险与DQ组合，权威anchor_writeback已写批准及内容锚；按ticket管线实现。实际决定见review/design-decision.json，未倒填历史业务门。用户已经授权完成后提交本次PR，未授权自动合并。GitHub CLI凭据失效属于提交认证问题，不阻塞本地规格/证据准备；没有因此读取或公开其他应用凭据。
 
 收尾使用anchor_lint与openspec strict校验，评审页由官方render-review-page生成；报告及修订随spec-review本地checkpoint保存，提交号以git记录为准。当前没有“产品修复通过/今日PR已创建”的声明。

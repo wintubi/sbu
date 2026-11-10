@@ -1,0 +1,14 @@
+{
+  "recorded_at": "2026-11-10T15:14:03+08:00",
+  "source": "human response to functions.ask_user_question",
+  "question_id": "t11_design_gate",
+  "selected": "按推荐方案继续（推荐）",
+  "approved_scope": [
+    "90-second cooperative deadline; not forced wall-clock return",
+    "actual same-process LIVE API cancellation using thread execution and same-key replay to obtain run_id",
+    "three-ticket order and disclosed review/risk boundaries"
+  ],
+  "publication": "submit this PR after implementation, tests and code review",
+  "merge": "not approved; skip merge",
+  "historical_product_design_gates": "not retroactively approved"
+}
