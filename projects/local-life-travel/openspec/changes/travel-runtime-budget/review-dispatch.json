@@ -1,0 +1,72 @@
+{
+  "run_id": "20261110T035200Z-zq5Eum",
+  "reviewed_commit": "b4a08e4",
+  "actual_resolver_host": "unknown",
+  "route": "DSH fresh child explicitly requested by user on 2026-11-10; do not forge native codex/claude host",
+  "scope_note": "Unknown-host standard path remains main-session review. One independent DSH cold review supplements it under the direct user request. This is not a claim that all prescribed native multi-mirror or cross-model voices ran.",
+  "tasks": [
+    {
+      "task_id": "cold-design-review",
+      "role": "independent holistic design and code-grounding review",
+      "provider": "magpie-responses",
+      "model": "codex/gpt-6.1-sol",
+      "requested_reasoning_effort": "high",
+      "effective_reasoning_effort": "not measured",
+      "context_mode": "fresh; no conversation fork",
+      "prefix_path": "openspec/changes/travel-runtime-budget/.outside-voice/20261110T035200Z-zq5Eum/prefix-spec-review.md",
+      "prefix_version": "spec-review-3a80ec0b276f",
+      "expected_result_ref": "openspec/changes/travel-runtime-budget/review/cold-findings.json",
+      "status": "completed",
+      "agent_id": "9f4dfc58-69a0-4c2d-b643-deee399a4055",
+      "result_ref": "openspec/changes/travel-runtime-budget/review/cold-findings.json",
+      "receipt_verified": true
+    },
+    {
+      "task_id": "amendment-recheck",
+      "role": "narrow delta re-review of original cold findings and proposed control API behavior",
+      "provider": "magpie-responses",
+      "model": "codex/gpt-6.1-sol",
+      "requested_reasoning_effort": "high",
+      "effective_reasoning_effort": "not measured",
+      "context_mode": "same independent child, its own cold-review history only; no parent conversation",
+      "expected_result_ref": "openspec/changes/travel-runtime-budget/review/amendment-check.json",
+      "status": "completed",
+      "agent_id": "9f4dfc58-69a0-4c2d-b643-deee399a4055",
+      "result_ref": "openspec/changes/travel-runtime-budget/review/amendment-check.json",
+      "receipt_verified": true,
+      "artifact_hashes_verified": true
+    },
+    {
+      "task_id": "final-wording-recheck",
+      "role": "final pinpoint check of AMEND-001/002",
+      "provider": "magpie-responses",
+      "model": "codex/gpt-6.1-sol",
+      "requested_reasoning_effort": "high (inherited)",
+      "effective_reasoning_effort": "not measured",
+      "context_mode": "same independent child and its own review history; no parent conversation",
+      "agent_id": "9f4dfc58-69a0-4c2d-b643-deee399a4055",
+      "result_ref": "openspec/changes/travel-runtime-budget/review/final-wording-check.json",
+      "status": "completed",
+      "receipt_verified": true,
+      "artifact_hashes_verified": true,
+      "dispatch_recorded_after_result": true,
+      "recording_note": "This pinpoint follow-up was sent in the session but omitted from manifest before dispatch; recorded from actual send_message/result, not claimed predeclared."
+    }
+  ],
+  "native_strategy_plan_domain_adversarial_grounding_fanout": "not executed: host unknown",
+  "cross_model_voice": "not executed: host unknown; only one available model route discovered",
+  "design_approved": false,
+  "model_usage_cost": "not collected",
+  "amendment_artifact_sha256": {
+    "proposal.md": "e7a8904f97998c5e646b3524be0cfc8f723f7d68d27849ffd2d97e39e1960af4",
+    "design.md": "2ffc54388bdd48b00a8aa4c21873b2a1363fa7a7c191750bb3e2c4b69fa026be",
+    "specs\\live-runtime-control\\spec.md": "3300629c532227bc45cfa08f1a3fdcccb0acfdf9bb0f4e68cdd83c6d66658700",
+    "tasks.md": "8b20a4a1df72cbb825199b6e999af8cf443446762c10e760d9372c8c3d98af60"
+  },
+  "final_artifact_sha256": {
+    "proposal.md": "e7a8904f97998c5e646b3524be0cfc8f723f7d68d27849ffd2d97e39e1960af4",
+    "design.md": "fe3fb6ab0997138e72dcb328bfc890b3807af0818cb47d9c7b06374a9687e534",
+    "specs\\live-runtime-control\\spec.md": "8b1465842084be9691608244565f7bd7daa7a21cc48b774250663f444a9e90bf",
+    "tasks.md": "3f90a2614af257e605693fefe94bec21d530aedd90e9944a09dff90f2e2b9476"
+  }
+}

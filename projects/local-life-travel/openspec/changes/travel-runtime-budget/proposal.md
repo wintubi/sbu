@@ -1,6 +1,6 @@
 # LIVE运行预算与资源边界
 
-状态：规格生成，待设计审查/真人门；产品未实现。来源：统一任务T11及用户要求继续开发，不冒充已批准上线。
+状态：2026-11-10冷审修订候选，待增量复核/真人设计门；产品未实现。来源：统一任务T11及用户要求继续开发，不冒充已批准上线。
 
 ## Why
 
@@ -12,7 +12,8 @@ LIVE目前在工具返回后才统计内部HTTP，批内已经发生的超发无
 
 - 在每次实际HTTP尝试前检查并预占预算，包含weather/hours/matrix内部循环；失败尝试计数、无HTTP的工具不虚增。
 - 沿用40次/90秒/单操作5秒默认值，以单调时钟deadline控制新请求与结果接受；把剩余时间传给HTTPX，并观察取消。
-- 持久化实际消耗与耗尽原因；拒绝晚到结果，保留已取得的工具证据；同键重放不再次外呼。
+- [spec-review-amendment COLD-001/002/003/004] 保留截止前已成功的批内子证据；LIVE取消确认及最终快照同事务归一；所有失败诊断脱敏；自有client进入closing后拒绝重绑定。
+- 持久化实际消耗与耗尽原因；拒绝晚到结果，同键重放不再次外呼。取消推荐方案为线程执行同步核心，原POST仍等待完成；并发同键同请求重放取得已有run_id后使用原取消API，不引入提前202后台平台。
 - 明确adapter/client拥有权、构造失败清理、解绑和幂等close；关闭异常不能阻止主结果落库。
 - **BREAKING（内部注入协议）**：LIVE注入适配器必须显式绑定运行guard，缺少协议时在调用工具前失败；更新本项目假适配器，不以事后计数兼容掩盖未受控外呼。
 - 使用MockTransport、假时钟和关闭计数验证，不需要真实Key或额外平台。
@@ -41,7 +42,7 @@ LIVE目前在工具返回后才统计内部HTTP，批内已经发生的超发无
 
 ## Impact
 
-Python/FastAPI后端；现有httpx、SQLite。影响`app/live.py`、`app/amap_tools.py`、`app/main.py`及新runtime模块，更新离线/假适配器测试与LIVE文档。公共路径、请求体和HTTP202入口保持；预算增加可选耗尽原因，默认值有现有代码来源；无SQLite列迁移。
+Python/FastAPI后端；现有httpx、SQLite。影响`app/live.py`、`app/amap_tools.py`、`app/main.py`、`app/store.py`及新runtime模块，更新离线/假适配器测试与LIVE文档。公共路径、请求体和HTTP202入口保持；预算对新耗尽LIVE增加必填原因（旧记录可缺失），默认值有现有代码来源；无SQLite列迁移。
 
 ```text
 POST /live-runs / revisions -> live编排 -> runtime准入/时钟/取消
@@ -71,6 +72,8 @@ POST /live-runs / revisions -> live编排 -> runtime准入/时钟/取消
 - 默认每run独立adapter/client；若共享client，必须拒绝同时绑定多个active run，不能共享预算。
 - SQLite正常可写时主结果能落盘；磁盘坏/事务失败不在此冒充容灾，原有分次run/event提交边界仍披露。
 - 设计门待确认：协作式deadline（推荐，代价是不能强制打断挂起同步I/O）是否满足本次目标；若必须严格90秒返回，采用独立可终止执行边界重新设计。负责人：主助手整理证据、真人拍板；截止：实现前。
+
+- [spec-review-amendment DQ-002] 推荐在真实单进程API中可发起取消：创建/修订移出事件循环执行，调用者用同一幂等键重放读取已创建run_id再取消；不要求原创建请求提前返回。备选为仅旁路持久状态观察（用户无法在同进程API及时取消）。此行为取舍与协作式deadline一起在真人门判断，未批准前只是设计候选。
 
 ## External Service Cost
 

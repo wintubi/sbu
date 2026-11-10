@@ -34,7 +34,7 @@ context: |
   - 对外JSON API；ToolResult显式valid/timeout/empty/unsupported/error及source_ref；未知事实不补零。
   - 现有88项离线pytest，真实高德未联调；新增预算/超时验证使用MockTransport和假时钟，不访问付费服务。
   - 本次优先修LIVE实际HTTP调用前预算、运行deadline与client关闭；不把replay恢复当LIVE恢复，不扩展多日/模型/认证。
-  - 原主仓有未提交私人内容，本worktree从origin/main 6a78560隔离；不自动推送/合并新PR，不复制凭据/历史原始数据。
+  - 原主仓有未提交私人内容，本worktree从origin/main 6a78560隔离；用户2026-11-10授权本次完成验证后提交PR；合并仍待明确决定，不复制凭据/历史原始数据。
   - 中文说明；具体需求来源为统一任务T11；旧业务设计门未通过，新change按独立规格和设计评审执行。
 
 # 按 artifact 注入的自定义规则（升级安全：在仓库内，openspec update 不覆盖）

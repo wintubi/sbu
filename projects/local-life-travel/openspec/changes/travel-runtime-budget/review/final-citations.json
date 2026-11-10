@@ -1,0 +1,38 @@
+[
+  {
+    "id": "AMEND-001-0",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md",
+    "line": 159,
+    "quote": "数字只为示例，不是已测生产延迟。新耗尽LIVE必填exhaustion_reason，非耗尽与历史记录可缺失，取消胜出删除该键；旧run按原JSON返回。同键同请求不调用factory；同键改请求仍409；缺Key仍503且不创建假成功。"
+  },
+  {
+    "id": "AMEND-001-1",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/specs/live-runtime-control/spec.md",
+    "line": 145,
+    "quote": "系统交付材料 SHALL 清楚区分HTTP尝试与收费、运行deadline与强制墙钟中断、离线契约与真实渠道效果。默认40/90/5来源、内部注入协议变化和新耗尽必填/历史可缺失的原因字段须可查。软件验收必须观察发送点、最终持久状态和资源动作，不能只检查status或提前记录未运行测试为通过。"
+  },
+  {
+    "id": "AMEND-002-0",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md",
+    "line": 161,
+    "quote": "[spec-review-amendment AMEND-002] 取消响应和CANCELLED事件按实际run.mode描述：LIVE返回mode=live，不携带REPLAY_NOTICE，不声称没有远端调用或已经撤回在途请求；只说明取消已记录、将尽力停止后续工作，已发送尝试可能仍完成。replay保留原回放说明；创建/修订真实取消烟测均断言模式与文案。"
+  },
+  {
+    "id": "AMEND-002-1",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/specs/live-runtime-control/spec.md",
+    "line": 69,
+    "quote": "- **THEN** 重放返回同run_id且不再调用factory/供应商；取消入口可被接收，响应与事件正确标示LIVE，不含回放/无远端声明，也不声称撤回在途请求；下一可观察边界停止新发送，原等待请求最终返回已提交取消态"
+  },
+  {
+    "id": "AMEND-002-2",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/tasks.md",
+    "line": 21,
+    "quote": "- [ ] 2.3 [LRC-03,LRC-06] 用短持久状态探针观察取消/缺失/读取异常，HTTP不持DB事务；将创建/修订同步核心移到已安装线程helper，原POST仍等待；验证同进程实际API在等待期间可用相同幂等键/载荷重放取得run_id并取消，下一handler不命中，重放factory/外呼增量0；LIVE取消响应/事件mode与尽力停止提示准确，不含REPLAY_NOTICE或无远端调用声明；探针失败不绕过控制，in-flight竞争局限如实记录。"
+  },
+  {
+    "id": "AMEND-002-3",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/tasks.md",
+    "line": 32,
+    "quote": "- [ ] 3.4 [LRC-01,LRC-03,LRC-04,LRC-05,LRC-07,LRC-08,LRC-09] 新增隔离进程loopback HTTP烟测，应用注入真实适配器+MockTransport合成供应商；验证创建和LIVE修订的并发POST/同键重放取得run_id/cancel/GET，不靠直接写DB；LIVE取消响应/事件模式与在途不可撤回文案准确，run/计数/清理事件与SQLite一致，脚本只访问本地、结束时停止自己创建的服务，不能因默认环境有Key而访问真实渠道。"
+  }
+]

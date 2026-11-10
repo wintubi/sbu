@@ -1,0 +1,78 @@
+{
+  "v": 1,
+  "page": "design-gate.html",
+  "revisions": [
+    {
+      "n": 1,
+      "at": "2026-11-10T12:32:11+08:00",
+      "event": "首次生成",
+      "docs": {
+        "spec-review-report": {
+          "path": "projects/local-life-travel/openspec/changes/travel-runtime-budget/spec-review-report.md",
+          "sha256": "72135b22e589aaf16130efe8cc51929e5d9d724c21abd02ecaae47ff1c0840f8"
+        },
+        "proposal": {
+          "path": "projects/local-life-travel/openspec/changes/travel-runtime-budget/proposal.md",
+          "sha256": "e7a8904f97998c5e646b3524be0cfc8f723f7d68d27849ffd2d97e39e1960af4"
+        },
+        "design": {
+          "path": "projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md",
+          "sha256": "fe3fb6ab0997138e72dcb328bfc890b3807af0818cb47d9c7b06374a9687e534"
+        },
+        "spec:live-runtime-control": {
+          "path": "projects/local-life-travel/openspec/changes/travel-runtime-budget/specs/live-runtime-control/spec.md",
+          "sha256": "8b1465842084be9691608244565f7bd7daa7a21cc48b774250663f444a9e90bf"
+        },
+        "tasks": {
+          "path": "projects/local-life-travel/openspec/changes/travel-runtime-budget/tasks.md",
+          "sha256": "3f90a2614af257e605693fefe94bec21d530aedd90e9944a09dff90f2e2b9476"
+        },
+        "decision-memo": {
+          "path": "projects/local-life-travel/openspec/changes/travel-runtime-budget/decision-memo.md",
+          "sha256": "00951f2b2e9302a4adf38987f4aa8dd9fe41fb9b2bf1a605b843deb8a6829140"
+        }
+      },
+      "notes": 0,
+      "dispositions": 0,
+      "changed": [],
+      "fp": "72f3c3a36019f59e8b3adcab893d978539079e2a2a6d022e1cbd7d349ec2c2a8"
+    },
+    {
+      "n": 2,
+      "at": "2026-11-10T12:37:32+08:00",
+      "event": "独立冷审修订与两轮增量复核完成",
+      "docs": {
+        "spec-review-report": {
+          "path": "projects/local-life-travel/openspec/changes/travel-runtime-budget/spec-review-report.md",
+          "sha256": "3ebc472672ece721f2af643464f8f442ff2ee7b8513faf6ac7cc8bab4a45cb5e"
+        },
+        "proposal": {
+          "path": "projects/local-life-travel/openspec/changes/travel-runtime-budget/proposal.md",
+          "sha256": "e7a8904f97998c5e646b3524be0cfc8f723f7d68d27849ffd2d97e39e1960af4"
+        },
+        "design": {
+          "path": "projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md",
+          "sha256": "fe3fb6ab0997138e72dcb328bfc890b3807af0818cb47d9c7b06374a9687e534"
+        },
+        "spec:live-runtime-control": {
+          "path": "projects/local-life-travel/openspec/changes/travel-runtime-budget/specs/live-runtime-control/spec.md",
+          "sha256": "8b1465842084be9691608244565f7bd7daa7a21cc48b774250663f444a9e90bf"
+        },
+        "tasks": {
+          "path": "projects/local-life-travel/openspec/changes/travel-runtime-budget/tasks.md",
+          "sha256": "3f90a2614af257e605693fefe94bec21d530aedd90e9944a09dff90f2e2b9476"
+        },
+        "decision-memo": {
+          "path": "projects/local-life-travel/openspec/changes/travel-runtime-budget/decision-memo.md",
+          "sha256": "00951f2b2e9302a4adf38987f4aa8dd9fe41fb9b2bf1a605b843deb8a6829140"
+        }
+      },
+      "notes": 0,
+      "dispositions": 0,
+      "changed": [
+        "spec-review-report"
+      ],
+      "fp": "5bdf0136b8e5dcb1d3dedc7576a3eba0dea629b93ef960297c3979afd43c99a6"
+    }
+  ]
+}

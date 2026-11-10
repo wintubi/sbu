@@ -4,6 +4,8 @@
 
 为单次真实渠道行程运行提供可核对的请求成本、处理时间和资源生命周期边界，让调用者区分已获准的HTTP尝试、预算或deadline耗尽、取消和普通工具失败。此能力用于客户端软件契约验证，不把离线成功包装成供应商成功、计费证明、严格墙钟中断或生产灾备。
 
+<!-- spec-review-amendment COLD-001/002/003/004/M1；DQ-002真实API取消为推荐候选，待真人门 -->
+
 ## ADDED Requirements
 
 ### Requirement: LRC-01 每次HTTP尝试在发送前受预算准入
@@ -48,7 +50,7 @@
 
 ### Requirement: LRC-03 观察取消并返回持久状态
 
-系统 SHALL 在LIVE工作边界和每次HTTP发送前观察持久取消状态；一旦观察到取消，不再启动新工作，保存cancelled并清理资源。返回状态 MUST 与最终持久状态一致，不能被旧内存completed复活。检查后已提交的在途请求可能仍返回，系统不承诺撤销或严格线性化取消与发送。
+系统 SHALL 在LIVE工作边界和每次HTTP发送前观察持久取消状态；一旦观察到取消，不再启动新工作，保存cancelled并清理资源。取消确认和最终提交 SHALL 各自在一个短事务中一致归一status、budget.status=cancelled、quality_status=unverified与result=null，删除耗尽分类键并保留原诊断；返回/GET/重放不可暴露混合终态。推荐候选要求同进程API可接收控制请求，通过同键重放取得运行中run_id，不要求原POST提前返回。检查后已提交的在途请求可能仍返回，系统不承诺撤销或严格线性化取消与发送。
 
 #### Scenario: 两次发送之间被取消
 - **WHEN** 第一HTTP返回后另一连接把运行取消，下一次发送前观察到取消
@@ -56,15 +58,19 @@
 
 #### Scenario: 保存竞争中取消被保护
 - **WHEN** 取消在最后边界检查后、结果保存前成功提交
-- **THEN** 保存和API返回仍为cancelled，必要时同步清除未完成结果，不凭内存completed返回成功
+- **THEN** 单次事务提交cancelled/cancelled/unverified/null一致快照，取消后和最终提交后GET/同键重放均无verified/ok混合态；不先提交再修补
 
 #### Scenario: 取消探针读取失败
 - **WHEN** 发送前无法读取受控运行状态或运行已不存在
 - **THEN** 运行以执行错误停止，不因读取失败绕过准入继续外呼；持久化失败必须如实暴露
 
+#### Scenario: 运行中从实际API取得标识并取消
+- **WHEN** 带幂等键的LIVE创建或修订仍在执行，调用者向同一单进程API并发提交相同键/载荷的重放请求
+- **THEN** 重放返回同run_id且不再调用factory/供应商；取消入口可被接收，响应与事件正确标示LIVE，不含回放/无远端声明，也不声称撤回在途请求；下一可观察边界停止新发送，原等待请求最终返回已提交取消态
+
 ### Requirement: LRC-04 保存预算耗尽的可解释结果
 
-系统 SHALL 在正常可写数据库中保存该run获准的HTTP尝试数与单调实际耗时。次数或总deadline耗尽时，运行为failed、budget.status为exhausted，附BUDGET_EXHAUSTED及可选exhaustion_reason=call_limit或deadline；未完成结果为空且质量unverified，已有工具证据保留。此保证不扩展为进程崩溃后逐HTTP精确账本。
+系统 SHALL 在正常可写数据库中保存该run获准的HTTP尝试数与单调实际耗时。次数或总deadline耗尽时，运行为failed、budget.status为exhausted，附BUDGET_EXHAUSTED及新耗尽run必填exhaustion_reason=call_limit或deadline（历史记录可缺失）；未完成结果为空且质量unverified，已有工具证据保留。此保证不扩展为进程崩溃后逐HTTP精确账本。
 
 #### Scenario: 耗尽前已有有效证据
 - **WHEN** 部分工具成功后次数或deadline耗尽
@@ -73,6 +79,10 @@
 #### Scenario: 无HTTP及历史run
 - **WHEN** 一个新run全部使用本地缓存且时间仍足够，或查询旧预算JSON
 - **THEN** 新run可为零HTTP而正常完成；旧run按原记录返回，不补造新消耗或历史耗尽原因
+
+#### Scenario: 批内成功子证据不随中断丢失
+- **WHEN** 首条路线或首个营业详情在deadline前成功规范化，下一次内部请求因额度/deadline/取消中断
+- **THEN** 重读可定位已成功子证据的来源/时间/payload，准确计数；部分批次不当完整成功，result为空且质量unverified，迟到子结果不被采为有效事实
 
 ### Requirement: LRC-05 幂等重放不重执行
 
@@ -98,6 +108,10 @@
 - **WHEN** 同client仍绑定active run时请求另一绑定，或先前run已解绑后顺序借用
 - **THEN** 前者拒绝且不改变原run控制，后者建立独立计数，不串用前次消耗
 
+#### Scenario: 自有client关闭与新绑定竞争
+- **WHEN** 旧run已进入自有资源清理但物理关闭尚未完成，另一run请求绑定同client
+- **THEN** 因closing/closed拒绝新绑定且工具调用0；关闭失败也不得恢复可借用状态，借用client单纯解绑仍可顺序复用
+
 ### Requirement: LRC-07 资源拥有权覆盖所有执行出口
 
 系统 SHALL 区分自有与借入client。拥有权转移后，成功、供应商失败、次数耗尽、deadline、取消及构造失败均须有关闭尝试；重复清理不重复关闭。借用client必须解绑控制而不擅自关闭。factory在返回对象前失败时，factory负责其未交出资源，不虚称顶层可以关闭未知对象。
@@ -122,9 +136,13 @@
 - **WHEN** 解绑步骤抛错但自有client仍可尝试关闭
 - **THEN** 继续尝试关闭，记录清理不确定性，不吞掉主结果或声称已完全释放
 
+#### Scenario: 普通网络及执行异常中的敏感文本
+- **WHEN** deadline内普通HTTPError或顶层执行异常含合成Key、query URL或私人标记
+- **THEN** 状态分类保持可识别，API结果/持久state/事件仅固定分类和安全异常类型或校验后的供应商数字码，不含这些敏感文本；并覆盖cleanup异常同一规则
+
 ### Requirement: LRC-09 验证和对外说明保持真实范围
 
-系统交付材料 SHALL 清楚区分HTTP尝试与收费、运行deadline与强制墙钟中断、离线契约与真实渠道效果。默认40/90/5来源、内部注入协议变化和可选耗尽字段须可查。软件验收必须观察发送点、最终持久状态和资源动作，不能只检查status或提前记录未运行测试为通过。
+系统交付材料 SHALL 清楚区分HTTP尝试与收费、运行deadline与强制墙钟中断、离线契约与真实渠道效果。默认40/90/5来源、内部注入协议变化和新耗尽必填/历史可缺失的原因字段须可查。软件验收必须观察发送点、最终持久状态和资源动作，不能只检查status或提前记录未运行测试为通过。
 
 #### Scenario: 开发者验收材料
 - **WHEN** 开发者阅读LIVE文档及本次测试记录
