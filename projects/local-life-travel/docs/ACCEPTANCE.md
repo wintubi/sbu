@@ -129,9 +129,11 @@ python -m pytest -q
 # 复制镜像到仓库后
 cd D:\git\sbu\projects\local-life-travel
 set TRAVEL_REPLAY_NO_AUTOSTART=1
-python -m pytest -q          # 期望 88 passed（回放 61 + 高德离线 14 + live API 13）
+python -m pytest -q -p no:cacheprovider
 python run.py                # 打开 http://127.0.0.1:8765
 ```
+
+> 本文第 2–9 节是 2026-11-07/08 历史记录（当时 `88 passed`）。本分支最新计数、LIVE 逐条证据与命令见第 10 节；不要拿历史计数当当前结果。
 
 ## 9. 2026-11-08 增量：高德适配器与 live API
 
@@ -139,3 +141,61 @@ python run.py                # 打开 http://127.0.0.1:8765
 - 全量复跑：**88 passed in 11.01s**（回放 61 + 高德离线 14 + live API 13）。
 - 新增 `app/live.py` 与 `POST /api/v1/travel/live-runs`：用可注入适配器测试成功、歧义、供应商错误、跨城、无 Key 503、幂等重放/冲突；**没有用新 Key 真实联调**，因此真实高德数据/真实行程仍未验收。详见 `docs/LIVE-AMAP.md`。
 - 无 Key 时 `python scripts/amap_probe.py` 退出 2 且不发网络请求；这是预期失败路径，不是联调成功。
+
+## 10. 2026-11-13 增量：LIVE预算、deadline、取消、异常收尾与独立进程验收
+
+> 范围：OpenSpec change `travel-runtime-budget`（LRC-01..09）的 ticket 1–3 实现证据。ticket 4 的聚合 suite-scope 验证**尚未运行**；本节的 `pytest` 是 ticket 3 的自检，不替代 ticket 4 的命中域聚合。**真实高德 Key、费用、硬中断、断电恢复均未验证。**
+
+### 10.1 分支与状态
+
+| 项 | 值 |
+|---|---|
+| 分支 | `feat/travel-runtime-budget`（起点 `03cb0d4`，ticket 3 改动未提交/未打 checkpoint 标签） |
+| 与 main | **不是 main**；未 merge / 未 push / 未归档；不得把本分支结果写成 main 现状 |
+| 独立代码审 | **未做**；未独立审前不标 T11 完成 |
+| 私人面试稿 | **未更新**（`docs/interview-v0.1.md` 的 main 现状数字保持原样） |
+| 真实供应商 | 未提供 Key、未联调；全部测试为 `MockTransport` 合成供应商 + 合成 Key `synthetic-example` |
+| 实施记录 | [ticket1](../openspec/changes/travel-runtime-budget/impl-reports/task1-http-admission.md) · [ticket2](../openspec/changes/travel-runtime-budget/impl-reports/task2-deadline-cancel.md) · [ticket3](../openspec/changes/travel-runtime-budget/impl-reports/task3-cleanup-e2e.md) |
+| 规范/设计 | [LIVE运行控制规格](../openspec/changes/travel-runtime-budget/specs/live-runtime-control/spec.md) · [设计](../openspec/changes/travel-runtime-budget/design.md) · [LIVE API 契约](LIVE-AMAP.md) |
+
+### 10.2 实测命令与计数（本分支最后一次运行）
+
+```text
+C:/Miniconda3/python.exe -m pytest -q -p no:cacheprovider
+→ 154 passed, 2 warnings in 35.81s        (exit 0)
+
+C:/Miniconda3/python.exe -m pytest -q -p no:cacheprovider tests/test_amap_tools.py tests/test_live.py tests/test_live_admission.py tests/test_live_deadline_cancel.py tests/test_live_cleanup_redaction.py tests/test_live_loopback_e2e.py
+→ 93 passed, 2 warnings in 27.59s       (exit 0；14+13+23+23+19+1)
+
+C:/Miniconda3/python.exe scripts/live_loopback_e2e.py
+→ {"create": {"close_attempts": 1, "run_id": "...", "scenario": "create",
+              "status": "cancelled", "tool_calls": 3, "transport_sends": 3},
+   "revision": {"child_run_id": "...", "child_tool_calls": 3, "close_attempts": 2,
+                "parent_run_id": "...", "parent_status": "needs_input",
+                "scenario": "revision", "transport_sends": [11, 3]},
+   "scope": "independent-process loopback; real AmapAdapter + MockTransport; ..."}
+→ E2E_OK                                 (exit 0)
+```
+
+2 条 warning 是 uvicorn 依赖的 websockets legacy DeprecationWarning，与改动无关。计数构成：134（ticket 1+2 时的全量）+ 19（`tests/test_live_cleanup_redaction.py`）+ 1（`tests/test_live_loopback_e2e.py` 包装）。
+
+### 10.3 LRC-01..09 逐条证据 / 未满足项
+
+| 需求 | 运行证据（真实测试） | 未满足/限制 |
+|---|---|---|
+| LRC-01 发送前准入 | `test_live_admission.py::test_http_boundaries_at_transport[0/1/2/40]`、`test_http_limit_is_reserved_before_transport`、`test_real_adapter_api_exact_budget_and_replay`；`test_live.py::test_live_budget_counts_internal_http_requests`；e2e create 场景 `tool_calls == transport_sends == 3` | 计数是HTTP尝试，不是供应商计费；进程崩溃前未落库部分未知 |
+| LRC-02 deadline 与结果接受 | `test_live_deadline_cancel.py::test_check_boundary_zero_and_ninety_uses_monotonic_clock`、`test_reserve_http_timeout_is_min_of_config_and_remaining`、`test_amap_client_applies_bounded_timeout_to_all_four_operations`、`test_late_tool_result_after_deadline_is_not_completed`、`test_late_needs_input_after_deadline_is_rejected`、`test_cleanup_past_deadline_rejects_completed_terminal`、`test_utc_wall_clock_jump_does_not_change_monotonic_elapsed` | 协作式 deadline，不保证90秒硬中断/撤回挂起同步调用 |
+| LRC-03 取消观察与持久状态 | `test_live_deadline_cancel.py::test_api_create_replay_then_cancel_stops_next_handler`、`test_api_revision_replay_then_cancel_stops_child_http`、`test_cancel_after_final_check_normalizes_atomic_terminal`、`test_cancel_wins_over_in_memory_exhaustion_and_drops_reason`；e2e create/revision 两场景经真实 HTTP cancel + GET/同键重放 | 检查后到发送之间的在途请求不承诺撤回；单进程线程池容量不构成生产并发承诺 |
+| LRC-04 耗尽可解释结果 | `test_live_admission.py::test_api_interrupted_batch_keeps_normalized_evidence[7/10]`；`test_live_deadline_cancel.py` 的 late/deadline 用例；e2e cancel 后保留实际计数 | 崩溃/断电后逐HTTP账本未做（T12 另跟踪） |
+| LRC-05 幂等重放 | `test_real_adapter_api_exact_budget_and_replay`、`test_idempotent_replay_does_not_build_runtime`、`test_live.py::test_live_idempotency_replay`；e2e 等待期间同键重放取 run_id 且事件不增 | 无幂等键时原同步创建完成前仍无 run_id |
+| LRC-06 适配器显式受控 | `test_live_admission.py::test_bind_race_serializes_on_client_lock_and_one_winner`、`test_owned_close_rejects_bind_while_physical_close_waits[False/True]`、`test_missing_binding_protocol_invokes_no_tool`、`test_borrowed_client_unbinds_for_sequential_runs_without_close`；`test_live_cleanup_redaction.py::test_constructor_validation_failure_closes_owned_client_and_is_idempotent` | 缺协议为已声明内部破坏性变更，无静默 fallback |
+| LRC-07 拥有权覆盖所有出口 | `test_live_cleanup_redaction.py` 的 success/provider_error/call_limit/deadline/cancel/constructor 六项、`test_factory_failure_before_return_owns_its_unreturned_resources`、`test_borrowed_client_is_not_closed_and_reused_sequentially`、`test_unbind_failure_still_attempts_physical_close_and_keeps_result`；`test_live_admission.py` 的 close 幂等/借入用例 | factory 返回前抛错时顶层无法关闭未知对象（由 factory 负责） |
+| LRC-08 清理失败不掩盖主结果/脱敏 | `test_live_cleanup_redaction.py::test_cleanup_failure_preserves_primary_provider_failure_and_budget`、`test_cleanup_failure_preserves_call_limit_category_and_exact_count`、`test_close_error_with_deadline_during_cleanup_keeps_earlier_failure`、`test_direct_create_live_run_saves_after_cleanup_failure`、`test_httpx_error_text_is_reduced_to_safe_category_and_type`、`test_provider_info_is_not_echoed_but_numeric_infocode_is_kept`、`test_top_level_execution_exception_text_is_not_persisted`、`test_cancel_probe_failure_does_not_leak_raw_exception`、`test_cleanup_exception_text_is_not_persisted`；`test_live_deadline_cancel.py::test_probe_failure_is_fixed_category_without_raw_exception_text` | 只覆盖本进程路径；外部日志采集/APM 不在本 change |
+| LRC-09 真实范围说明 | 本节 + [LIVE-AMAP.md](LIVE-AMAP.md) 6.1–6.8 + 各 ticket 报告；命令/exit/计数均为实跑，失败/未验项单列 | 真实高德、费用、计量、硬中断、断电恢复、main 合并与独立代码审均**未满足**；ticket 4 聚合验证未运行 |
+
+### 10.4 失败 / 跳过 / 未运行（分开记录）
+
+- 失败：最终 0。
+- 跳过：0（未新增 skip/xfail；无测试被删除或放宽）。
+- 未运行：真实 Key/真实高德联调、供应商计费与效果、硬中断/90秒强制返回、断电恢复、独立代码审、T11 完成、ticket 4 聚合 suite-scope、push/merge。
+- 验收边界：以上全部为**本机离线软件契约**；`completed` 只表示本进程处理结束，不代表真实行程可行或供应商成功。

@@ -17,7 +17,7 @@
 | 编排 | 自研六阶段状态机 + 单线程 worker | replay 执行、阶段快照、重启跳过已完成阶段 | 已实现 |
 | 领域计算 | 纯函数（`app/domain.py`） | 时间线前向推算、约束检查、质量判定、一次贪心重排 | 已实现 |
 | 前端 | 原生 HTML + JavaScript 单文件（`web/index.html`） | 载入场景、提交、轮询、展示时间线与问题 | 已实现 |
-| 测试 | pytest | 88 项离线回归（61 replay + 14 高德离线 + 13 LIVE 假适配器） | 已实现 |
+| 测试 | pytest | 154 项离线回归（61 replay + 14 高德离线 + 13 LIVE 假适配器 + 23 发送前准入 + 23 deadline/取消 + 19 清理/脱敏 + 1 loopback） | 已实现 |
 | 真实地图 | 高德 Web 服务 API | POI 检索/详情、地理编码、路线矩阵、天气 | 部分实现，**未真实联调** |
 | 浏览器验证 | Chrome DevTools Protocol（CDP） | F01/F07/F11/F16 页面流程抽查 | 已实现（非全量 E2E） |
 | Agent 运行时 | Python Agent：LLM 供应商、Agent 框架均**待选** | 意图解析、多轮约束、工具调用规划 | 已定方向，未实现 |
@@ -102,10 +102,10 @@ Python Agent 服务（意图解析、工具规划、约束提案、解释）
 
 ```bash
 # 在项目目录内
-python -m pytest -q -p no:cacheprovider     # 期望 88 passed（离线）
+python -m pytest -q -p no:cacheprovider     # 当前分支实测见 docs/ACCEPTANCE.md 第 10 节
 python run.py                                # http://127.0.0.1:8765
 ```
 
 - 依赖版本见 `requirements.txt` / `requirements-dev.txt`；不是完整传递依赖锁文件。
 - 测试通过只代表本机离线软件契约，不代表真实高德、业务效果或生产容量。
-- 相关文档：[整体架构](ARCHITECTURE.md)、[实现说明](IMPLEMENTATION.md)、[LIVE-AMAP](LIVE-AMAP.md)。
+- 相关文档：[整体架构](ARCHITECTURE.md)、[实现说明](IMPLEMENTATION.md)、[LIVE-AMAP](LIVE-AMAP.md)、[验收记录](ACCEPTANCE.md#10-2026-11-13-增量live预算deadline取消异常收尾与独立进程验收)。

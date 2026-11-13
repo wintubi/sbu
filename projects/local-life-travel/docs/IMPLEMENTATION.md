@@ -74,7 +74,7 @@ python run.py
 | 方法 / 路径 | 成功 | 说明 |
 |---|---|---|
 | `POST /api/v1/travel/runs` | 202 | 回放 `TravelRequest`；`Idempotency-Key` 可选（同键同请求返回同一 run，同键异请求 409） |
-| `POST /api/v1/travel/live-runs` | 202 | LIVE `LiveTravelRequest`；同步调用高德适配器；无 `AMAP_API_KEY` 时 503，不创建假成功 run |
+| `POST /api/v1/travel/live-runs` | 202 | LIVE `LiveTravelRequest`；发送前逐HTTP准入（默认40）、单调deadline（默认90秒）、可取消、异常资源收尾；无 `AMAP_API_KEY` 时 503，不创建假成功 run。契约见 [LIVE-AMAP](LIVE-AMAP.md) |
 | `GET /api/v1/travel/runs/{run_id}` | 200 | 完整 RunView；404 `RUN_NOT_FOUND` |
 | `POST /api/v1/travel/runs/{run_id}/revisions` | 202 | `selected_poi_ids` / `remove_candidates` / `time_window` / `transport` / `manual_facts`；新 run 带 `parent_run_id`，旧结果不变 |
 | `POST /api/v1/travel/runs/{run_id}/cancel` | 200 | 原子条件取消；终态 409 |
@@ -87,11 +87,13 @@ python run.py
 
 ## 5.1 LIVE 路径（未真实联调）
 
-`app/live.py` 是独立于回放状态机的同步路径：`build_live_run` → `execute_live` → `evaluate_timeline`。它复用同一 `ToolResult`/`evaluate_timeline` 契约，但不经过 replay fixture、worker 或六阶段。POI/天气/营业/路线错误分别写 issue；歧义置 `needs_input`；供应商错误/跨城置 `failed`；任何未预期异常落 `STAGE_EXECUTION_ERROR` 并保存 failed run，不留下“看起来成功”的结果。适配器通过 `create_app(live_adapter_factory=...)` 注入，测试用假适配器；生产路径构造 `AmapAdapter`，无 Key 时端点 503。live 的 `needs_input` 通过同一 `/runs/{id}/revisions` 选点生成新 live run，旧运行保留。
+`app/live.py` 是独立于回放状态机的同步路径：`build_live_run` → `execute_live` → `evaluate_timeline`。它复用同一 `ToolResult`/`evaluate_timeline` 契约，但不经过 replay fixture、worker 或六阶段。POI/天气/营业/路线错误分别写 issue；歧义置 `needs_input`；供应商错误/跨城置 `failed`；任何未预期异常落 `STAGE_EXECUTION_ERROR` 并保存 failed run，不留下“看起来成功”的结果。LIVE 运行预算、单调 deadline、API 取消、异常资源收尾与脱敏的契约见 [LIVE-AMAP](LIVE-AMAP.md) 6.1–6.8；逐条验收证据见 [ACCEPTANCE 第 10 节](ACCEPTANCE.md#10-2026-11-13-增量live预算deadline取消异常收尾与独立进程验收)。适配器通过 `create_app(live_adapter_factory=...)` 注入，测试用假适配器/真实适配器+MockTransport；生产路径构造 `AmapAdapter`，无 Key 时端点 503。live 的 `needs_input` 通过同一 `/runs/{id}/revisions` 选点生成新 live run，旧运行保留。
 
 ## 6. 预算与并发
 
 默认 `max_tool_calls=10 / max_adjustment_rounds=2 / max_total_seconds=90 / max_model_calls=0`（SPEC §8 候选起点，未实测，不作性能承诺）。超限停止后续调用、保留部分结果、`budget.status=exhausted`、写 `BUDGET_EXHAUSTED` 并置 `failed`。
+
+LIVE 路径另有独立口径：`max_tool_calls=40`（每次准入的HTTP尝试）、`max_total_seconds=90`（单调 deadline）、单操作默认 5 秒且不超过剩余时间；详见 [LIVE-AMAP](LIVE-AMAP.md) 6.1/6.5。replay 的默认值不受影响。
 
 并发处理：SQLite 单连接 + `RLock` + WAL；`create_run_atomic` 用 `BEGIN IMMEDIATE` 把 run、幂等行、intake 事件放在同一事务；`cancel_run` 用条件 `UPDATE ... WHERE status IN ('queued','running')`；`save_run` 的 `CASE WHEN status='cancelled'` 防止在途 worker 把已取消运行写回 running。worker 的未预期异常会写日志、落 `STAGE_EXECUTION_ERROR` 并置 `failed`，避免无限重试。
 

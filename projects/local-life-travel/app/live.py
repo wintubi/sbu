@@ -346,8 +346,9 @@ def create_live_run(store: Store, request: LiveTravelRequest,
             try:
                 close()
             except Exception as exc:
+                # 只保留固定类别与安全异常类型；close“尝试”不等于已释放成功。
                 add_issue(run["state"]["issues"], "RESOURCE_CLEANUP_FAILED", "warning",
-                          f"资源清理尝试失败：{type(exc).__name__}")
+                          f"资源清理尝试失败（{type(exc).__name__}）；资源是否释放未知")
         # 收尾后最后check：清理可能越过deadline，过期终态不得被接受。
         try:
             runtime.check()

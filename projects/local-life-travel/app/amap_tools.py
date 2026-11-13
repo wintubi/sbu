@@ -34,6 +34,15 @@ AMAP_BASE_URL = "https://restapi.amap.com"
 AMAP_PROVIDER = "amap-web-service"
 _CITY_SUFFIXES = ("特别行政区", "自治州", "地区", "盟", "市")
 _OPEN_RE = re.compile(r"(\d{1,2}):(\d{2})\s*[-~—]\s*(\d{1,2}):(\d{2})")
+_INFOCODE_RE = re.compile(r"[0-9]{1,8}")
+
+
+def _safe_infocode(value: Any) -> str | None:
+    """只接受纯数字供应商码；info/异常原文一律不回显。"""
+    if value is None or isinstance(value, bool):
+        return None
+    text = str(value).strip()
+    return text if _INFOCODE_RE.fullmatch(text) else None
 
 
 class AmapClient:
@@ -75,21 +84,51 @@ class AmapClient:
 
     def release(self, runtime: LiveRuntime | None, *, owns_client: bool) -> None:
         # 身份核对、解绑和closing转换在同一短锁内，HTTP/close在锁外。
+        detach_error: Exception | None = None
+        should_close = False
         with self._lock:
-            if self._runtime is not runtime:
-                raise RuntimeError("Amap runtime identity mismatch")
-            if self._state != "open":
-                return
-            self._runtime = None
-            if not owns_client:
-                return
-            self._state = "closing"
-        try:
-            self._client.close()
-        finally:
-            # 关闭失败也不能恢复open；不宣称物理释放成功。
-            with self._lock:
-                self._state = "closed"
+            # 进入时快照：只有“本run的open自有绑定”才允许在解绑失败后继续物理close。
+            owned_binding = (owns_client and self._state == "open"
+                             and self._runtime is runtime)
+            try:
+                should_close = self._detach_locked(runtime, owns_client=owns_client)
+            except Exception as exc:  # noqa: BLE001 - 解绑失败不得跳过自有close
+                detach_error = exc
+                # 身份不符意味着client属于另一个active run，绝不关闭它。
+                if owned_binding:
+                    self._runtime = None
+                    self._state = "closing"
+                    should_close = True
+        close_error: BaseException | None = None
+        if should_close:
+            try:
+                self._client.close()
+            except BaseException as exc:  # noqa: BLE001 - 仍要先完成状态收尾
+                close_error = exc
+            finally:
+                # 关闭失败也不能恢复open；不宣称物理释放成功。
+                with self._lock:
+                    self._state = "closed"
+        if detach_error is not None:
+            raise detach_error
+        if close_error is not None:
+            raise close_error
+
+    def _detach_locked(self, runtime: LiveRuntime | None, *, owns_client: bool) -> bool:
+        """短锁内按身份解绑；返回是否需要在锁外执行物理close。
+
+        独立成可注入步骤，使“解绑失败仍尝试物理close”可被观察；身份不符时
+        抛错且不返回closing，保证不会关闭另一个active run的client。
+        """
+        if self._runtime is not runtime:
+            raise RuntimeError("Amap runtime identity mismatch")
+        if self._state != "open":
+            return False
+        self._runtime = None
+        if not owns_client:
+            return False
+        self._state = "closing"
+        return True
 
     def deliver_evidence(self, tool: str, result: ToolResult) -> None:
         with self._lock:
@@ -111,7 +150,9 @@ class AmapClient:
         except httpx.TimeoutException:
             return {"_error": "timeout", "message": "Amap request timed out"}
         except httpx.HTTPError as exc:
-            return {"_error": "http", "message": f"{type(exc).__name__}: {exc}"}
+            # 只报固定类别与安全异常类型：httpx异常的str可能包含带query的URL。
+            return {"_error": "http",
+                    "message": f"Amap transport error ({type(exc).__name__})"}
         if response.status_code != 200:
             return {"_error": "http", "message": f"HTTP {response.status_code}"}
         try:
@@ -119,11 +160,13 @@ class AmapClient:
         except ValueError:
             return {"_error": "format", "message": "response is not valid JSON"}
         if not isinstance(data, dict) or str(data.get("status")) != "1":
+            infocode = _safe_infocode(data.get("infocode")) if isinstance(data, dict) else None
             return {
                 "_error": "provider",
-                "message": f"{data.get('info', 'provider error')} ({data.get('infocode', 'unknown')})"
-                if isinstance(data, dict) else "provider error",
-                "infocode": data.get("infocode") if isinstance(data, dict) else None,
+                # provider.info 是供应商文本，可能含私人/带query内容，一律不回显；
+                # 只有通过数字校验的infocode可以作为安全诊断保留。
+                "message": f"provider error (infocode {infocode})" if infocode else "provider error",
+                "infocode": infocode,
             }
         return data
 

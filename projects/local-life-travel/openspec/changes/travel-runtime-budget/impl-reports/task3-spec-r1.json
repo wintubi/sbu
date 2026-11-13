@@ -1,0 +1,106 @@
+{
+  "run_id": "20261110T182434Z-impl-N2Sw5e",
+  "task_id": "task3-spec-r1",
+  "prefix_receipt": "<!-- prefix-version: principles-b9a054bafa9c -->",
+  "verdict": "pass",
+  "checks": [
+    {
+      "item": "前缀回执与起点：prefix-principles 首行精确回执；实现基于 03cb0d4 未提交工作树",
+      "status": "pass",
+      "evidence": "openspec/changes/travel-runtime-budget/.outside-voice/20261110T182434Z-impl-N2Sw5e/prefix-principles.md:1 = '<!-- prefix-version: principles-b9a054bafa9c -->'。git rev-parse --abbrev-ref HEAD = feat/travel-runtime-budget；git log -1 = 03cb0d4（task3 无提交）；git status --porcelain 仅列 7 个 tracked 修改与 3 个实现新增文件（2 tests + 1 script）。",
+      "note": "impl-reports/task3-cleanup-e2e.md:1 的回执与首个代码块一致，未伪造版本值。"
+    },
+    {
+      "item": "六类出口（success/provider_error/call_limit/deadline/cancel/constructor_failure）自有资源 close=1；构造校验失败与 close 幂等",
+      "status": "pass",
+      "evidence": "tests/test_live_cleanup_redaction.py:191-199（completed，tool_calls==sent==15，close_attempts==1，client._state==closed）、:201-216（failed/failed，1 次发送，TOOL_PROVIDER_ERROR，close 1）、:219-229（exhausted/call_limit，tool_calls==sent==1，close 1）、:232-243（clock +91 后 exhausted/deadline，close 1）、:246-262（cancelled，tool_calls 1，unverified/null，close 1）、:265-283（非法 transport：STAGE_EXECUTION_ERROR，tool_calls 0，sent=[]，close_attempts 1；再次 client.close() 仍为 1）。实现：app/amap_tools.py:233-236 在 AmapAdapter 返回对象前关闭已移交的自有 client；app/amap_tools.py:117-131 重复清理在 state!=open 时返回 False。",
+      "note": "六项均经 TestClient 走真实 create_live_run 路径（非直接调 close）；constructor 的清理属于 design.md:77 的“创建/构造路径”，不是顶层 finally。"
+    },
+    {
+      "item": "借用 client close=0 且解绑后可被下一个 run 顺序复用",
+      "status": "pass",
+      "evidence": "tests/test_live_cleanup_redaction.py:311-329：同一借入 client 顺序跑两个 run 均 completed，boundary.close_attempts==0，client._state=='open'，client.calls==15+15==30，原拥有者再 close 时 close_attempts==1。借用路径只解绑：app/amap_tools.py:78-80、:117-131（owns_client=False 时返回 False 且不物理关闭）。票1的 adapter 级证书 tests/test_live_admission.py:327-343。",
+      "note": "借用 client 的 calls 是累计值，断言用的是两个 run 的 budget.tool_calls 之和，未重置/串用前次计数。"
+    },
+    {
+      "item": "factory 返回对象前失败：未交出资源由 factory 负责，顶层不虚称可关闭未知对象",
+      "status": "pass",
+      "evidence": "tests/test_live_cleanup_redaction.py:286-308：factory 创建 client 后在返回 adapter 前抛含合成 Key/query/私人标记的 RuntimeError，并在自身 finally 关闭该 client；断言 factory 1 次、factory_close 1 次、close_attempts==1（恰好一次，顶层无二次关闭）、tool_calls 0、sent==[]、响应不含标记。实现：app/live.py:330 后 factory 抛错时 adapter 仍为 None，:344-345 只对实际持有且 cleanup_acquired 的对象调用 close。文档：docs/LIVE-AMAP.md:145 明确“其未交出的资源由 factory 自己负责；编排层只关闭实际取得的对象”。",
+      "note": "该断言能抓住“顶层二次关闭”的行为，但无法证明顶层未来不会新增对未知对象的关闭声明；文档与代码目前一致。"
+    },
+    {
+      "item": "解绑/关闭异常相互独立尝试；重复清理不重复物理关闭；身份不符不关闭另一个 active run 的 client",
+      "status": "pass",
+      "evidence": "app/amap_tools.py:85-115：先快照 owned_binding，再在锁内执行 _detach_locked；解绑抛错时若仍是本 run 的 open 自有绑定，则置 _runtime=None/_state='closing' 并在锁外独立调用 self._client.close()，最后先抛解绑错误；:102-111 close 失败也先落 _state='closed'。:117-131 identity mismatch 抛错且不置 closing，保证不关闭不属于本 run 的 client。tests/test_live_cleanup_redaction.py:332-348：UnbindFailingClient 的 _detach_locked 抛含敏感文本 RuntimeError，断言 unbind_failures==1、close_attempts==1、主结果 completed、恰一条 RESOURCE_CLEANUP_FAILED、GET 重读仍有该 warning。重复 close 幂等另见 tests/test_live_admission.py:265-266、:335-336。",
+      "note": "_detach_locked 是可注入白盒 seam（report §10.3 已披露）；生产实现只在身份不符时抛错，而该分支有意不 close，因此“任意解绑异常都继续 close”只在注入路径可观察。"
+    },
+    {
+      "item": "cleanup 失败保留更早主类别/准确预算/证据与固定安全 RESOURCE_CLEANUP_FAILED；不宣称释放成功；不因 finally 跳过保存",
+      "status": "pass",
+      "evidence": "app/live.py:343-351：close 抛错仅追加 RESOURCE_CLEANUP_FAILED(warning)，消息仅为 '资源清理尝试失败（<type>）；资源是否释放未知'（:350-351）；:352-356 收尾后仍 check，:357 采样 elapsed，:359 finalize_run，:360-362 写 LIVE_FINISHED。tests:350-381（provider_error + close 抛 OSError：failed/failed，无 exhaustion_reason，tool_calls==sent==1，TOOL_PROVIDER_ERROR 与 RESOURCE_CLEANUP_FAILED 并存，warning 含 OSError/未知且无“已释放”，DB 重读一致，LIVE_FINISHED status=failed）、:383-397（call_limit 类别与精确计数保留）、:574-597（OSError/未知 + API/DB 无标记）、:599-613（直接 create_live_run 仍 completed 落盘，15 次发送，warning 在库）。",
+      "note": "消息使用 type(exc).__name__，不含 str(exc)；“资源是否释放未知”同时满足“不宣称释放成功”。"
+    },
+    {
+      "item": "无更早主失败时清理越过 deadline 仍拒绝过期终态（result 为空、quality unverified）",
+      "status": "pass",
+      "evidence": "tests/test_live_cleanup_redaction.py:435-476：业务路径已成功但 slow close 把时钟推过 90，最终仍 failed/exhausted/deadline、result null、quality unverified、tool_calls 15、tool_results 非空；实现是 app/live.py:352-356 的收尾后最后 check 在 :359 保存之前，_classify_control 仅在 status!=failed 时改写（app/live.py:289-301）。",
+      "note": "与票2的 test_live_deadline_cancel.py:520-531 重复覆盖同一契约，属有意加固而非换绿。"
+    },
+    {
+      "item": "[Review Focus] close 异常含敏感文本且总 deadline 在清理期间到达：保留更早主失败、仅安全 warning、持久化仍尝试、不写成已释放",
+      "status": "pass",
+      "evidence": "tests/test_live_cleanup_redaction.py:399-433：先 provider_error，随后 close 抛 OSError(含 SECRET-KEY-7f3a / ?key=...&private=PRIVATE-PARAM / PRIVATE-MARKER-9c1d) 并把时钟推过 90；断言 failed/failed（原主失败保留）、无 exhaustion_reason、tool_calls 1、elapsed>=90、TOOL_PROVIDER_ERROR + RESOURCE_CLEANUP_FAILED 且无 BUDGET_EXHAUSTED、warning 以“资源是否释放未知”结尾、API 无标记、GET 重读 budget 相等、LIVE_FINISHED status=failed、close_attempts 1。",
+      "note": "该用例同时覆盖“清理期间 deadline 到”和“敏感 close 文本”两个 Review Focus 条件，且断言了不存在 BUDGET_EXHAUSTED，能抓住旧代码用清理/时间检查覆盖主失败的回归。"
+    },
+    {
+      "item": "HTTPError/provider 文本/顶层执行异常/取消探针/cleanup 注入合成 Key/query/私人标记后，API 响应、持久 state、events、SQLite 均无泄漏，且状态分类保持正确",
+      "status": "pass",
+      "evidence": "实现：app/amap_tools.py:152-155（HTTPError 仅固定类别 + type(exc).__name__，不再 str(exc)）、:162-170（provider.info 不回显；infocode 仅 [0-9]{1,8} 全匹配才保留）、:40-45（_safe_infocode）；app/live.py:300-301（顶层仅 type 名）；app/runtime.py:63-71（探针失败 RuntimeControlError('CANCEL_PROBE_READ_FAILED', type 名)，无原始串）；cleanup 见 :350-351。测试：tests/test_live_cleanup_redaction.py:478-498（ConnectError 文本被降为类型，TOOL_PROVIDER_ERROR 分类保持，1 次计数）、:500-535（info 不回显、合法 10013 保留、非法码丢弃，消息退化为 'provider error'）、:537-550（顶层 RuntimeError 仅类型，close 1）、:552-572（CANCEL_PROBE_READ_FAILED/RuntimeError，factory 0 次）、:574-597；扫描函数 _assert_no_secrets 覆盖 API JSON、GET 重读、runs/events 原始 SQLite 行（tests:459-475 定义 _db_text/_assert_no_secrets，495-585 各注入点调用）。分类不变另有 tests/test_live_deadline_cancel.py:534-549（timeout/provider/format）。",
+      "note": "未扫 idempotency 表，但该表只存 key/request_hash/run_id，不含错误文本；外部日志/APM 不在本 change（report §7 已披露）。既有 tests/test_amap_tools.py:73-81 只断言数字 10013，未断言 provider.info，故本次脱敏没有靠改旧断言换绿。"
+    },
+    {
+      "item": "[e2e] 独立进程 loopback：真子进程 + 真实 HTTP 的并发 POST/同键重放取 run_id/cancel/GET；不旁路写 DB；计数/清理/事件与 SQLite 一致；只停自己启动的服务；显式合成 Key",
+      "status": "pass",
+      "evidence": "scripts/live_loopback_e2e.py:192-216 用 subprocess.Popen 启动独立子进程并读 PORT 握手（:150 uvicorn 绑定 127.0.0.1:0，:162 打印实际端口）；:69/:98/:144 子进程显式把 AMAP_API_KEY 设为 synthetic-example、MockTransport 断言每个请求 key，:34 常量，:97-98 不出网；:295-365 创建场景（:315 同键重放 replayed=True 且取 run_id，:321 真实 HTTP POST /cancel，:325-327 多次 GET，:349-360 发送/关闭/DB 状态与事件对账，:356 budget.tool_calls==3，:335 tool_results 来自 canonical 响应）；:367-443 修订场景（:391/:396/:425-441，父 11 + 子 3 次发送、2 次关闭、parent needs_input、child cancelled）；:254-290 只读 SQLite；:218-233 只对本子进程写 shutdown、超时才 kill 该 PID；取消全部走 HTTP，无直接写 DB。包装测试 tests/test_live_loopback_e2e.py:13-27 断言 exit 0/E2E_OK/计数/无 Traceback/哨兵 real-key-must-not-be-used 不出现。实测：该包装测试与 19 项 cleanup 测试一起 20 passed（12.94s，exit 0）。",
+      "note": "并发是双 httpx 连接打真实 loopback（原 POST 被传输层门闩阻塞，控制连接在等待期间重放并取消），不是旁路 store 调用；修订与创建各自独立子进程+SQLite。本机 NO_PROXY=[::1] 的规避（127.0.0.1 + trust_env=False）已在 report §5/§10 披露。"
+    },
+    {
+      "item": "3.5 LIVE 文档/API 契约/验收记录互链，逐条列 LRC-01..09 证据与未满足项",
+      "status": "pass",
+      "evidence": "docs/ACCEPTANCE.md:145-201 新增第 10 节：10.1 分支与状态（151-159，含规范/设计/三份 ticket 报告链接）、10.2 实测命令与计数（161-180）、10.3 LRC-01..09 九行逐条证据/未满足项（184-194）、10.4 失败/跳过/未运行分列（196-200）。docs/LIVE-AMAP.md:150-159 新增 6.7 异常收尾/脱敏与 6.8 独立进程 loopback，并在 :3 反向链接 ACCEPTANCE §10 与 ticket1/2/3 报告；docs/IMPLEMENTATION.md:90 链接 LIVE-AMAP 6.1–6.8 与 ACCEPTANCE §10；docs/TECH-STACK.md:111 与 README.md:27/41/52-56 同样互链。9 条需求的“未满足/限制”列均非空（真实 Key、费用、硬中断、断电、main 合并、独立代码审、ticket4 聚合等）。",
+      "note": "计数为实测而非预写：我复现第二组命令 93 passed / 2 warnings（与 docs/ACCEPTANCE.md:168 一致），--collect-only 得 154（与 :165 的总数一致）；未重跑 61 项 replay 以遵守“不重跑整套”。"
+    },
+    {
+      "item": "分支≠main；未独立代码审不标 T11 完成；不更新私人讲义的 main 现状数字",
+      "status": "pass",
+      "evidence": "git rev-parse --abbrev-ref HEAD = feat/travel-runtime-budget（不是 main）；git log -1 = 03cb0d4，工作树改动未提交/未打 checkpoint；docs/ACCEPTANCE.md:153-156 明确“不是 main / 未独立审前不标 T11 / 私人面试稿未更新”；docs/LIVE-AMAP.md:3 与 README.md:27/41 同样写明未审未合并；git diff 03cb0d4 -- docs/interview-v0.1.md 无输出，git status 也未列该文件；tickets.md:98-103 与 tasks.md 中票3/3.3/3.5 均仍为 [ ]。",
+      "note": "impl-report 自称 DONE 仅指实现交付；文档与票据均未把分支结果倒填 main。"
+    },
+    {
+      "item": "测试是否真能抓住行为：无放宽断言/改期望/跳过换绿；计数与断言强度可核",
+      "status": "pass",
+      "evidence": "git status/diff：没有修改任何既有 tests/ 文件（既有测试 0 改动），新增仅 tests/test_live_cleanup_redaction.py 与 tests/test_live_loopback_e2e.py；grep skip|xfail 在新测试/脚本中 0 命中，pytest.ini 无 filterwarnings/addopts 掩盖。断言强度抽查：close_attempts/sent 精确计数（tests:191-199 等）、tool_calls==sent、issue code 集合、DB 重读与原始 SQLite 扫描（tests:457-470）、warning 消息以“资源是否释放未知”结尾（:424）、非法 infocode 不得保留（:531-532）、清理后过期成功必须失败（:435-476）；若回退 get() 脱敏/解绑继续 close/final-check，上述断言中至少一条会红（report §8 的 red→green 未由我复做，见 limits）。实测：--collect-only 154；20 项新测试 + 73 项既有 LIVE 测试 = 93 passed, 2 warnings，exit 0。",
+      "note": "唯一“期望格式变化”是 provider 消息按 LRC-08 从 info 文本改为数字码/固定类别，但既有测试只断言数字 10013（tests/test_amap_tools.py:81），不构成改期望换绿。"
+    }
+  ],
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "low",
+      "file": "openspec/changes/travel-runtime-budget/impl-reports/task3-review-package.diff",
+      "line": 16,
+      "quote": " 9 files changed, 1277 insertions(+), 29 deletions(-)",
+      "reason": "该包标题自称 03cb0d4..WORKTREE，文件清单/正文却漏掉了已修改的 README.md：包内 0 处出现 README，统计为 9 files / 1277+ / 29-；而实际工作树相对 03cb0d4 是 7 个 tracked 修改（含 README，11+/5-）+ 3 个新文件，tracked 合计 166+/34-，全量应为 10 个实现变更路径、1288+/34-。impl-reports/task3-cleanup-e2e.md:45 也把 README.md 列为改动文件。只读该包的评审者会漏看 README 中的分支/main、154 passed、独立进程脚本与文档索引声明，而这些正是 3.5 要核对的内容。",
+      "recommendation": "用 `git diff 03cb0d4 -- .` 重新生成包（含 README.md），并显式列出未跟踪新文件清单；或在包头注明“docs 之外仅含 ……”，避免与 WORKTREE 全量范围混淆。"
+    }
+  ],
+  "limits": [
+    "遵守“不重跑整套”：未运行 61 项 replay 测试与完整 154 项。实际运行 tests/test_live_cleanup_redaction.py + tests/test_live_loopback_e2e.py（20 passed，12.94s，exit 0）与 tests/test_amap_tools.py + test_live.py + test_live_admission.py + test_live_deadline_cancel.py（73 passed，8.93s，exit 0），合计复现文档中的 93 项子集；--collect-only 得 154 项，与 ACCEPTANCE 10.2 一致。",
+    "未做变异测试：写范围禁止改代码，report §8 的 red→green 临时回退无法复做；改为逐条读“断言 + 被测代码路径”确认灵敏度（例如去掉 final check 会使 tests:435-476 变 completed，去掉脱敏会使 :494/:531-532 泄漏断言变红）。",
+    "e2e 是通过 pytest 包装测试（tests/test_live_loopback_e2e.py）实际执行的，包装内部真实 Popen 子进程；未单独再跑一次 scripts/live_loopback_e2e.py，但包装断言 exit 0/E2E_OK 且脚本自身对 SQLite/计数/事件逐项断言。",
+    "全部证据为 MockTransport/合成供应商与合成 Key；真实高德 Key、真实供应商数据、费用、硬中断、断电恢复、多 worker/线程池容量均未验证（与文档声明一致）。",
+    "'解绑失败仍物理 close' 只能经 _detach_locked 注入观察；生产 _detach_locked 仅在身份不符时抛错，而该分支设计上有意不 close，故“任意解绑异常”不是无条件承诺。",
+    "脱敏扫描覆盖 API 响应、runs.state、events 与 runs/events 原始 SQLite；未覆盖 idempotency 表（不存错误文本）、进程外日志/APM sink 与未被这些分支捕获的第三方文本。",
+    "未独立核对 report §8 的真实命令输出（时间/计数来自作者记录）；但 93 项子集、154 项收集数、2 条 websockets DeprecationWarning 与文档数字一致，未发现预写计数。"
+  ]
+}
