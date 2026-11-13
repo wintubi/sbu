@@ -1,0 +1,70 @@
+{
+  "run_id": "20261113T091208Z-cr-RW1pFk",
+  "base": "6a785607e4bdb52e6c1af95e7b7b585d1b5d035b",
+  "head": "111f274e5121adb032a3036f2c1978b10416b551",
+  "host": "unknown",
+  "runtime": "DSH subagents under the human-approved T11-only stage-three adapter",
+  "trivial_shape": "NOT_EXEMPT",
+  "history_lens": "skipped: no rename and no modified file >=200 lines",
+  "prefixes": {
+    "full": "prefix-code-review.md",
+    "no_principles": "prefix-code-review-np.md",
+    "principles": "prefix-principles.md"
+  },
+  "tasks": [
+    {
+      "task_id": "cr-scope",
+      "role": "Step1 scope audit",
+      "agent_id": "46ca50fc-739f-43d3-8f7b-50db2a07fa5c",
+      "prefix": "prefix-principles.md",
+      "result_ref": "impl-reports/cr-scope.json",
+      "status": "completed",
+      "findings": 6,
+      "note": "14 DONE + 1 CHANGED; 1 medium doc inconsistency (stash claim) + 5 low"
+    },
+    {
+      "task_id": "cr-domain",
+      "role": "domain lens",
+      "agent_id": "e1ec6b8e-0fc7-4a08-a862-bfcd8e7150cc",
+      "prefix": "prefix-code-review.md",
+      "result_ref": "impl-reports/cr-domain.json",
+      "status": "dispatched"
+    },
+    {
+      "task_id": "cr-adv-concurrency",
+      "role": "adversarial concurrency",
+      "agent_id": "556d2a6f-dedc-4391-b8f6-4dd14d138627",
+      "prefix": "prefix-code-review.md",
+      "result_ref": "impl-reports/cr-adv-concurrency.json",
+      "status": "completed",
+      "findings": 0,
+      "note": "refuted; 5 dismissed; 93 LIVE tests + 6x loopback green"
+    },
+    {
+      "task_id": "cr-adv-resource",
+      "role": "adversarial resource lifecycle",
+      "agent_id": "ab2ee421-700f-4407-b02b-78c5145bef79",
+      "prefix": "prefix-code-review.md",
+      "result_ref": "impl-reports/cr-adv-resource.json",
+      "status": "completed",
+      "findings": 0,
+      "note": "refuted; 5 dismissed; no provable leak/double-close/cross-run close"
+    },
+    {
+      "task_id": "cr-adv-errorpath",
+      "role": "adversarial error path/redaction",
+      "agent_id": "278662d8-6338-4407-823e-bd5e9d2c1886",
+      "prefix": "prefix-code-review.md",
+      "result_ref": "impl-reports/cr-adv-errorpath.json",
+      "status": "completed",
+      "findings": 2,
+      "note": "2 low, both pre-existing base code (parsing non-dict, adcode classification collapse); defer as existing"
+    }
+  ],
+  "outside_voice": {
+    "site": "code-voice",
+    "status": "not_run",
+    "reason": "explicit child model route is not allowed in this session; same-family fallback would not be cross-model, so recorded as unavailable rather than faked"
+  },
+  "recorded_at": "2026-11-13T17:12:57+08:00"
+}

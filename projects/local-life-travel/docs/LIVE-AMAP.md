@@ -1,6 +1,6 @@
 # 高德真实数据适配器（LIVE / 未联调）
 
-状态：适配器、`POST /api/v1/travel/live-runs` 路径与离线/假适配器测试已完成；**没有用真实 Key 成功调用过**，因此不能声称真实数据/真实行程验收通过。默认运行仍是 replay。
+状态：适配器、`POST /api/v1/travel/live-runs` 路径、发送前HTTP预算准入、单调deadline（默认90秒）、可达的API取消与原子终态、异常资源收尾与脱敏、独立进程loopback验收已实现并**离线验证**（见 6.1–6.8）；真实 Key 未提供，**没有用真实 Key 成功调用过**，因此不能声称真实数据/真实行程验收通过。默认运行仍是 replay。当前分支 `feat/travel-runtime-budget` 的改动**尚未独立代码审、未合并 main**；验收计数与逐条需求证据见[验收记录](ACCEPTANCE.md#10-2026-11-13-增量live预算deadline取消异常收尾与独立进程验收)，实现证据见[ticket1](../openspec/changes/travel-runtime-budget/impl-reports/task1-http-admission.md)/[ticket2](../openspec/changes/travel-runtime-budget/impl-reports/task2-deadline-cancel.md)/[ticket3](../openspec/changes/travel-runtime-budget/impl-reports/task3-cleanup-e2e.md)。
 
 ## 1. 为什么先做适配器而不是直接接页面
 
@@ -29,7 +29,7 @@ $env:AMAP_API_KEY = "<你的 Web 服务 Key>"
 python scripts/amap_probe.py --city 北京
 ```
 
-探测只做少量真实请求：3 次 POI 搜索、1 次天气、两两 POI 之间的路线（3 个点最多 3 条）。脚本只打印状态、匹配结果、质量状态和 issue code，不打印 Key。若 Key 无效/被回收，会输出 `provider_error`/`10013`，不会继续生成行程。
+探测只做少量真实请求：3 次 POI 搜索、1 次天气、两两 POI 之间的路线（3 个点最多 3 条）。脚本只打印状态、匹配结果、质量状态和 issue code，不打印 Key。若 Key 无效/被回收，会输出 `provider_error`/`10013`，不会继续生成行程。该脚本自行持有 `AmapClient`、不绑定单次run的runtime，因此**不受run的40次/90秒约束**（见 6.3）。
 
 预期输出示例（真实成功时）：
 
@@ -58,19 +58,120 @@ issue_codes=
 
 ## 6. Live API
 
-`POST /api/v1/travel/live-runs` 接收与 replay 相同的城市/日期/时间窗/3–6 候选，但走 `app.live`：同步调用适配器、规范化 ToolResult、用同一 `evaluate_timeline` 判定质量并落库。测试用可注入假适配器覆盖：成功、歧义 needs_input、供应商错误 failed、跨城 blocker、无 Key 503、幂等重放与冲突；歧义运行可通过 `POST /api/v1/travel/runs/{run_id}/revisions` 选点生成新的 live run，旧运行保留。真实 Key 未提供，所以这条路径仍是“代码可运行、真实未联调”。live 预算按 `AmapClient` 的真实 HTTP 调用计数（含 matrix 逐腿、hours 逐 POI detail），默认上限 40 次；超限置 `failed`/`budget.status=exhausted` 并记 `BUDGET_EXHAUSTED`。
+`POST /api/v1/travel/live-runs` 接收与 replay 相同的城市/日期/时间窗/3–6 候选，但走 `app.live`：同步调用适配器、规范化 ToolResult、用同一 `evaluate_timeline` 判定质量并落库。测试用可注入假适配器覆盖：成功、歧义 needs_input、供应商错误 failed、跨城 blocker、无 Key 503、幂等重放与冲突；歧义运行可通过 `POST /api/v1/travel/runs/{run_id}/revisions` 选点生成新的 live run，旧运行保留。真实 Key 未提供，所以这条路径仍是“代码可运行、真实未联调”。缺 `AMAP_API_KEY` 时端点返回 503 `LIVE_NOT_CONFIGURED`，不创建假成功运行；同键改载荷仍 409。
+
+### 6.1 预算是“发送前的HTTP尝试数”，默认40
+
+- 每次 `AmapClient.get` 在真正调用 httpx 之前，先向本run的 `LiveRuntime` 预占一次。预占成功才发送，`budget.tool_calls` 才 +1；第 N+1 次（上限 N）在预占处失败，**不进入传输层**，transport handler 命中 0。默认上限 40（`LIVE_MAX_TOOL_CALLS`）。
+- 计数口径是HTTP尝试，不是工具方法次数，也**不是供应商计费凭证**：连接失败、超时、供应商错误、响应格式错误的**已准入**尝试各计 1，不退还；纯本地缓存、解析、空矩阵不预占。
+- matrix 逐腿、hours 逐 POI detail、adcode/weather 都在同一 guard 内：origin 1 次、每个 POI 搜索/详情 1 次、天气（含首次 adcode）最多 2 次、营业详情每个 POI 1 次、每条腿 1 次。
+- 恰好用满上限不额外拒绝：只要不再需要新的发送，运行可在时间和业务规则满足时正常完成；`limit=0` 且需要HTTP则发送 0 次并耗尽。
+- 次数耗尽：`failed` + `budget.status=exhausted` + `exhaustion_reason=call_limit` + `BUDGET_EXHAUSTED`，`result=null`、`quality_status=unverified`；已成功的子证据（营业详情、单条腿）保留来源、抓取时间和最小payload，但**部分批次不算完整成功**。
+- 工具、子证据交付、评估都不消费预算；不存在“按工具方法数补 1”的事后记账（该旧逻辑已移除）。
+
+### 6.2 内部绑定协议（本次破坏性内部变更）
+
+- 注入的 factory 仍接收 `(city, transport)` 并返回 adapter，构造过程不得外呼；返回对象**必须有** `bind_runtime(runtime)` 和 `close()`。缺任一协议或绑定失败 → `failed` + `STAGE_EXECUTION_ERROR`，工具调用与HTTP发送均为 0。缺协议时，已取得且可清理的对象仍会尝试 `close()` 一次；绑定失败时该对象仍归原 owner，本次run**不调用**它的 `close()`。没有会静默绕过 guard 的 fallback。
+- 每个新run创建独立 `LiveRuntime`（自己的预算计数）；同一 client 同时只能绑定一个 active run，第二个绑定被拒绝，不覆盖前者的控制，原run仍可执行且预算独立。
+- 拥有权：默认 factory 用 `AmapAdapter(AmapClient(), owns_client=True)` 显式拥有独立 client；借入 client 只解绑、物理关闭次数为 0；自有 client 的 `close()` 先在同一短锁内置 `closing` 并按身份解绑，再在锁外物理关闭一次，重复清理不增加关闭次数；关闭失败也不恢复“可借用”状态。
+- 绑定失败的清理不得解绑/关闭另一个 active run 的 client；借入 client 解绑后可按顺序给下一个run复用。
+- 测试fake必须显式模拟逐HTTP准入：每个模拟发送前调用 `runtime.reserve_http(timeout)`，而不是事后按工具计 1。
+
+### 6.3 独立脚本不拥有run预算
+
+`scripts/amap_probe.py` 自行持有并关闭 `AmapClient`，不绑定 runtime：它仍受自己的单操作 timeout 约束，但**不受本run的40次/90秒约束**，也不能声称受run guard 保护。
+
+### 6.4 离线复现：修前/修后
+
+隔离的临时 SQLite + `httpx.MockTransport`（无真实网络、无真实 Key），命令：
+
+```powershell
+python openspec/changes/travel-runtime-budget/evidence/reproduce_budget.py
+```
+
+| 观察项 | 修前（基线 `6a78560`，2026-11-09 记录） | 本分支修后（2026-11-13 实测） |
+|---|---|---|
+| limit | 2 | 2 |
+| 传输层实际 attempts | 3 | 2 |
+| `client.calls` | 3 | 2 |
+| 持久化 `budget.tool_calls` | 2 | 2 |
+| `budget.exhaustion_reason` | 缺失（该键本次新增，历史run可缺） | `call_limit` |
+| `oversent` | true | false |
+| 终态 | failed / exhausted | failed / exhausted |
+
+修后一列可由该命令输出的 `limit` / `transport_attempts` / `client_calls` / `persisted_count` / `exhaustion_reason` / `run_status`+`budget_status` / `oversent` 逐项复现。修前按工具方法返回后的差额记账，超限的第3次已经发出、只是没入账；现在第3次在预占处被拒，传输层只有 2 次，持久化计数与实际准入一致。
+
+### 6.5 运行deadline：默认90秒、单调elapsed、晚到拒绝（票2）
+
+- 每个新run在落盘后、adapter factory之前取一次单调开始值（默认 `time.monotonic`，可注入）；`elapsed_seconds` 只用单调差，UTC墙钟跳变不改变预算。最终采样在收尾之后，**可能超过90秒**，不能据此声称发生过硬中断。
+- `LiveRuntime.check()` 顺序固定：先做一次单行DB短读观察持久取消状态，再判 `elapsed >= max_total_seconds`。检查点覆盖：factory前、绑定后、每次发送前（`reserve_http` 内）、`invoke` 返回后、阶段间、评估前后、接受 `completed/needs_input` 前，以及 `close` 之后的最后检查。run缺失或探针读取异常 → 运行以执行错误停止（只报固定类别/安全异常类型），不因读不到状态而绕过准入继续外呼。
+- `reserve_http(base_timeout)` 返回 `min(配置操作timeout, 剩余时间)` 且保证为正：默认操作配置5秒，不会把更短的配置放大，也不会关闭超时；HTTPX 的 connect/read/write/pool 四个操作都使用该值。已准入的尝试计数不退还。
+- 晚到分类：已准入的响应、评估或收尾在总deadline到达后返回，且没有更早主失败 → `failed` + `budget.status=exhausted` + `exhaustion_reason=deadline` + `BUDGET_EXHAUSTED`，`result=null`、`quality_status=unverified`，保留实际 `elapsed_seconds` 与已有证据；**不接受** `completed/needs_input/verified` 晚结果。普通单操作timeout但总deadline未到 → 仍保持原 timeout/provider/format 分类。已有主失败不被后续清理或时间检查覆盖（清理越过deadline也不改写原失败）。
+- 新耗尽LIVE必填 `exhaustion_reason`（`call_limit` 或 `deadline`）；历史run可缺该键，读取时按原JSON返回、不补造。取消胜出时删除该键。
+- 本契约不保证挂起的同步调用在90秒内强制返回；只保证在可观察边界后停止新请求并拒绝晚结果。清理（close/解绑）本身也可能越过deadline，此时过期终态同样被拒绝。
+
+```json
+{"mode":"live","status":"failed","quality_status":"unverified","result":null,
+ "budget":{"max_tool_calls":40,"tool_calls":4,"max_total_seconds":90,
+           "elapsed_seconds":90.2,"status":"exhausted","exhaustion_reason":"deadline"},
+ "issues":[{"code":"BUDGET_EXHAUSTED","severity":"blocker","message":"live runtime deadline exhausted"}]}
+```
+
+数字仅为示例，不是已测生产延迟；完整响应还含 `run_id/request/state/events` 等字段。
+
+### 6.6 LIVE取消契约、原子终态与检查后竞争（票2）
+
+- 取消入口仍是 `POST /api/v1/travel/runs/{run_id}/cancel`，运行中的LIVE run可取消。创建与LIVE修订的同步核心通过已安装 Starlette 的 `run_in_threadpool` 执行：原POST继续等待终态，但同一进程同一事件循环仍能受理**同键同载荷重放**（取得已创建 `run_id`）、取消与 GET；重放不新建 factory、不发HTTP、不新增完成事件。
+- 取消确认在**一个短事务**内同时归一 `status=cancelled`、`budget.status=cancelled`、`quality_status=unverified`、`result=null`，并删除 `exhaustion_reason`；保留已持久化的 `tool_calls`、`elapsed`、证据与原有 issues 诊断（不重置、不伪造）。最终保存用**另一个短事务**重新读取持久状态：若取消已在竞争中提交，则对含实际计数/elapsed/证据的快照做同样归一后一次提交，并返回 canonical 数据；GET 与同键重放不会看到 `cancelled` 与 `verified/ok` 混合的中间态，也不存在“先提交再修补”。取消确认时若本次run的最新计数尚未落盘，读出的是当时已持久化的值；本次run的实际计数/elapsed/证据由原等待POST的最终保存写入。
+- 已提交的业务失败先于取消时，取消API仍按 terminal 返回 409 `RUN_NOT_CANCELLABLE`。
+- LIVE 取消响应与 `CANCELLED` 事件按实际 `mode=live` 描述，不携带 `REPLAY_NOTICE`，不声称没有远端调用或已撤回在途请求；只说明取消已记录、将尽力停止后续发送、已发送尝试可能仍完成。响应片段示例（还含 `run_id/replay_notice/executed_stages/events`）：
+
+```json
+{"mode":"live","status":"cancelled",
+ "budget":{"max_tool_calls":40,"tool_calls":0,"max_total_seconds":90,
+           "elapsed_seconds":0.0,"status":"cancelled"},
+ "quality_status":"unverified","result":null,
+ "message":"已记录取消：将尽力停止后续发送；已发送的尝试可能仍完成或返回，不声称撤回在途请求，也不保证立即返回。"}
+```
+
+（片段；示例中的计数是取消确认时已持久化的值，最终快照以实际计数/elapsed/证据为准。）
+
+- 检查后竞争：取消确认与发送之间存在窗口，已提交的在途请求可能仍返回；系统只保证下一次边界检查停止新发送、最终终态一致，不承诺严格线性化或强制撤回。取消探针只持有单行DB短读，HTTP 与 `close` 都不在DB锁内。
+- replay 取消行为保持原样：`mode=replay` + `REPLAY_NOTICE` + 原回放说明与文案。
+
+### 6.7 异常资源收尾与脱敏（票3）
+
+- 六类出口都有一次清理**尝试**：成功、供应商失败、次数耗尽、deadline、取消、构造校验失败。自有 client 由 `AmapAdapter(owns_client=True)` 在短锁内先标 `closing` 并按身份解绑，再在锁外物理 `close()`；重复清理不重复物理关闭。借入 client 只解绑，物理关闭次数为 0，解绑后可按顺序给下一个 run 复用。
+- 构造校验失败（如非法 transport）在 `AmapAdapter` 返回对象前关闭已移交的自有 client，且再次 `close()` 幂等。自定义 factory 在返回对象前抛错时，其未交出的资源由 **factory 自己**负责；编排层只关闭实际取得的对象。
+- 解绑步骤抛错时，自有 client 的物理关闭仍独立尝试一次；身份不符（client 仍属于另一个 active run）时不会关闭它。关闭/解绑失败只写固定 `RESOURCE_CLEANUP_FAILED` warning，消息仅含固定类别与安全异常类型，并明确“资源是否释放未知”——**close 一次尝试不等于资源已释放**。清理异常不会跳过最终保存，也不会覆盖更早的主失败类别/准确计数/证据；没有更早主失败时，清理后仍会做最后检查，清理越过 deadline 的过期成功终态仍被拒绝。
+- 脱敏采用允许列表：`httpx.HTTPError` 只保留固定类别与异常**类型名**（不写 `str(exc)`、不带 query 的 URL）；供应商 `info` 不回显，只有通过纯数字校验的 `infocode`（如 `10013`）可保留；顶层执行异常只保留类型名；取消探针失败只保留固定分类 + 安全异常类型；cleanup 异常同样只保留类型名。API 响应、持久 state 与事件都不含合成 Key、带 query URL 或私人标记（测试逐项扫描响应、SQLite 行与 events）。
+- [Review Focus] close 异常含敏感文本且总 deadline 在清理期间到达：保留更早主失败（如 provider_error / call_limit）与准确预算，仅追加安全 warning；持久化仍尝试并写 `LIVE_FINISHED`，不把这次 close 描述成“已释放”。
+
+### 6.8 独立进程 loopback 验收（票3）
+
+```powershell
+C:/Miniconda3/python.exe scripts/live_loopback_e2e.py
+# → 一行 JSON 汇总 + E2E_OK，exit 0
+```
+
+- 脚本用子进程启动**独立 uvicorn 应用进程**（`127.0.0.1:0`，端口由子进程 stdout 握手返回，不假设端口空闲）；应用内注入真实 `AmapAdapter` + `httpx.MockTransport` 合成供应商，显式合成 Key `synthetic-example`，**不读取宿主真实 `AMAP_API_KEY`**，不发出真实网络请求。父进程 HTTP 客户端用 `trust_env=False`，只连 `127.0.0.1`。
+- 覆盖两个场景：①创建：并发原 POST + 同键同载荷重放（取得 run_id）+ 真实 `POST /cancel` + 多次 GET，随后释放被阻塞的传输层；②LIVE 修订：父 run 先进入 `needs_input`，再对修订 POST 做同键重放/取消/GET。取消只走真实 HTTP cancel 入口，不直接写 DB。
+- 核对：HTTP 响应与 SQLite 中的 run 状态、`budget.tool_calls`、`tool_results`、`LIVE_FINISHED`/`CANCELLED` 事件一致；子进程日志中的 factory/发送/物理关闭尝试次数与响应计数、DB 记录一致（创建场景 3 次发送/1 次关闭；修订场景父 11 次 + 子 3 次发送/2 次关闭）；取消后下一次 handler 不命中；LIVE 取消文案为“尽力停止后续发送、已发送尝试可能仍完成、不撤回在途请求”。
+- 脚本结束时只向自己启动的子进程发 shutdown 并等待；超时才 kill 该子进程，不停止其他服务。本机 `NO_PROXY` 含 `[::1]` 会让不带 transport 的默认 `AmapClient()` 在解析环境代理时构造失败（`InvalidURL: Invalid port ':1]'`）；脚本用 `127.0.0.1` + `trust_env=False` + MockTransport 规避，**未修改全局环境**，也不把该规避说成生产修复。
+
 
 ## 7. 测试
 
 ```powershell
 $env:TRAVEL_REPLAY_NO_AUTOSTART='1'
-python -m pytest -q tests/test_amap_tools.py
-# 14 passed
-python -m pytest -q
-# 88 passed（回放 61 + 高德离线 14 + live API 13）
+python -m pytest -q -p no:cacheprovider tests/test_amap_tools.py tests/test_live.py tests/test_live_admission.py tests/test_live_deadline_cancel.py tests/test_live_cleanup_redaction.py tests/test_live_loopback_e2e.py
+# 2026-11-13 本分支实测：93 passed（高德离线 14 + live API 13 + 发送前准入/资源闭环 23 + deadline/取消/loopback 23 + 异常收尾/脱敏 19 + 独立进程包装 1）
+python -m pytest -q -p no:cacheprovider
+# 2026-11-13 本分支实测：159 passed（134 旧 + 19 异常收尾/脱敏 + 1 独立进程包装 + 5 代码审修复回归）
 ```
 
-离线测试用 `httpx.MockTransport`，覆盖：唯一匹配、同名歧义、空结果、Key 回收、超时、坏坐标、天气日期覆盖/不覆盖、路线时长距离、营业时间有/无。**没有真实网络请求**。
+实际计数以本分支最后一次运行为准，不预写“计划通过数”；逐条命令、exit 与文件构成见[验收记录](ACCEPTANCE.md#10-2026-11-13-增量live预算deadline取消异常收尾与独立进程验收)。每个测试用 pytest fixture 在 `data/pytest/` 下建一次性 SQLite（或在进程内用 `httpx.MockTransport`），不共享库、不出网。离线测试覆盖：唯一匹配、同名歧义、空结果、Key 回收、超时、坏坐标、天气日期覆盖/不覆盖、路线时长距离、营业时间有/无；发送前准入（limit=0/1/2/40、第N+1次不命中handler、失败尝试计数、本地0消耗）、批次中断保留子证据、同键重放不重执行、自有/借入client清理、bind-v-bind / bind-v-close 并发，以及同一对象连续两次失败 bind 后两次清理均不触碰原 owner（client 仍 open、物理关闭 0 次、原 run 仍可发送）。deadline/取消新增：假时钟0/90边界与取消优先、剩余1秒与0.25秒配置下四类操作timeout、UTC墙钟跳变、探针缺失/异常不发送且不泄露原始异常串、factory前0预算、晚到响应/评估/收尾拒绝、普通timeout保持原分类、主失败不被时间检查覆盖、幂等重放不建runtime、已提交失败取消409；以及进程内真实loopback（127.0.0.1）并发创建与修订：等待期间同键重放取 run_id（factory/HTTP/完成事件增量0）、原cancel入口可达、检查后竞争下独立连接GET与重放始终读到归一快照、下一handler不命中，且取消响应/事件标LIVE。异常收尾/脱敏新增：六类出口清理尝试、构造校验失败/close幂等、factory未交出资源、借入close 0且顺序复用、解绑失败仍尝试物理close、cleanup失败保留主类别/准确预算/证据且不跳过保存、close敏感文本+清理期间deadline的Review Focus、HTTPError/provider info/顶层异常/探针/cleanup的合成Key/query/私人标记扫描（API/state/事件/SQLite均不含）。**没有真实网络请求**，全部用合成凭据 `synthetic-example`，不用真实sleep制造90秒；独立进程 loopback 见 6.8。
+
 
 ## 8. 下一步
 

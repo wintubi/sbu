@@ -1,0 +1,42 @@
+{
+  "run_id": "20261113T091208Z-cr-RW1pFk",
+  "task_id": "cr-adv-resource",
+  "prefix_receipt": "<!-- prefix-version: code-review-8b697f286cdb -->",
+  "refuted": true,
+  "findings": [],
+  "dismissed": [
+    {
+      "file": "app/amap_tools.py",
+      "line": 91,
+      "reason": "release 的重复关闭/解绑状态机逐路径推演并实测：第一次 self-owned release 在短锁内把 _state 置 closing，锁外物理 close 后置 closed；第二次 release 进入 _detach_locked 时因 _state != open 直接返回 False，不会第二次物理关闭；借用路径（owns_client=False）只清 _runtime、不 close。探针实测同一 AmapAdapter.close() 连调两次后 transport 关闭计数=1、client._state='closed'。91-100 的 owned_binding 恢复分支在基类不可达（_detach_locked 唯一抛错点是身份不符，而身份不符时 owned_binding 必为 False），它是测试子类注入 _detach_locked 以观察“解绑失败仍物理 close”的可注入 seam，不是泄漏或双关路径。"
+    },
+    {
+      "file": "app/amap_tools.py",
+      "line": 82,
+      "reason": "AmapClient.close() 走 release(None, owns_client=True)：若 client 仍绑定某 run 且 _state=open，身份核对抛 RuntimeError，client 保持 open 且仍绑定（探针实测 state=open、runtime 非 None、物理 close=0，即“不关别人的 client”）。仓内 app 代码唯一调用点是 AmapAdapter.__init__ 对刚创建、尚未绑定的 client（非法 transport 分支），scripts/amap_probe.py 的 finally 也是对未绑定 client 调用；绑定态直接调 close() 是绕过契约的调用方错误，不构成仓内可达泄漏。"
+    },
+    {
+      "file": "app/live.py",
+      "line": 336,
+      "reason": "失败 bind 后置 cleanup_acquired=False、finally 不调用 close：对仓内唯一实现 AmapAdapter 这是正确的——client.bind_runtime 只在 client 已归别的 run（state 非 open 或 _runtime 非 None）时抛错，此时 adapter 置 _closed 且绝不物理关闭共享 client（app/amap_tools.py:255-261，注释与实现一致），测试 test_reentrant_factory_object_failure_does_not_clean_active_owner / test_two_failed_binds_then_cleanups_leave_owner_client_open 已钉住原 owner client 仍 open、close 次数 0、原 run 仍能发送。能构造出泄漏的只有“自定义 adapter 在 client 绑定成功后、bind_runtime 返回前抛错”的半绑定实现（一次性探针可复现 client 仍 open、仍绑定、物理 close=0），但仓内无此实现，注入协议把 bind 失败的原子性归给 adapter；BaseException 变体（335 行只捕 Exception）只能来自进程级中断，不另报为 finding。"
+    },
+    {
+      "file": "app/live.py",
+      "line": 348,
+      "reason": "finally 的 close 抛错被降级成 RESOURCE_CLEANUP_FAILED 警告后仍继续最终 check、采样 elapsed 并 finalize；物理 close 抛错时 AmapClient.release 的 finally 已无条件把 _state 置 closed（app/amap_tools.py:106-111），既不恢复 open 也不允许后续 bind/复用，重复 close 也不会再尝试物理关闭，因此不存在“close 失败后状态回退导致的二次关闭/泄漏”。若 close 抛 BaseException 会跳过 finalize、让 run 行停在 queued，但那需要进程级中断且 client 已离开 open；run 未落终态属持久化/错误路径问题（票 T12 另跟踪），不是 client 资源泄漏，不在本镜计 finding。"
+    },
+    {
+      "file": "app/main.py",
+      "line": 139,
+      "reason": "lifespan 中 app 自建的 Store（129-131）只在 owns_resources=True 时 close（139-140），create_app() 默认 False 时会让 app 自建连接不关；但该模式在评审基线 6a78560 已存在（git show 基线同文件同逻辑），非本 change 引入，且仓内唯一生产入口是 app = create_app(autostart=..., owns_resources=True)（423 行）会关闭，其余调用均显式注入 store/worker 并由调用方收尾。派发点名要审的默认 factory owns_client 路径（170-171）每次调用新建 AmapClient 并以 owns_client=True 显式移交，六类出口各关闭一次、借用 0 次，未发现误关/漏关。"
+    }
+  ],
+  "limits": [
+    "0 findings 是逐路径复核后的否定结论，不是未审：完整读过 app/amap_tools.py 的 bind/unbind/release/close 状态机、app/live.py 的 create→check→factory→protocol→bind→execute→finally→finalize 全部出口、app/main.py 默认 factory 的 owns_client 转移与 lifespan 收尾，以及 tests 的六类出口 close 计数。",
+    "实测证据（未改代码、未落额外文件）：C:/Miniconda3/python.exe -m pytest -q -p no:cacheprovider tests/test_live_cleanup_redaction.py -k \"exit or constructor or factory or borrowed\" → 8 passed（success/provider_error/call_limit/deadline/cancel 各自 close_attempts==1，constructor_failure close==1 且幂等，factory 未交出资源由 factory 关闭一次，借用 close==0）；另用一次性 python -c 探针确认：连续两次 AmapAdapter.close() 物理关闭=1、AmapClient.close() 在绑定态抛错且不关闭、绑定失败不触碰原 owner client。",
+    "未跑全量 154 项与独立进程 loopback e2e（本镜只读+聚焦运行）；未验证真实并发交错、真实高德供应商、进程崩溃/断电恢复，也未复验实现报告里的红→绿过程。",
+    "按“无法证明的不报”口径，以下已评估但不计 finding：半绑定自定义 adapter 漏关自己的 client、对绑定态 client 直接调 AmapClient.close()、cleanup 的 BaseException 变体、lifespan 自建 store 未关——分别属注入契约边界、契约外调用、进程级中断、评审基线既有且生产入口不可达。",
+    "已知遗留项不在本镜派发审阅面、不重复上报：实现审 task3-standards-r1 的 STD-01（scripts/live_loopback_e2e.py:198 阻塞 readline 使 25s 握手超时失效；握手卡住时子 uvicorn 进程不由脚本收尾，父进程被外层 timeout 杀掉后子进程靠 stdin EOF 退出）。该文件不在本镜指定文件范围，且为已知 Minor。",
+    "本镜结论仅覆盖仓内契约路径（create_live_run + AmapAdapter/AmapClient + create_app 默认 factory）；外部调用者直接操纵内部对象（未绑定即 close、多次 close、跨 run 共享 client）不在 LRC-07 的契约保证内，未作为 finding 依据。"
+  ]
+}

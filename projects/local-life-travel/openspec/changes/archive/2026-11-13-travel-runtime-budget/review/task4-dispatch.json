@@ -1,0 +1,52 @@
+{
+  "phase": "sdflow-implement mode=tickets-exec change=travel-runtime-budget done_tasks=[1,2,3]",
+  "run_id": "20261110T182434Z-impl-N2Sw5e",
+  "native_host": "unknown",
+  "gate_done_tasks": [
+    "1",
+    "2",
+    "3"
+  ],
+  "frontier": [
+    4
+  ],
+  "before_sha": "1aee907",
+  "prefix": ".outside-voice/20261110T182434Z-impl-N2Sw5e/prefix-principles.md",
+  "shared_context": "review/task4-shared-context.md",
+  "suite_scope": {
+    "base": "6a785607e4bdb52e6c1af95e7b7b585d1b5d035b",
+    "head": "1aee907de9f6245877fe03ce77fc24afb7e3f767",
+    "domains_configured": false,
+    "layers": {}
+  },
+  "tasks": [
+    {
+      "task_id": "task4-aggregate",
+      "role": "fresh implementer (aggregate evidence only)",
+      "context_mode": "fresh",
+      "route": "parent default",
+      "result_ref": "impl-reports/task4-aggregate.md",
+      "status": "completed",
+      "runtime_agent_id": "9328a363-94f2-43a6-9ab6-846601238a24",
+      "attribution_recorded_at": "2026-11-13T16:54:02+08:00",
+      "result": "DONE; 154 passed; loopback E2E_OK; report task4-aggregate.md"
+    }
+  ],
+  "recorded_at": "2026-11-13T16:53:44+08:00",
+  "reviews": [
+    {
+      "axis": "standards",
+      "runtime_agent_id": "82f75d02-468b-4075-bd6a-9fe37a086b3c",
+      "result_ref": "impl-reports/task4-standards-r1.json",
+      "status": "dispatched",
+      "route": "parent default"
+    },
+    {
+      "axis": "spec",
+      "runtime_agent_id": "a9866c23-f73a-463b-bea1-018bd7e6a8c1",
+      "result_ref": "impl-reports/task4-spec-r1.json",
+      "status": "dispatched",
+      "route": "parent default"
+    }
+  ]
+}

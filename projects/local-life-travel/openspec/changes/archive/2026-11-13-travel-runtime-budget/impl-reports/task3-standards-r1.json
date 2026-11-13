@@ -1,0 +1,88 @@
+{
+  "run_id": "20261110T182434Z-impl-N2Sw5e",
+  "task_id": "task3-standards-r1",
+  "prefix_receipt": "<!-- prefix-version: principles-b9a054bafa9c -->",
+  "verdict": "pass",
+  "findings": [
+    {
+      "id": "STD-01",
+      "severity": "Minor",
+      "file": "scripts/live_loopback_e2e.py",
+      "line": 198,
+      "quote": "                line = self.proc.stdout.readline()",
+      "reason": "196 行设了 `deadline = time.monotonic() + 25`，但循环体第一句是阻塞 `readline()`，208 行的 deadline 判断只有在“读到一行（或 stdout EOF）”之后才会执行。子进程若在打印 `PORT=` 之前卡住（导入挂起、`Store(args.db)` 等锁、`create_app` 之前阻塞），父进程就永久阻塞在 198 行，25 秒握手超时根本不生效；而 docs/LIVE-AMAP.md 6.8、README 教的单独命令 `python scripts/live_loopback_e2e.py` 没有外层 timeout，210-215 行的 `except BaseException` 收尾也走不到，等于“失败”变成“无限挂住”。同一处还有第二个互锁源：`stderr=subprocess.PIPE`（194 行）在握手期间无人读取，子进程若在 PORT 之前向 stderr 写入超过管道缓冲（依赖 warning/大 traceback），父子进程会互相阻塞，连 EOF 都等不到。CR-04/CR-09：失败路径上的进程收尾与超时语义必须真会生效。不产生假绿，故 Minor。",
+      "recommendation": "让 25 秒 deadline 真生效：握手改成“读线程 + `proc.wait(timeout=25)`”或轮询临时文件/端口就绪，主线程不再无超时阻塞在 readline；同时用 daemon 线程持续 drain stderr（或直接 `stderr=临时文件`），消除管道缓冲互锁。补一条“子进程不打印 PORT 时 25 秒内失败退出、并 kill 了自己启动的子进程”的聚焦测试。"
+    },
+    {
+      "id": "STD-02",
+      "severity": "Minor",
+      "file": "scripts/live_loopback_e2e.py",
+      "line": 456,
+      "quote": "    work = Path(tempfile.mkdtemp(prefix=\"live-loopback-\", dir=str(PROJECT_ROOT / \"data\")))",
+      "reason": "456 行在 `try:`（458 行）之外，且 `data/` 在仓库里没有任何 tracked 文件（`git ls-files data` 为空，`.gitignore` 只有 `data/*.sqlite3*`），新 clone 不含该目录。于是文档给出的独立命令在干净工作区直接抛未捕获 `FileNotFoundError`：既没有 `E2E_FAILED; artifacts kept at ...` 的失败说明，也不走 474 行 finally 的清理/退出码约定，只剩裸 traceback。`tests/test_live_loopback_e2e.py` 单独运行时同理：该测试不用 conftest 的 `store`/`db_path` fixture，没人替它建 `data/`，只能靠同一次全量运行里别的测试先建目录才偶然成立（本次实测 20 passed 是因为本工作区已存在 `data/`）。属“环境前提缺失却在仓库里不成立”的可复现性缺陷，失败是响的，故 Minor。",
+      "recommendation": "`dir` 不存在就先 `mkdir(parents=True, exist_ok=True)`，或直接用 `tempfile.mkdtemp()` 落系统临时目录；并把 mkdtemp 移进 `try`，使环境准备失败也走统一的 `E2E_FAILED` + exit 1 路径。"
+    },
+    {
+      "id": "STD-03",
+      "severity": "Minor",
+      "file": "tests/test_live_loopback_e2e.py",
+      "line": 26,
+      "quote": "    assert \"real-key-must-not-be-used\" not in combined",
+      "reason": "子进程 `_child_serve` 在 import app 之前就把 `os.environ[\"AMAP_API_KEY\"] = SYNTHETIC_KEY`（脚本 66-69 行）覆盖掉了宿主继承的哨兵值，因此该断言结构上恒真：它只能抓到“父脚本把 env 打印进输出”，抓不到注释声称的“脚本必须继续用显式合成 Key + MockTransport”。真正守住“不出网/不用宿主 Key”的只有 factory 显式传 key + `SyntheticProvider._handle` 的 key 断言 + MockTransport。也就是说票3要求“无论环境是否有 Key 都不得访问真实供应商”的证据链比文档口径（LIVE-AMAP 6.8“即使调用者环境里设置了真实 AMAP_API_KEY…也不会使用”、报告 §5 同句）弱一档：断言守的是一个不可能发生的事件。",
+      "recommendation": "二选一使红线可证伪：(a) 子进程不要覆盖 `AMAP_API_KEY`，让哨兵留在真实可达位置——任何绕过注入 factory 的 `AmapClient()` 都会带上哨兵 key，可在合成 transport 的 key 断言里抓住；(b) 子在进程内把真实出网打桩成抛错（`socket.socket.connect` / `httpx.HTTPTransport.handle_request`），断言之从未被调用，并把该断言写进汇总输出。"
+    },
+    {
+      "id": "STD-04",
+      "severity": "Minor",
+      "file": "docs/TECH-STACK.md",
+      "line": 20,
+      "quote": "| 测试 | pytest | 88 项离线回归（61 replay + 14 高德离线 + 13 LIVE 假适配器） | 已实现 |",
+      "reason": "本次 diff 在同文件 §6 已把“期望 88 passed”改成指向 ACCEPTANCE 第 10 节，但第 20 行能力表仍写“88 项离线回归（61+14+13） | 已实现”。实测 `pytest --collect-only` 为 154 项（14+17+24+7+13+23+19+23+1+13），ACCEPTANCE 10.2 与 README 也写 154；同一份文档里两处“当前测试规模”互相矛盾，而这一行正是读者判断测试规模用的表格行。属文档与实测不一致（CR-07 可观测口径一致性），不影响代码行为，故 Minor。",
+      "recommendation": "该行改为当前实测计数（或写“见 docs/ACCEPTANCE.md 第 10 节”，不写死数字），并确认 61/14/13 的历史拆分是否还需要保留；若保留历史拆分，明确标注“历史”。"
+    },
+    {
+      "id": "STD-05",
+      "severity": "Minor",
+      "file": "openspec/changes/travel-runtime-budget/impl-reports/task3-review-package.diff",
+      "line": 16,
+      "quote": " 9 files changed, 1277 insertions(+), 29 deletions(-)",
+      "reason": "包首行声明 `03cb0d4..WORKTREE`，但 `git status` 与 `git diff --stat 03cb0d4` 显示 tracked 改动是 7 个文件、`166 insertions(+), 34 deletions(-)`；其中 `README.md`（+12/−4，含“154 passed”计数、分支≠main 声明、3 份实施报告与验收记录的互链）完全没有出现在包的 Files changed（7-15 行）与正文 diff 里，包内只有 6 tracked + 3 untracked = 9 个文件。只按本包审的人会漏审 README 的对外口径与链接；且报告 §2 自己写“git diff --stat（tracked）：7 files changed”，与本包不一致，说明包与工作区不同步。这是评审输入的可信度问题（不是产品代码缺陷），故 Minor；但它使“包=完整工作区改动”的前提不成立。",
+      "recommendation": "重新生成包并纳入 README.md（或在包内显式列出排除文件与理由），生成后把“Files changed”与 `git diff --stat 03cb0d4` 机械对齐；若 README 是在包生成之后才改的，需同步刷新包再进入下一轮评审。"
+    }
+  ],
+  "dismissed": [
+    {
+      "file": "app/amap_tools.py",
+      "line": 98,
+      "reason": "重点核查“解绑失败仍 close 会不会关到别人的 client”：`owned_binding` 快照与 `_runtime=None/_state=\"closing\"` 转换在同一次 `self._lock` 临界区内完成，物理 close 在锁外但此时 state 已非 open，`bind_runtime` 会拒绝，新 run 不可能在“旧 owner 解绑与关闭之间”拿到该 client。逐条推演过同一 adapter 两次失败 bind、直接 `unbind_runtime` 后改绑 R2、以及 `AmapClient.close()`（runtime=None）在已绑定 client 上的路径：身份不符时 `owned_binding` 为 False，只会抛错、不 close，符合 COLD-004。不报。"
+    },
+    {
+      "file": "app/amap_tools.py",
+      "line": 101,
+      "reason": "该分支（解绑抛错仍置 closing 并物理 close）在基类里只有“身份不符”一个触发点，而身份不符时 `owned_binding` 为 False 故意不 close，因此生产路径不可达，只有子类注入 `_detach_locked` 才走得到。这是把“解绑失败仍尝试物理关闭”落成可观察 seam 的取舍，方法 docstring 与报告 §10 concern 3 都已明说；评审要求本身是防御性的，不按“测试驱动的死代码”上报。"
+    },
+    {
+      "file": "app/live.py",
+      "line": 299,
+      "reason": "`f\"运行状态探针失败：{exc}\"` 里的 `exc` 是 `RuntimeControlError`，其 message 只由固定 category + 安全异常类型名拼成（runtime.py 37-41），不含原始异常串；与 301 行的 `type(exc).__name__` 属同一允许列表口径。"
+    },
+    {
+      "file": "scripts/live_loopback_e2e.py",
+      "line": 163,
+      "reason": "曾怀疑外层 `subprocess.run(timeout=180)` 杀掉脚本时会遗留 uvicorn 孙进程（脚本的 ChildApp 收尾不再执行）。核查后不成立：脚本是先被杀的直接子进程，其退出会关闭孙进程 stdin 管道的写端，孙进程在 163 行 `for line in sys.stdin` 上读到 EOF 后走 `should_exit=True` 优雅退出。不报（握手卡死那一面已在 STD-01 单列）。"
+    },
+    {
+      "file": "tests/test_live_cleanup_redaction.py",
+      "line": 198,
+      "reason": "`assert adapter.client._state == \"closed\"` / 323 行 `client._state == \"open\"` 是对私有属性的白盒断言，但 open/closing/closed 是 shared-context COLD-004 明确规定的契约状态机，task1 的 `test_live_admission.py` 也已按同一口径断言；不属“耦合偶然实现细节”的过度白盒。"
+    }
+  ],
+  "limits": [
+    "未跑整套回归：只跑聚焦测试 `tests/test_live_cleanup_redaction.py` + `tests/test_live_loopback_e2e.py`（20 passed in 13.17s，exit 0），并用 `pytest --collect-only` 核对全量为 154 项；因此本报告不含全量套件结论。",
+    "TDD 顺序（红→绿）无法从工作区核验：报告 §8 的红记录依赖“先备份实现再回退”的临时状态，当前实现已恢复，未复现该红态。",
+    "无真实 Key/真实供应商：所有脱敏、清理、取消结论只覆盖本进程 + MockTransport 路径；外部日志采集/APM sink 未审。",
+    "未审 web/ 前端、replay 路径、git 历史与票据/设计文本；未运行 linter 或类型检查；未做静态并发工具验证。",
+    "STD-02 的“新 clone 无 data/”依据 `git ls-files data` 为空 + `.gitignore` 内容推断，未在干净 clone 上实跑；STD-01 的阻塞 readline 为静态阅读结论，未构造卡死子进程实测。",
+    "e2e 只覆盖单 uvicorn worker + 单机 loopback；线程池容量、多 worker、OS 调度压力未验（shared-context 已声明为非承诺）。"
+  ]
+}

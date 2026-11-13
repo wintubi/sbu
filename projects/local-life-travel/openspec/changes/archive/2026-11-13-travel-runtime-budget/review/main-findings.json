@@ -1,0 +1,17 @@
+{
+  "reviewed_commit": "b4a08e4735ac09c7d38886901fbd1132915f52a7",
+  "source": "author/main-session supplemental consistency check; not an independent mirror",
+  "findings": [
+    {
+      "id": "M1",
+      "severity": "low",
+      "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/specs/live-runtime-control/spec.md",
+      "line": 67,
+      "quote": "及可选exhaustion_reason=call_limit或deadline",
+      "trigger": "new exhausted LIVE response omits exhaustion_reason because the normative description calls it optional",
+      "consequence": "the requirement's own scenario promises distinguishing call-limit/deadline but clients cannot reliably rely on a stable typed field",
+      "recommendation": "require exhaustion_reason on newly exhausted LIVE runs, while documenting that the key remains optional for historical runs; preserve old records verbatim",
+      "blocks_implementation": false
+    }
+  ]
+}

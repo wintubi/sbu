@@ -1,0 +1,152 @@
+[
+  {
+    "id": "0-0",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md",
+    "line": 58,
+    "quote": "[spec-review-amendment COLD-001] 批内已成功的leg/营业详情在完成规范化且仍在deadline内时，通过绑定的子证据回调即时交编排，保留source_ref、fetched_at和最小规范化payload。后续reserve抛错不能丢先前子证据；回调不递增HTTP计数，不把部分批次当完整成功。晚到子结果不进入有效事实；不存原始HTTP URL/凭据。单独脚本无回调时仍按原聚合返回，LIVE必须绑定该交付机制。"
+  },
+  {
+    "id": "0-1",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/specs/live-runtime-control/spec.md",
+    "line": 85,
+    "quote": "- **THEN** 重读可定位已成功子证据的来源/时间/payload，准确计数；部分批次不当完整成功，result为空且质量unverified，迟到子结果不被采为有效事实"
+  },
+  {
+    "id": "0-2",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/tasks.md",
+    "line": 10,
+    "quote": "- [ ] 1.2 [LRC-01,LRC-04] 把POI、adcode/weather、hours、matrix所有HTTP纳入同一准入；验证各内部批次中途耗尽、网络失败尝试仍计数、本地缓存工具计0，通过规范化子证据回调保留先前已成功leg/营业详情；断批后重读来源/时间/payload可定位，迟到子结果不当有效事实，无不完整可行结果。"
+  },
+  {
+    "id": "1-0",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md",
+    "line": 81,
+    "quote": "- [spec-review-amendment COLD-002] LIVE取消确认在其现有短事务内同时归一status=cancelled、budget.status=cancelled、quality_status=unverified、result=null并删除exhaustion_reason；最终保存以单一短事务重新判断取消是否已提交，取消胜出则对包含实际计数/elapsed/证据的快照做同样归一，再一次提交返回canonical数据。已提交的业务失败先于取消则取消API仍按terminal拒绝；取消在最终提交前胜出，原内存失败仅保留为issues诊断，不能混入budget主分类。禁止先提交cancelled+verified/ok后再修补；GET/同键重放也不得看到混合终态。"
+  },
+  {
+    "id": "1-1",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/tasks.md",
+    "line": 22,
+    "quote": "- [ ] 2.4 [LRC-03,LRC-04,LRC-05] 为LIVE取消确认和最终保存增加各自短事务归一，取消胜出时status/budget/quality/result一次提交为cancelled/cancelled/unverified/null，删耗尽分类键，保留实际计数与原诊断；barrier并发GET/重放不得见混合终态，不以事后修补通过。"
+  },
+  {
+    "id": "2-0",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md",
+    "line": 69,
+    "quote": "6. get返回或网络异常后再次check；若总deadline已到，运行级耗尽优先于把迟到响应当正常工具结果；若仍有时间，保持原timeout/provider/format状态分类，但文本按允许列表脱敏：HTTPError与顶层异常仅固定类别/异常类型，provider.info不原样回显，infocode仅保留校验后的数字代码；禁止str(exc)、带query URL或私人请求进入ToolResult/issues/事件。"
+  },
+  {
+    "id": "2-1",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/tasks.md",
+    "line": 30,
+    "quote": "- [ ] 3.2 [LRC-07,LRC-08] 注入解绑与关闭异常，独立尝试其余清理，记录固定类别/异常类型警告；验证第7类cleanup_failure仍保存原主失败/准确预算及警告，不声称释放成功、不因finally异常跳过save；额外注入普通HTTPError、顶层执行错误和cleanup错误中的合成Key/query/私人文本，扫描API/state/事件均无泄漏，状态分类仍正确。"
+  },
+  {
+    "id": "3-0",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md",
+    "line": 44,
+    "quote": "[spec-review-amendment COLD-004] client短锁原子维护runtime身份和open/closing/closed。自有资源清理先在锁内标closing并释放本run绑定，再在锁外物理close；bind拒绝active、closing、closed。关闭失败仍不可重用；借用资源只按身份解绑并可顺序复用。绑定失败清理不得改变/关闭另一个active run的client；HTTP/物理close不在短锁内。测试同时覆盖bind-v-bind和bind-v-close，不靠GIL假设。"
+  },
+  {
+    "id": "3-1",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/tasks.md",
+    "line": 11,
+    "quote": "- [ ] 1.3 [LRC-06,LRC-07] 加入adapter运行绑定/正常close、client active绑定互斥与身份匹配解绑，默认factory显式拥有client；更新FakeAdapter/CountingAdapter为逐次准入；验证缺协议工具调用0、并发绑定至多一赢、失败绑定清理不影响原run、借入client不被误关；自有close短锁先标closing，barrier暂停物理close时新bind必须失败，closed/close失败不复用。"
+  },
+  {
+    "id": "4-0",
+    "file": "projects/local-life-travel/app/store.py",
+    "line": 165,
+    "quote": "                    return \"existing\", {\"request_hash\": row[\"request_hash\"], \"run_id\": row[\"run_id\"]}"
+  },
+  {
+    "id": "4-1",
+    "file": "projects/local-life-travel/app/store.py",
+    "line": 172,
+    "quote": "                self._conn.commit()"
+  },
+  {
+    "id": "4-2",
+    "file": "projects/local-life-travel/app/live.py",
+    "line": 287,
+    "quote": "            return existing, False"
+  },
+  {
+    "id": "4-3",
+    "file": "projects/local-life-travel/app/live.py",
+    "line": 292,
+    "quote": "        adapter = adapter_factory(request.city, request.transport)"
+  },
+  {
+    "id": "4-4",
+    "file": "projects/local-life-travel/app/main.py",
+    "line": 225,
+    "quote": "        scoped_key = f\"live:create:{idempotency_key}\" if idempotency_key else None"
+  },
+  {
+    "id": "4-5",
+    "file": "projects/local-life-travel/app/main.py",
+    "line": 300,
+    "quote": "            scoped_key = (f\"live:revision:{parent['run_id']}:{revision}:{idempotency_key}\""
+  },
+  {
+    "id": "4-6",
+    "file": "projects/local-life-travel/app/main.py",
+    "line": 311,
+    "quote": "            if not created:"
+  },
+  {
+    "id": "4-7",
+    "file": "C:/Miniconda3/Lib/site-packages/starlette/concurrency.py",
+    "line": 37,
+    "quote": "    return await anyio.to_thread.run_sync(func)"
+  },
+  {
+    "id": "5-0",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md",
+    "line": 159,
+    "quote": "数字只为示例，不是已测生产延迟。新耗尽字段是可选、LIVE限定；旧run按原JSON返回。同键同请求不调用factory；同键改请求仍409；缺Key仍503且不创建假成功。"
+  },
+  {
+    "id": "5-1",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md",
+    "line": 55,
+    "quote": "| exhaustion_reason（新增JSON键） | 新耗尽LIVE必填call_limit或deadline；历史可缺失 | 取消胜出时删除耗尽分类键，原失败诊断保留在issues；不迁移历史或SQL列 |"
+  },
+  {
+    "id": "5-2",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/specs/live-runtime-control/spec.md",
+    "line": 145,
+    "quote": "系统交付材料 SHALL 清楚区分HTTP尝试与收费、运行deadline与强制墙钟中断、离线契约与真实渠道效果。默认40/90/5来源、内部注入协议变化和可选耗尽字段须可查。软件验收必须观察发送点、最终持久状态和资源动作，不能只检查status或提前记录未运行测试为通过。"
+  },
+  {
+    "id": "6-0",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md",
+    "line": 180,
+    "quote": "- [spec-review-amendment DQ-002 推荐候选] 隔离：每run独立runtime，禁止覆盖active/closing/closed绑定。创建和LIVE修订在async入口完成解析后用已安装Starlette run_in_threadpool执行同步核心，释放事件循环；原请求仍等待终态，不改成worker/提前返回。调用者持有Idempotency-Key及原载荷，可在等待期间同键重放拿到已创建run_id，再调用原cancel API。短事务/网络分离；用真实loopback并发POST/重放/cancel/GET验证，不能只测旁路DB。线程池有容量边界，不据此宣称生产并发能力或硬中断；若无幂等键，原同步创建完成前仍无run_id保证。"
+  },
+  {
+    "id": "6-1",
+    "file": "projects/local-life-travel/app/main.py",
+    "line": 372,
+    "quote": "            \"mode\": \"replay\", \"replay_notice\": REPLAY_NOTICE,"
+  },
+  {
+    "id": "6-2",
+    "file": "projects/local-life-travel/app/main.py",
+    "line": 375,
+    "quote": "            \"message\": \"已停止后续处理；已执行阶段与已得结果保留。本地回放不涉及远端操作，不声称撤销远端已执行调用。\","
+  },
+  {
+    "id": "6-3",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/tasks.md",
+    "line": 21,
+    "quote": "- [ ] 2.3 [LRC-03,LRC-06] 用短持久状态探针观察取消/缺失/读取异常，HTTP不持DB事务；将创建/修订同步核心移到已安装线程helper，原POST仍等待；验证同进程实际API在等待期间可用相同幂等键/载荷重放取得run_id并取消，下一handler不命中，重放factory/外呼增量0；探针失败不绕过控制，in-flight竞争局限如实记录。"
+  },
+  {
+    "id": "7-0",
+    "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/proposal.md",
+    "line": 74,
+    "quote": "- 设计门待确认：协作式deadline（推荐，代价是不能强制打断挂起同步I/O）是否满足本次目标；若必须严格90秒返回，采用独立可终止执行边界重新设计。负责人：主助手整理证据、真人拍板；截止：实现前。"
+  }
+]

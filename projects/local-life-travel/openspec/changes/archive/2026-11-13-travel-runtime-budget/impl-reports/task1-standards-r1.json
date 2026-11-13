@@ -1,0 +1,88 @@
+{
+  "run_id": "20261110T182434Z-impl-N2Sw5e",
+  "task_id": "task1-standards-r1",
+  "prefix_receipt": "<!-- prefix-version: principles-b9a054bafa9c -->",
+  "verdict": "fail",
+  "findings": [
+    {
+      "id": "STD-01",
+      "severity": "Important",
+      "file": "app/amap_tools.py",
+      "line": 231,
+      "quote": "            if self._binding_failed:",
+      "reason": "失败绑定的“让位”靠 AmapAdapter 上一个与 runtime 身份无关的全局布尔：216/223 置位、231 消费、234 清位，而 close() 不带身份。任何一次失败 bind 都会把标志置位，下一次任意调用方的 close 都会消费它。若两个 run（B、C）先后对同一 active adapter 绑定失败，或 B 失败后原 owner 先 close：第一个 close 只清标志并跳过 client.release，第二个 close 就走到 241 行用原 owner 的 _runtime 调 client.release，把仍在执行的 run A 的 client 物理关闭。已用不写文件的 `python -` 探针验证（同一 adapter 绑定 run A，随后两次失败 bind，再两次 close）：第二次 close 后 transport close_attempts==1、client._state=='closed'，原 run A 的下一次 client.get 抛 RuntimeError: Amap client is closing or closed；反过来原 owner 自己先 close 时其真实 release 会被标志吞掉。这正是 Review Focus 要求“第二个 adapter 绑定失败后的 cleanup 不得关闭第一个 run 的 client、原 run 仍能执行且预算独立”的相反结果，而测试只覆盖“一次失败 bind 紧跟一次 close”的顺序路径。",
+      "recommendation": "不要用一次性布尔承载“本次未取得对象”。二选一：(a) 在 create_live_run 记录本次 bind 是否真正成功，失败时不对该 adapter 调用 close（由原 owner 负责清理）；(b) 把清理改成身份制，如 close(runtime)/abandon(runtime)，比较 self._runtime is runtime 后才允许 release，并删除 _binding_failed。补一条并发或“两次失败 bind + 两次 close”的测试，断言原 owner 的 client 仍 open、close_attempts==0、原 run 仍能发送。"
+    },
+    {
+      "id": "STD-02",
+      "severity": "Minor",
+      "file": "tests/test_live.py",
+      "line": 85,
+      "quote": "        self._send(2)",
+      "reason": "FakeAdapter 自称“模拟的发送次数与真实适配器同一口径”（17–22 行 docstring），但真实 AmapAdapter.hours() 对每个非 origin POI 各发一次 detail（3 个候选=3 次），weather 首次还要 adcode geocode（共 2 次），真实总计 15（test_live_admission.py:332 直言的也是 15）；fake 这里 hours 固定 2、weather 固定 1，总计 13。于是 live.py 层的 13 与真实路径 15、与 docs/LIVE-AMAP.md 6.1“营业详情每个 POI 1 次”的说法都对不上，13 这个期望值无法与真实适配器口径对账。",
+      "recommendation": "把 fake 的 hours 改成按候选数逐 POI 发送、weather 改成 2 次，期望值随之改为 15；若刻意保留简化模型，则把 17–22 行 docstring 与 139/214 行注释改成“只模拟预占接线、不模拟真实每 POI 口径”，并写明 13 的来历，避免两个测试合起来给出互相矛盾的口径。"
+    },
+    {
+      "id": "STD-03",
+      "severity": "Minor",
+      "file": "tests/test_live.py",
+      "line": 209,
+      "quote": "    client.app.state.live_adapter_factory = lambda city, transport: FakeAdapter()",
+      "reason": "该测试原本靠 CountingAdapter 自带的 client.calls 观察点，把“预算按 HTTP 发送数而非工具方法数”与 test_live_run_success 的 7 区分开；现在两个测试都用同一个 FakeAdapter、都断言 13，且 limit=20 大于 13 永不触发上限，本测试相对 success 不再提供独立回归信号（success 还多了 adapter.client.calls == budget.tool_calls 对账）。这不是断言被放宽（13 比旧 7 更严），但用例名承诺的“internal http requests”区分度已经消失，删除 CountingAdapter 后没有用等价的区分度补上。",
+      "recommendation": "保留该测试但让它真正区分口径：把 limit 设到 12/13 边界，断言 failed/exhausted、tool_calls==len(sent)==12 且第 13 次不命中 handler（旧的按工具方法计数口径下 limit=12 不会耗尽），或直接断言 adapter.client.calls==13；不要通过删除该测试来消化重复。"
+    },
+    {
+      "id": "STD-04",
+      "severity": "Minor",
+      "file": "app/live.py",
+      "line": 313,
+      "quote": "                add_issue(run[\"state\"][\"issues\"], \"RESOURCE_CLEANUP_FAILED\", \"warning\",",
+      "reason": "新增 issue code RESOURCE_CLEANUP_FAILED 没有登记进 app/domain.py:95–101 的 ISSUE_CODES（该元组自述为 issue code 清单并派生 DEGRADING_ISSUES）。按 CR-11，新增状态串必须逐个消费点/allowlist 核对收录。当前没有消费者会拒绝未知 code，影响限于登记表失同步；但后续若以 ISSUE_CODES 做过滤、指标或对外契约，清理警告会被静默丢弃。",
+      "recommendation": "把 RESOURCE_CLEANUP_FAILED 加入 ISSUE_CODES，并按规格语义决定是否列入 DEGRADING_ISSUES（spec 只要求 warning，倾向不加）；若不打算登记，需在 domain.py 注明该 code 仅 LIVE 路径使用而刻意不收录的理由。"
+    },
+    {
+      "id": "STD-05",
+      "severity": "Minor",
+      "file": "app/amap_tools.py",
+      "line": 69,
+      "quote": "    def unbind_runtime(self, runtime: LiveRuntime) -> None:",
+      "reason": "unbind_runtime 与 release(runtime, owns_client=False)（78–87 行）实现同一段“身份核对 + 清 _runtime”，但少了 _state 检查，形成两条语义略有差异的解绑路径；全仓只有 tests/test_live_admission.py:390 使用它，生产路径走 release。两处身份核对并存，后续改身份/状态机时容易漏改一处。",
+      "recommendation": "让 unbind_runtime 委托 release(runtime, owns_client=False) 实现（或移除该公开方法、测试改用 release），保证“按身份解绑”只有一处实现。"
+    }
+  ],
+  "dismissed": [
+    {
+      "file": "tests/test_live.py",
+      "line": 139,
+      "reason": "7→13 不是 CR-12 所说的“期望值迁就当前输出”：design.md:51/60 已把 tool_calls 定义为获准 HTTP 尝试数（仅 reserve 成功 +1），本行同时新增 adapter.client.calls == budget.tool_calls 对账，旧 max(1,差额) 语义按票据移除；无断言删除、放宽或 skip。"
+    },
+    {
+      "file": "app/runtime.py",
+      "line": 24,
+      "reason": "check() 为空实现初看像 guard 失效，但 task1-brief.md:6 与 design 明确 deadline/取消属票2；本票 reserve_http 返回原始操作 timeout 与之一致，不按缺陷上报。"
+    },
+    {
+      "file": "app/amap_tools.py",
+      "line": 116,
+      "reason": "f\"{type(exc).__name__}: {exc}\" 把原始异常串透传给 ToolResult.message：该行是 diff 外的既有上下文，LRC-08 脱敏在票3.2 且实现报告“票外发现”已登记，不属本票引入的回归。"
+    },
+    {
+      "file": "app/amap_tools.py",
+      "line": 194,
+      "reason": "__init__ 在非法 transport 且 owns_client 时调 client.close()，若 client 已绑定会抛身份不匹配并盖住 ValueError；但经由 API 校验的 transport 不可能非法，只有直接构造才触发，实际影响仅为错误类型被替换。"
+    },
+    {
+      "file": "app/main.py",
+      "line": 228,
+      "reason": "async 入口直接执行同步 create_live_run（未用 run_in_threadpool）会阻塞事件循环；这是 diff 外既有结构，DQ-002 的 loopback 并发验证属票3，本票未改动该行，不在本轴结论内。"
+    }
+  ],
+  "limits": [
+    "未重跑整套测试（按纪律）：结论来自读码、impl-reports/task1-review-package.diff、当前工作区实文件，以及一段不落盘文件的 `python -` 探针验证 STD-01 的两次失败绑定清理行为；未采信实现者报告中的自测计数。",
+    "未访问网络/真实 Key/真实供应商；只静态审查 httpx.MockTransport 与注入 factory 路径。",
+    "TDD 顺序无法可靠判定：改动全部未提交且无提交顺序；报告 §2 显示起点是 10 failed 的继承 WIP（旧 fake 未迁移）。修复2的 test_reentrant_... 是先有红测试后修，但修复1的 fake 迁移与生产改动同批出现，无独立先后证据。",
+    "未做真实 loopback 并发 POST/重放/cancel 压测；STD-01 的跨 run 交错由代码路径 + 确定性单元探针确认，未在真实 API 并发下复现。",
+    "只审 Standards 轴与 CR-01..CR-12 + backend delta；未做 Spec 验收，deadline/取消/脱敏/取消文案等票2–3 项不在本报告结论内。",
+    "行号与 quote 均以 2026-11-13 当前工作区（未提交改动）为准。"
+  ]
+}

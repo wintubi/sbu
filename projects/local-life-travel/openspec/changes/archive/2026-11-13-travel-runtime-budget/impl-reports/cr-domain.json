@@ -1,0 +1,98 @@
+{
+  "run_id": "20261113T091208Z-cr-RW1pFk",
+  "task_id": "cr-domain",
+  "prefix_receipt": "<!-- prefix-version: code-review-8b697f286cdb -->",
+  "findings": [
+    {
+      "id": "CRD-01",
+      "cr": "CR-01/CR-02",
+      "severity": "Minor",
+      "file": "app/live.py",
+      "line": 359,
+      "quote": "        canonical = store.finalize_run(run)",
+      "reason": "终态提交与 LIVE_FINISHED 事件写在 finally 内（343-362 行），而 try 的 except（341）只兜住执行主体的异常：一旦 finalize_run（BEGIN IMMEDIATE 写 runs，store.py:244-273）或随后的 add_event 抛错，异常从 finally 逸出，create_live_run 不再返回、363 行 `return canonical, True` 不会被赋值，main.py:240/318 的 run_in_threadpool 直接 500。此时 _classify_control 已归类的主结果（failed/exhausted 或 completed）只存在于内存；DB 行停留在 create 时的 status='queued'、budget.status='ok'（live.py:309-321），幂等键已指向该行，后续同键重放按 live.py:313-319 直接返回这个 queued run 且不再执行，只能靠 /cancel 收敛。LRC-04 的『保存失败』路径没有任何测试；实测（仓库外临时副本，把 finalize_run 替换为抛 RuntimeError）：异常原样逸出，持久行 status=queued、budget.status=ok。按概率+影响判 Minor：需 DB 写失败才触发，但触发即同时丢主结果并留下非终态行。",
+      "recommendation": "finally 只保留 close + elapsed 采样；把 finalize_run 与 LIVE_FINISHED 事件放回正常路径，或在 finally 内单独 try 包住并显式暴露保存失败（不掩盖已分类结果），补一条 finalize 抛错的聚焦测试。",
+      "confidence": 90
+    },
+    {
+      "id": "CRD-02",
+      "cr": "CR-01/CR-02",
+      "severity": "Minor",
+      "file": "app/main.py",
+      "line": 382,
+      "quote": "        if outcome == \"terminal\":",
+      "reason": "Store.cancel_run 的契约是三值 'ok' | 'missing' | 'terminal'（store.py:189-226），这里只处理 terminal，'missing' 落进成功路径：LIVE 分支先在 389 行插入一条 CANCELLED 事件（events 表无外键），再 `canonical = store.get_run(run_id) or run`（391 行）——get_run 返回 None 时用 378 行取消前读到的旧快照，于是 200 响应的 status/budget 仍是取消前的值（可能是 running/ok）；replay 分支（406-411）更直接硬编码 status=\"cancelled\"。即对不存在的行报成功。当前无 DELETE/清理路径，仅行被外部删除时可达，故 Minor；但属于错误返回值未检查（CR-01）与四路径缺失（CR-02）。",
+      "recommendation": "补 `if outcome == \"missing\": raise ApiError(404, \"RUN_NOT_FOUND\", ...)`（或在 Store 层把它并入异常），并为该分支加一条单测。",
+      "confidence": 90
+    },
+    {
+      "id": "CRD-03",
+      "cr": "CR-11/CR-01",
+      "severity": "Minor",
+      "file": "app/runtime.py",
+      "line": 98,
+      "quote": "                raise BudgetExhausted(\"deadline\")",
+      "reason": "93-95 行已处理 remaining<=0，所以 97 行这个分支只可能来自 base_timeout<=0（AmapClient(timeout=...) 配置了非正值；实测 httpx.Client 接受 0/-1，不会在构造期先失败）。但这里抛的是 BudgetExhausted(\"deadline\")，经 live.py:_classify_control → _mark_exhausted（live.py:270-278）落成 budget.exhaustion_reason=\"deadline\" 和 BUDGET_EXHAUSTED『live runtime deadline exhausted』，而此刻 elapsed≈0、max_total_seconds 根本没到。CR-11 要求新分类落到正确取值，持久化诊断把『操作级 timeout 配置非法』说成『总 deadline 耗尽』，按 deadline 排查会指向供应商延迟而非配置错误。生产 factory 用默认 5.0，仅显式配置非正 timeout 可达，故 Minor。",
+      "recommendation": "非正/非法 operation timeout 单列固定类别（如 RuntimeControlError(\"INVALID_OPERATION_TIMEOUT\") 归 STAGE_EXECUTION_ERROR，或在 AmapClient 构造期抛 ValueError），不要复用 deadline 耗尽；补 timeout=0/-1 的聚焦测试断言不出现 exhaustion_reason==\"deadline\"。",
+      "confidence": 72
+    },
+    {
+      "id": "CRD-04",
+      "cr": "CR-04/CR-09",
+      "severity": "Minor",
+      "file": "scripts/live_loopback_e2e.py",
+      "line": 198,
+      "quote": "                line = self.proc.stdout.readline()",
+      "reason": "196 行的 `deadline = time.monotonic() + 25` 只有在 205/208 行才会被判断，而循环体第一句是无超时的阻塞 readline：子进程若在打印 `PORT=` 之前卡住（导入挂起 / Store 等 SQLite 锁 / uvicorn 启动阻塞），父进程永久停在 198 行，25 秒超时与 210-215 行『kill 自己启动的子进程』的收尾都执行不到；本文件 docstring 与 README 给出的独立命令 `python scripts/live_loopback_e2e.py` 没有外层 timeout，于是『失败』变成无限挂起。第二个互锁源：`stderr=subprocess.PIPE`（192-194 行）在握手期间无人 drain，子进程若在 PORT 之前写满 stderr 管道缓冲，父子互等，连 EOF 都等不到。CR-04 要求失败/异常路径也结束并释放进程，CR-09 要求失败可判定。静态确定（阻塞点无超时），不产生假绿，故 Minor。",
+      "recommendation": "握手改成『读线程 + proc.wait(timeout=25)』或轮询就绪文件/端口，主线程不再无超时阻塞在 readline；用后台 daemon 线程持续 drain stderr（或重定向到临时文件），消除管道缓冲互锁；补一条『子进程不打印 PORT 时 25 秒内失败并 kill 子进程』的聚焦测试。",
+      "confidence": 88
+    },
+    {
+      "id": "CRD-05",
+      "cr": "CR-09/CR-04",
+      "severity": "Minor",
+      "file": "scripts/live_loopback_e2e.py",
+      "line": 456,
+      "quote": "    work = Path(tempfile.mkdtemp(prefix=\"live-loopback-\", dir=str(PROJECT_ROOT / \"data\")))",
+      "reason": "456 行在 try（458 行）之外，而 `data/` 在仓库里没有任何 tracked 文件（`git ls-files projects/local-life-travel/data` 为空，.gitignore 只忽略 data/*.sqlite3*），新 clone 不含该目录。于是文档写给开发者直接运行的独立命令在干净工作区抛裸 FileNotFoundError：既不打印 472 行的 `E2E_FAILED; artifacts kept at ...`，也不走 474 行 finally 的清理/退出码约定；tests/test_live_loopback_e2e.py 又不用 conftest 的 store/db_path fixture，没人替它建 data/，单跑该文件即失败，只有同批前面某测试先建过 data/ 时才偶然通过（本次工作区 data/ 已存在，故全量 154 passed 掩盖了它）。实测：把 projects/local-life-travel 复制到无 data/ 的临时目录后 `python scripts/live_loopback_e2e.py` 退出码 1，traceback 落在 456 行 FileNotFoundError，未打印 E2E_FAILED。属环境前提缺失却未自理的可复现性缺陷，失败是响的，故 Minor。",
+      "recommendation": "`dir` 不存在就先 `mkdir(parents=True, exist_ok=True)`，或直接 `tempfile.mkdtemp()`；并把 mkdtemp 移进 try，让环境准备失败也走统一的 E2E_FAILED + exit 1 路径。",
+      "confidence": 92
+    }
+  ],
+  "dismissed": [
+    {
+      "file": "app/amap_tools.py",
+      "line": 144,
+      "reason": "`runtime = self._runtime; timeout = runtime.reserve_http(...) if runtime is not None else self._timeout` 让未绑定 runtime 的 client 退回『不预占、不裁剪 timeout』的旧行为，看似 LRC-01 的 fail-open 后门；但 shared-context 明确『AmapClient 在非 LIVE 独立脚本中允许未绑定 runtime，仍保留原操作 timeout』，而 LIVE 路径在 live.py:331-338 强制 bind 且 bind 失败即 fail-closed（cleanup_acquired=False 且不再执行任何工具），所以它不是 LIVE run 的绕过路径。不报。"
+    },
+    {
+      "file": "tests/test_live.py",
+      "line": 217,
+      "reason": "本文件是 diff 里唯一被改的既有测试，逐 hunk 核过 CR-12：没有断言删除/放宽、没有 skip/xfail/放大超时、没有删测试。`test_live_run_success` 由 7 改 15 与 `test_live_budget_counts_internal_http_requests` 由 completed/13 改为 failed/exhausted/14，都是 LRC-01 把口径从『每工具计 1』换成『逐 HTTP 预占』的必然结果，且新断言更严（精确 sent 序列、tool_calls==len(sent)==client.calls、exhaustion_reason、result=None/quality=unverified）。不按削弱上报。"
+    },
+    {
+      "file": "app/live.py",
+      "line": 279,
+      "reason": "`_record` 不再按工具计预算、invoke 也不再读 client.calls，预算只在 AmapClient.get→reserve_http 里消费；这意味着注入的 adapter 若不调用 reserve 就不会被限流。核过 LRC-06 的守卫是『bind_runtime/close 协议存在 + 绑定成功』，shared-context 要求测试 fake 显式模拟逐 HTTP 准入，生产 adapter 全部经 AmapClient.get，故属已声明的适配器契约，不是本 change 的缺口。不报。"
+    },
+    {
+      "file": "app/main.py",
+      "line": 392,
+      "reason": "LIVE 取消响应只回 mode/replay_notice/run_id/status/budget/quality_status/result/executed_stages/events/message，缺 run_view 里的 tool_results/issues/request/current_stage。LRC-03 只要求返回已归一快照且不暴露混合终态，未要求等同 run_view；且 web/index.html:277 在取消后按 run_id 重新 GET 全量视图，不会读到缺字段。不报。"
+    },
+    {
+      "file": "app/live.py",
+      "line": 354,
+      "reason": "收尾后最后一次 check 若在取消已提交之后才抛 BudgetExhausted，_classify_control 会追加 BUDGET_EXHAUSTED(blocker) issue，而 finalize_run 把终态归一为 cancelled（budget.status/quality/result 一致）。shared-context COLD-002 明确『原内存失败仅保留为 issues 诊断，不混入 budget 主分类』，且已有用例 test_cancel_wins_over_in_memory_exhaustion_and_drops_reason 钉住该口径，不构成混合终态。不报。"
+    }
+  ],
+  "limits": [
+    "范围：只审 6a78560..HEAD 中 projects/local-life-travel 的 app/、tests/、scripts/（app 6 文件、tests 5 文件、scripts 1 文件）；docs/、web/、openspec/ 文本、票据与 impl-reports 未审，replay 路径只在与 LIVE 共用函数（store.cancel_run/save_run、main 路由）处按上下文看。",
+    "全量回归已跑：`python -m pytest tests -q` → 154 passed, 2 warnings, 38.48s（不是只跑聚焦文件）；但绿只说明单进程、MockTransport/loopback 下成立，不覆盖 DB 写失败、真实 socket 挂起、多 worker 或线程池 40 并发压力。",
+    "CR-12 结论基于逐 hunk 比对 tests/test_live.py 的新旧版本（唯一被改的既有测试）+ 新测试文件无 skip/xfail；未核对 web 前端断言。",
+    "两条实证在仓库外的临时副本做（复制 projects/local-life-travel 到 D:\\workspace-dsh\\tmp\\freshclone-probe-*）：(1) 替换 store.finalize_run 抛错后 create_live_run 原样逸出异常、持久行 status=queued/budget.status=ok；(2) 无 data/ 目录运行 scripts/live_loopback_e2e.py 得到 456 行 FileNotFoundError、退出码 1、未打印 E2E_FAILED。仓库内文件未改，未 commit/push。",
+    "CRD-04 的无限挂起是静态结论（readline 无超时、deadline 判断在其后），未构造卡死子进程实测；F4 的 stderr 管道互锁按 Python 管道缓冲语义推断。",
+    "CRD-01/02/03 的可达性分别依赖 DB 写失败、行被外部删除、显式配置非正 timeout，按概率+影响判 Minor，不声称线上已发生；未验证 Windows 下 kill/进程组清理时序。",
+    "未访问真实高德服务/真实 Key；脱敏结论只覆盖应用层响应、持久 state 与 events，不含 APM/日志采集 sink。"
+  ]
+}

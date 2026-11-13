@@ -1,0 +1,80 @@
+{
+  "run_id": "20261113T091208Z-cr-RW1pFk",
+  "task_id": "cr-adv-errorpath",
+  "prefix_receipt": "<!-- prefix-version: code-review-8b697f286cdb -->",
+  "lens": "fresh adversarial: error paths + information exposure (default refuted=true)",
+  "findings": [
+    {
+      "id": "EP-01",
+      "severity": "low",
+      "file": "app/amap_tools.py",
+      "line": 332,
+      "quote": "        pois = [self._to_poi(item) for item in (data.get(\"pois\") or [])]",
+      "evidence_pack": [
+        {"file": "app/amap_tools.py", "line": 301, "quote": "        point = _location((geocodes[0] or {}).get(\"location\", \"\"))"},
+        {"file": "app/amap_tools.py", "line": 322, "quote": "            poi = self._to_poi(pois[0])"},
+        {"file": "app/amap_tools.py", "line": 352, "quote": "        point = _location(raw.get(\"location\", \"\"))"},
+        {"file": "app/amap_tools.py", "line": 374, "quote": "        self._adcode = str(geocodes[0].get(\"adcode\", \"\") or \"\") or None"},
+        {"file": "app/amap_tools.py", "line": 389, "quote": "            casts.extend(forecast.get(\"casts\") or [])"},
+        {"file": "app/amap_tools.py", "line": 419, "quote": "            biz = detail.get(\"biz_ext\") or {}"}
+      ],
+      "reason": "HTTP 200 且 status=1、但 geocodes/pois/forecasts[].casts 的**列表元素不是 dict** 时（如 {\"pois\": [null]}、{\"geocodes\": [\"x\"]}），列表推导/下标访问直接 AttributeError 逸出适配器：不产生 ToolResult，因此没有 TOOL_FORMAT_ERROR，也没有对应 tool_results 条目。实测（%TEMP% 独立 sqlite + httpx.MockTransport，create_live_run 全链路）：status=failed，budget.tool_calls=7（hours 详情那一次 HTTP 已被计数），issues 只有 [{\"code\":\"STAGE_EXECUTION_ERROR\",\"message\":\"真实渠道执行异常：AttributeError\"}]，tool_results 无 hours 条目——即'哪一次 HTTP 以什么类别失败'在诊断里丢失。module docstring 声称 malformed payload 被映射到 ToolStatus、format 分支对 dict 形坏值（_to_poi 返回 None → unmatched；leg 捕获 TypeError → format_error）是覆盖的，但非 dict 元素这一形态未覆盖，属错误路径不完整/分类被改写（本镜未见敏感文本由此落库或回显；也不产生假成功）。",
+      "suggestion": "在 _to_poi/_city_adcode/weather 的循环处加 isinstance(item, dict)（或统一 _as_dict）过滤，或在工具边界捕获 (AttributeError, TypeError) 并返回 _tool_error(\"format_error\", ref, ...)（预算计数已发生，保留）；补一条 MockTransport 用例 {\"pois\": [null]} / {\"geocodes\": [\"x\"]} 断言 TOOL_FORMAT_ERROR 且该工具仍有 tool_results。",
+      "scope": "pre-existing at base 6a785607 (these lines are unchanged by this change's diff)",
+      "confidence": 92
+    },
+    {
+      "id": "EP-02",
+      "severity": "low",
+      "file": "app/amap_tools.py",
+      "line": 381,
+      "quote": "            return _tool_error(\"provider_error\", ref, \"city adcode not found; weather not queried\")",
+      "evidence_pack": [
+        {"file": "app/amap_tools.py", "line": 369, "quote": "        if \"_error\" in data:"},
+        {"file": "app/amap_tools.py", "line": 370, "quote": "            return None"},
+        {"file": "app/amap_tools.py", "line": 379, "quote": "        adcode = self._city_adcode()"},
+        {"file": "app/amap_tools.py", "line": 380, "quote": "        if not adcode:"}
+      ],
+      "reason": "_city_adcode() 把 get() 返回的全部错误种类（timeout/http/format/provider）压成 None，weather() 再用固定文案报 provider_error。实测：MockTransport 在 /v3/geocode/geo 抛 ReadTimeout → weather() 返回 status=provider_error、error_code=TOOL_PROVIDER_ERROR、message='city adcode not found; weather not queried'，且该次尝试已被计数（sends=['/v3/geocode/geo']）。即 timeout 被改写为 provider_error，文案还断言了未发生的病因（not found），TOOL_TIMEOUT 分类在 weather 上丢失（同一适配器的 poi_lookup 会保留 timeout，见 tests/test_amap_tools.py:84-91）。无敏感文本、无假成功；仅分类/诊断失真。",
+      "suggestion": "让 _city_adcode() 返回 (adcode | None, error | None) 或错误 dict，weather() 对其走 _map_client_error 保留 timeout/http/format 分类；只有“200 + geocodes 为空”才用 'city adcode not found' 文案。",
+      "scope": "pre-existing at base 6a785607 (these lines are unchanged by this change's diff)",
+      "confidence": 95
+    }
+  ],
+  "dismissed": [
+    {
+      "file": "app/live.py",
+      "line": 299,
+      "reason": "探针失败文案取 RuntimeControlError 的固定分类 + type(exc).__name__（app/runtime.py:69-71 以 from None 抛），不是原始 str(exc)；且首次探针失败发生在 factory/发送之前，tests/test_live_cleanup_redaction.py:552-571 断言 factory_calls==[]，不存在'吞掉后继续发送'。"
+    },
+    {
+      "file": "app/amap_tools.py",
+      "line": 155,
+      "reason": "httpx.HTTPError 分支只回显固定类别与 type(exc).__name__，不写 str(exc)/带 query 的 URL；ConnectError 携带 ?key=...&private=... 的用例对 API/GET/原始 SQLite 行逐项断言无标记（tests:478-498），未找到泄漏路径。"
+    },
+    {
+      "file": "app/amap_tools.py",
+      "line": 168,
+      "reason": "provider.info 已不回显；infocode 仅 [0-9]{1,8} fullmatch 才保留，非数字码退化为 'provider error'（tests:500-535）。校验后的数字码是安全诊断，不构成敏感文本外泄。"
+    },
+    {
+      "file": "app/live.py",
+      "line": 359,
+      "reason": "写库失败：finalize_run 在构造 202 视图之前抛出，不会进入 run_view/replayed 分支，因此不存在'谎称已持久化'（失败表现为 500）；其副作用是留一行 queued 僵尸行，属状态/并发镜，不在本镜报。"
+    },
+    {
+      "file": "app/main.py",
+      "line": 391,
+      "reason": "取消确认响应读的是持久快照（live 只在 finalize 落库），在途 run 上实测显示 status=queued/tool_calls=0，最终 POST/GET 才带真实计数（2）；spec 未要求确认时精确计数，docs/LIVE-AMAP.md 已声明'最终快照以实际计数为准'，故不判为假持久化/泄漏（精度问题见 limits）。"
+    }
+  ],
+  "limits": [
+    "范围：只精读 app/amap_tools.py、app/live.py、app/main.py、app/runtime.py、tests/test_live_cleanup_redaction.py，并按需读 app/domain.py、app/store.py、app/engine.py、app/worker.py、specs/live-runtime-control/spec.md、review/code-review-dispatch.json、impl-reports/task3-*.json/diff 与 docs/LIVE-AMAP.md 相关段；未审 scripts/live_loopback_e2e.py 全量与 docs 全量。",
+    "未运行 pytest 全量、未改任何代码/票据；两条 finding 用 %TEMP% 下的独立 sqlite + httpx.MockTransport 脚本复现（脚本不落仓），故 154 passed 等计数沿用文档记录而非本镜实测。",
+    "未做真实高德/真实 Key/费用/硬中断/断电验证；全部合成供应商，结论只覆盖本机离线软件路径。",
+    "未覆盖：app/worker.py:42 仍把 f\"{type(exc).__name__}: {exc}\"（原始异常串）写进 events.reason；但 worker 只处理 mode='replay'（app/store.py:304 list_runnable 过滤），不属本 change 的 LIVE 脱敏面。若主审认为 LRC-08 '诊断不得暴露私人请求' 也约束 replay 诊断，应另开镜/票。",
+    "并发时序（取消/最终提交/清理的真实多线程竞争）由并发镜负责；本镜只按代码顺序核对边界检查，未复现真实竞争；未验证线程池容量、多进程写。",
+    "供主审裁决的观察（已按文档 dismiss）：取消确认响应在在途 live run 上给出 tool_calls=0/elapsed_seconds=0.0，与同响应文案'已发送的尝试可能仍完成'张力明显；若要求 LRC-04 的'保留已有尝试数'在取消确认响应即成立，应升级为 finding。",
+    "供主审裁决的观察：hours() 在'部分 POI 详情超时、其余返回窗口'时返回 VALID，超时分类既不进 ToolResult 也不产生 issue（缺失窗口仍由 evaluate_timeline 的 HOURS_UNKNOWN 兜住）；判为可接受但不属'分类保真'，记录备查。"
+  ]
+}

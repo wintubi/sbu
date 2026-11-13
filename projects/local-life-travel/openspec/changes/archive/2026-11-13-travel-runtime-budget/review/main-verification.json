@@ -1,0 +1,14 @@
+{
+  "observed_at": "2026-11-10T12:12:15+08:00",
+  "scope": "independent main-session reproduction; SQLite memory only, MockTransport, no real key/network; baseline not fix",
+  "cancellation": {
+    "status": "cancelled",
+    "budget_status": "ok",
+    "quality": "verified_feasible",
+    "result_is_null": false
+  },
+  "redaction": {
+    "synthetic_key_in_persisted_state": true,
+    "provider_query_url_in_state": true
+  }
+}

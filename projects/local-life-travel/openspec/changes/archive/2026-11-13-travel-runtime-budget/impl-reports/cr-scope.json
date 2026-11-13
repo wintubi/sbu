@@ -1,0 +1,142 @@
+{
+  "run_id": "20261113T091208Z-cr-RW1pFk",
+  "task_id": "cr-scope",
+  "prefix_receipt": "<!-- prefix-version: principles-b9a054bafa9c -->",
+  "tasks": [
+    {
+      "task": "1.1 [LRC-01,LRC-04] 每run控制器+发送前预占，移除工具后 max(1,差额) 记账；limit=0/1/2/40 与恰好用完；第N+1次 handler 命中0；保存数==准入数",
+      "status": "DONE",
+      "evidence": "app/runtime.py:83 reserve_http 在锁内先比对 budget['tool_calls']>=max_tool_calls 再 +1，并把 min(base_timeout,remaining) 返回；app/amap_tools.py:144 在进入 httpx 前调用 reserve（单点准入）；app/live.py:70-75 _record 已删除 max(1,差额) 事后记账，只追加工具结果。测试：tests/test_live_admission.py:139 参数化 limit=0/1/2/40，断言第 N+1 次抛 BudgetExhausted 且 transport.sent 不再增长；:431 断言拒绝时 sent 只有前两次；:58 断言恰好用满 15 次后 completed 且 budget.tool_calls==len(transport.sent)==15，GET 重读 DB 一致。本次独立复跑全量 pytest：154 passed, exit 0。"
+    },
+    {
+      "task": "1.2 [LRC-01,LRC-04] POI/adcode/weather/hours/matrix 同一准入；断批保留已成功子证据（来源/时间/payload）、失败尝试计数、本地缓存计0、迟到子结果不当有效事实、不返回不完整可行结果",
+      "status": "DONE",
+      "evidence": "四类内部循环共用唯一发送点 AmapClient.get（app/amap_tools.py:139-150），预占在发送前；子证据回调 app/amap_tools.py:133,422（hours_detail）,470（route_leg）→ app/runtime.py:102 先 check 再交付，计数不递增。测试：tests/test_live_admission.py:98 参数化 limit=7/10 断言断批后 DB 内 hours_detail/route_leg 证据保留 source_ref/fetched_at/payload、未完成的 hours/routes 不写入、result=null、quality=unverified；:159 四类失败尝试仍计 1；:183 空矩阵/空营业/不可用腿计 0；:198 首次 adcode 发 HTTP、缓存后不再发。局限：『迟到子证据不入有效事实』仅由 app/runtime.py:103 的 check 在交付前抛错保证，无专门用例直接断言子证据迟到场景（见 limits）。"
+    },
+    {
+      "task": "1.3 [LRC-06,LRC-07] adapter 运行绑定/close、client active 绑定互斥与身份解绑、默认 factory 显式拥有；FakeAdapter/CountingAdapter 改为逐次准入；缺协议工具0、并发绑定一赢、失败绑定不伤原run、借入0关闭、close 短锁 closing 期间新 bind 失败",
+      "status": "CHANGED",
+      "evidence": "协议与拥有权已落地：app/amap_tools.py:70 bind_runtime、:85 release（:91-103 短锁内按身份解绑并标 closing、锁外物理 close）、:117 _detach_locked、:264 adapter.close、:232-238（构造校验失败先关自有 client）；默认 factory 显式 owns_client=True（app/main.py:170-172）。测试：tests/test_live_admission.py:234 并发绑定至多一赢（CountingLock 探针确定性）、:345 物理 close 阻塞期间新 bind 失败（含 close 失败分支）、:417 缺 bind_runtime/close 时工具 0 且 close 次数按协议 0/1、:327 借入 client 关闭 0 且顺序复用、:270/:291 失败绑定清理不触碰原 owner。差异：tasks.md:11 要求『更新 FakeAdapter/CountingAdapter』，实际 FakeAdapter 改为逐次 reserve（tests/test_live.py:16-66，:150 断言 tool_calls==sent==15），旧 CountingAdapter 被删除而非更新（全仓 grep 无残留），原因是它靠『每方法多计 client.calls』模拟，与新逐次准入契约冲突；契约意图已满足，无功能缺口。"
+    },
+    {
+      "task": "1.4 [LRC-05,LRC-07] 真实 AmapAdapter+MockTransport 经 API 覆盖正常/耗尽创建与重放：同键同 run_id、新 factory/HTTP/完成事件0、耗尽后关闭尝试1、DB 可读，不只验 status",
+      "status": "DONE",
+      "evidence": "tests/test_live_admission.py:58 用真实 AmapAdapter+MockTransport 经 TestClient 走完整创建：断言 status=completed、budget.tool_calls==len(transport.sent)==15、close_attempts==1、GET 重读 budget/tool_results 一致、同键重放 run_id 相同且 replayed=true、events/tool_results 不增、factory 只建 1 个；:98 覆盖耗尽（failed/exhausted/call_limit、result=null）后 close_attempts==1 且 DB 重读可核对计数与证据；:124-130 重放不再发 HTTP。同键改载荷 409 与缺 Key 503 由既有 tests/test_live.py 覆盖（本票未新增）。"
+    },
+    {
+      "task": "1.5 [LRC-09] 同票更新 LIVE-AMAP 的发送尝试/默认40/内部绑定协议说明与修前修后复现数据；命令可在隔离库执行；明确独立脚本不拥有 run 预算、真实供应商未验",
+      "status": "DONE",
+      "evidence": "docs/LIVE-AMAP.md:63 默认40/HTTP尝试非计费/失败尝试计1/本地0，:72 内部绑定协议（破坏性变更、无静默 fallback、拥有权与借入规则），:80 amap_probe 独立脚本不受 run 40/90 约束，:84 修前/修后对照表；复现脚本 evidence/reproduce_budget.py:32-33 用 tempfile 建隔离 SQLite，未出网。本次独立执行 `C:/Miniconda3/python.exe openspec/changes/travel-runtime-budget/evidence/reproduce_budget.py`，输出 limit=2, transport_attempts=2, client_calls=2, persisted_count=2, exhaustion_reason=call_limit, run_status=failed, budget_status=exhausted, oversent=false，与文档修后列逐项一致；文档同时声明真实供应商未验（:1 状态行）。"
+    },
+    {
+      "task": "2.1 [LRC-02,LRC-04] factory 前建单调开始值+可注入 clock；发送前/返回后/阶段间/终态检查；min(配置,剩余) 四类 timeout；90/0 边界、不放大0.25、UTC跳变、假时钟不真 sleep",
+      "status": "DONE",
+      "evidence": "app/live.py:323 在幂等命中返回之后、adapter_factory 之前创建 LiveRuntime（app/runtime.py:44-57 在 __init__ 取 started_at，clock 可注入）；app/main.py:126/151/236 与 app/live.py:311 传递 live_clock；检查点见 app/live.py:95,97,171,246,253,263,329,339,354（含收尾后最后 check）。测试：tests/test_live_deadline_cancel.py:314（0/89.999/90 边界，check 不消费次数）、:343（min(配置,剩余)，含 1 秒与 0.25 秒不被放大）、:423（connect/read/write/pool 四操作 timeout 均等于期望值）、:395（UTC 墙钟跳变不影响单调 elapsed）、:456（0 预算在 factory 前失败且 factory_calls==[]）。"
+    },
+    {
+      "task": "2.2 [LRC-02,LRC-04] 晚到响应/评估/收尾分类耗尽并保留准确计数/elapsed/已有证据；不接受 completed/needs_input/verified 晚结果；普通 timeout 且未过总 deadline 保持原分类；无 str(exc)；新耗尽必填原因",
+      "status": "DONE",
+      "evidence": "app/live.py:270-278 _mark_exhausted 写 failed/budget.status=exhausted/exhaustion_reason/清空 result/quality=unverified；:289-299 _classify_control 只在无更早主失败时覆盖，通用异常只落 type(exc).__name__（:301-302，无 str(exc)）；脱敏见 app/amap_tools.py:40 _safe_infocode、:153-156（HTTPError 只留类型名）、:163-170（provider.info 不回显，仅数字 infocode）。测试：tests/test_live_deadline_cancel.py:481 晚到工具结果、:502 晚到 needs_input、:520 收尾越界均拒绝并保留证据；:539 普通 timeout/provider/format 保持原分类；:552 主失败不被后续 deadline 检查覆盖；tests/test_live_cleanup_redaction.py:478/:500/:537/:552/:574 断言无原始异常串/Key/query。"
+    },
+    {
+      "task": "2.3 [LRC-03,LRC-06] 持久状态短探针（不持 DB 事务）；创建/修订同步核心移线程 helper 且原 POST 仍等待；同进程 API 等待期间同键重放取 run_id 再 cancel；下一 handler 不命中；LIVE 取消文案/事件准确；探针失败不绕过控制；在途竞争如实记录",
+      "status": "DONE",
+      "evidence": "app/main.py:240,318 用 starlette run_in_threadpool 执行同步核心，原 POST 仍 await 终态；app/store.py:228 probe_run_status 单行短读（无显式事务），app/runtime.py:77-81 check 先探针（异常→RuntimeControlError，:86-98）后判 deadline；app/main.py:40-46 LIVE 取消消息/事件理由，:386-404 LIVE 分支返回 mode=live 且不含 REPLAY_NOTICE。测试：tests/test_live_deadline_cancel.py:607（创建）、:691（修订）用真实 uvicorn loopback（serve 定义 :273）并发等待期间同键重放取 run_id、events/factory/发送不增、cancel 可达、下一 handler 不命中；:374 探针异常固定分类；tests/test_live_cleanup_redaction.py:552 探针失败不泄露原始串。在途竞争局限见 docs/LIVE-AMAP.md:122-141。"
+    },
+    {
+      "task": "2.4 [LRC-03,LRC-04,LRC-05] 取消确认与最终保存各自短事务归一（cancelled/cancelled/unverified/null、删耗尽键、保留实际计数与原诊断）；barrier 并发 GET/重放不得见混合终态；非事后修补",
+      "status": "DONE",
+      "evidence": "app/store.py:17-27 _normalize_cancelled 归一 status/budget.status/quality/result 并 pop exhaustion_reason；:189-227 cancel_run 的 LIVE 分支在同一事务一次写 status+budget+state；:236-283 finalize_run 在 BEGIN IMMEDIATE 内重读状态、取消胜出时对含实际计数/elapsed/证据的快照归一后一次提交并返回 canonical；app/live.py:359 统一走 finalize_run（save_run 注明 LIVE 不得使用，app/store.py:285-287）。测试：tests/test_live_deadline_cancel.py:760 barrier 卡在最后 check，独立连接 5 次 GET + 同键重放均读归一快照；:826 内存 call_limit 被取消覆盖、exhaustion_reason 删除、issues 保留原诊断、tool_calls 保留；:590 已提交失败 cancel 返回 409。"
+    },
+    {
+      "task": "2.5 [LRC-02,LRC-03,LRC-09] 同票更新 LIVE 时限/取消契约与 JSON 示例：默认90/操作5、单调 elapsed、exhaustion_reason、检查后竞争、不能强制90秒返回、清理可超时",
+      "status": "DONE",
+      "evidence": "docs/LIVE-AMAP.md:104-121 记录 90/5、单调 elapsed（含最终采样可能>90）、新耗尽必填原因/历史可缺、晚到拒绝、清理越界拒绝、不保证硬中断，并附 deadline 耗尽 JSON 示例；:122-141 记录取消契约、原子终态、检查后竞争与不可撤回在途请求，附取消响应示例。文本与实际实现交叉核对一致（app/runtime.py:83-100、app/live.py:253-278、app/store.py:17-27）。"
+    },
+    {
+      "task": "3.1 [LRC-07] 拥有权转移后构造验证失败/factory 部分失败与 close 幂等；6类出口各有清理尝试；借用 0 关闭且解绑后可顺序复用",
+      "status": "DONE",
+      "evidence": "tests/test_live_cleanup_redaction.py:191 success、:201 provider_error、:219 call_limit、:232 deadline、:246 cancel、:265 constructor_failure（含再次 close 不增物理关闭的幂等断言）、:286 factory 返回前失败由 factory 自清（顶层恰好不二次关闭）、:311 借入 client close 0 且顺序复用。实现：app/amap_tools.py:85-131 release/_detach_locked、:232-238 构造校验失败关闭、:264-272 adapter.close 幂等；app/live.py:327-350 cleanup_acquired 处理缺协议/绑定失败边界。"
+    },
+    {
+      "task": "3.2 [LRC-07,LRC-08] 注入解绑/关闭异常并独立尝试其余清理、固定类别警告；第7类 cleanup_failure 仍保存原主失败/准确预算/警告；不宣称释放成功、finally 异常不跳过 save；合成 Key/query/私人文本扫描 API/state/事件均无泄漏",
+      "status": "DONE",
+      "evidence": "tests/test_live_cleanup_redaction.py:332 解绑失败仍物理 close 一次、主结果 completed、RESOURCE_CLEANUP_FAILED 只含异常类型与『未知』；:350 provider 主失败+close 失败，预算/计数/DB/事件(LIVE_FINISHED status=failed)保留且无泄漏；:383 call_limit 类别与准确计数保留；:399 close 敏感文本+清理期 deadline 保留更早失败；:435 清理越界仍拒绝过期成功终态；:478/:500/:537/:552/:574 合成 Key/query/私人标记在 API、state、events、SQLite 的扫描；:599 直接 create_live_run 在 cleanup 失败后仍保存。实现：app/live.py:345-351 警告（仅 type name + 『资源是否释放未知』）且 finally 内仍 finalize_run；app/domain.py:100 新增 RESOURCE_CLEANUP_FAILED 码。"
+    },
+    {
+      "task": "3.3 [LRC-01..09] 跨切片全量 pytest 并记录真实命令/exit/count；原 replay、Amap 离线、LIVE 业务无未说明回退；不预写『88+新增=N』",
+      "status": "DONE",
+      "evidence": "impl-reports/task4-aggregate.md:49-56 记录三条层命令的原文/exit/用例数（154 / 2 场景 / 1）与测试时 HEAD 1aee907，:64-95 逐字粘贴输出（154 passed, exit 0；E2E_OK, exit 0；1 passed），:113-115 明确无失败无需分诊。本次独立复跑 `C:/Miniconda3/python.exe -m pytest -q -p no:cacheprovider` → `154 passed, 2 warnings in 39.00s`，exit 0（HEAD 111f274，其后仅有 docs 提交；测试文件未变）。loopback pytest 包装 tests/test_live_loopback_e2e.py:13 包含在 154 内并通过。"
+    },
+    {
+      "task": "3.4 [LRC-01,LRC-03,LRC-04,LRC-05,LRC-07,LRC-08,LRC-09] 独立进程 loopback HTTP 烟测：真实适配器+MockTransport；创建与修订的并发 POST/同键重放/cancel/GET（不旁路写 DB）；取消文案/模式准确；run/计数/清理事件与 SQLite 一致；只访问本地、停自己启动的服务、不因环境有 Key 而访问真实渠道",
+      "status": "DONE",
+      "evidence": "scripts/live_loopback_e2e.py:295-364 create 场景（子进程 uvicorn 127.0.0.1:0、并发原 POST + 同键重放取 run_id + 真实 /cancel + 多次 GET，随后核对工厂/发送/物理关闭次数与 SQLite runs+events）、:367-441 revision 场景（父 needs_input → 子 run 并发修订 + 重放 + cancel，断言父 11 次/子 3 次发送、关闭 2 次）；:218-234 只 shutdown/kill 自己启动的子进程，:69 子进程强制合成 Key 覆盖宿主 AMAP_API_KEY，:90-131 MockTransport 不出网。测试：tests/test_live_loopback_e2e.py:13-27 以 subprocess 运行脚本，注入 real-key 哨兵并断言输出不含该 Key、含 E2E_OK 与真实计数。"
+    },
+    {
+      "task": "3.5 [LRC-09] README/LIVE-AMAP/API 契约与验收记录最终互链、标明分支与 main；9 条需求全部有运行证据或明确未满足；独立代码审前不记 T11 完成；未合并不改私人面试稿 main 数字",
+      "status": "DONE",
+      "evidence": "README.md:41（分支 feat/travel-runtime-budget 非 main、未独立代码审、未合并）+ :46-52 文档互链表；docs/LIVE-AMAP.md:1 头部互链 ACCEPTANCE 第10节与三张 ticket 报告；docs/ACCEPTANCE.md:149-159 分支/与main/独立代码审/私人面试稿/真实供应商状态，:182-194 逐条 9 需求证据与未满足项（本次核对所引测试用例均真实存在）、:196-201 失败/跳过/未运行分列；docs/IMPLEMENTATION.md LIVE 路径与预算节指向 LIVE-AMAP/ACCEPTANCE。私人面试稿：`git diff --stat 6a78560..HEAD -- docs/interview-v0.1.md` 无输出（未改）。"
+    }
+  ],
+  "findings": [
+    {
+      "type": "SCOPE-CREEP",
+      "severity": "low",
+      "file": "docs/ARCHITECTURE.md",
+      "line": 1,
+      "evidence": "commit 5886487『docs: 两项目补技术栈总结与整体架构，区分现状与目标态』新增 local-life-travel/docs/ARCHITECTURE.md(190行)、docs/TECH-STACK.md(111行) 与 README.md 2 行文档链接（README.md:49-50），同 commit 还改了 projects/woodblock-heritage 的 3 个文件。本 change 的 proposal What Changes/Non-Goals 与 Impact（proposal.md:45）未包含整体架构/技术栈文档；15 项任务的 1.5/2.5/3.5 只要求 LIVE-AMAP/README/ACCEPTANCE/API 契约。",
+      "note": "判定为『范围外但无害』：纯文档、跨项目 docs 任务搭车本分支，无产品/行为影响，不阻塞本 change；建议在 PR 描述中声明为附带改动，或拆到独立提交/分支。与本 change 必需的中文互链（README 文档表新增 ticket 报告行）需区分。"
+    },
+    {
+      "type": "STALE-DOC-CLAIM",
+      "severity": "medium",
+      "file": "docs/TECH-STACK.md",
+      "line": 5,
+      "evidence": "docs/TECH-STACK.md:5 与 docs/ARCHITECTURE.md:4 均声明『未验收的 T11 发送前准入/预算半成品未计入已实现（2026-11-13 已存入本地 git stash，可恢复）』。事实：`git stash list` 当前为空；T11 的准入/deadline/取消/清理实现已在 3bed847/03cb0d4/1aee907 提交于本分支；同一文件 TECH-STACK.md:20 又把 23 项发送前准入测试计入 154 项『已实现』。",
+      "note": "与分支实际状态、ACCEPTANCE.md:145-159 的验收记录自相矛盾，属事实性错误（不仅是过时）。ARCHITECTURE.md:3/TECH-STACK.md:3 的『状态基线 00c5502』同样已落后于 HEAD。若这两份文档保留在本 change 内，应在合并前由文档 owner 改为『本分支已实现、未独立代码审、未合并』并删除 stash 表述；否则它们会被当作本 change 的对外说明。"
+    },
+    {
+      "type": "PLAN-SYNC",
+      "severity": "low",
+      "file": "tasks.md",
+      "line": 3,
+      "evidence": "tasks.md:3 仍写『状态：全部待实施』，1.1–3.5 共 15 个条目全部为 `- [ ]`（tasks.md:9-13,19-23,29-33）；而 tickets.md:68-74,83-89,98-103,112-114 已全部标记 `[x]`，impl-reports/task1..4 与本次独立复跑（154 passed）也表明已交付。",
+      "note": "不影响代码正确性，但 sdflow-done 的 verify/archive 门会以 tasks.md 为权威完成清单，现状会被读成『零完成』。建议在 done 阶段回填复选框与状态行，或在该文件注明『勾选由 done 阶段统一回填』。"
+    },
+    {
+      "type": "TASK-CHANGED",
+      "severity": "low",
+      "file": "tests/test_live.py",
+      "line": 16,
+      "evidence": "tasks.md:11 要求『更新 FakeAdapter/CountingAdapter 为逐次准入』。实际 tests/test_live.py:16-66 的 FakeAdapter 已重写为逐次 `_send()`→`runtime.reserve_http()`（:43，:150 断言 tool_calls==sent==15），而 base 版本的 CountingAdapter 被整体删除，全仓（app/tests/docs/README）grep 无任何引用。",
+      "note": "属已说明理由的替换而非静默偏离：CountingAdapter 的语义是『每个工具方法在 client.calls 上虚增多次』，与『每次真实发送前预占』的新契约冲突，保留会误导。契约意图已满足；建议在 done 的记录里明写『CountingAdapter 删除，由 FakeAdapter 逐次准入取代』，避免复审按字面判未完成。"
+    },
+    {
+      "type": "IMPACT-DECLARATION",
+      "severity": "low",
+      "file": "app/domain.py",
+      "line": 100,
+      "evidence": "app/domain.py:100 在 ISSUE_CODES 新增 RESOURCE_CLEANUP_FAILED（任务 3.2/LRC-08 必需，app/live.py:348 使用）；同类未被 proposal Impact 覆盖的还有 scripts/live_loopback_e2e.py（任务 3.4 明确要求的脚本）与 docs/IMPLEMENTATION.md。proposal.md:45 的 Impact 只列 app/live.py、app/amap_tools.py、app/main.py、app/store.py、新 runtime 模块与 LIVE 文档/README/API。",
+      "note": "属『本 change 必需但 Impact 清单漏项』，不是出圈：三处均可直接追溯到任务条目。建议收口时同步 proposal Impact（或至少在 done 记录里说明），避免后续按 Impact 清单审 diff 时误判。"
+    },
+    {
+      "type": "SCOPE-CREEP",
+      "severity": "low",
+      "file": "openspec/config.yaml",
+      "line": 1,
+      "evidence": "commit 0edee98（sdflow-spec 起手）一次性加入流程铺设：AGENTS.md/CLAUDE.md 各 121 行、openspec/config.yaml 155 行、openspec/schemas/sdflow-spec-driven/**（schema+4 模板）、openspec/workflow/WORKFLOW-GUIDE.md 158 行、openspec/INDEX.md 29 行、changes/.gitkeep、specs/.gitkeep，以及 .gitignore 3 行（忽略 `.outside-voice/`、`impl-reports/*review-package*.diff` 等）。proposal What Changes/Non-Goals 未提这些，15 项任务亦未要求。",
+      "note": "判定为『流程必需、产品范围外』：没有这套骨架就跑不了 openspec/sdflow 流程，且 .gitignore 规则把 280KB review-package diff 挡在提交外，属于合理铺垫。仅需在 scope 口径上如实归为工具性改动；不构成产品 scope creep，不必回退。"
+    }
+  ],
+  "limits": [
+    "路径差异：任务给出的 `C:\\workspace-dsh\\...` 在本机不存在（Test-Path=False），真实仓根为 `D:\\workspace-dsh\\...`；prefix-principles.md 已按同一相对路径在 D: 读取，并以其首行原样作为 prefix_receipt。若上游按 C: 路径比对回执，请以本字段为准并复核路径映射。",
+    "审计范围 = `git diff 6a78560..HEAD -- projects/local-life-travel`（HEAD=111f274），逐 commit 归因；未审计同 commit 涉及 projects/woodblock-heritage 的内容，也未审计 6a78560 之前的历史。",
+    "未做真实高德联调/真实 Key（不在范围且不可行）；生产并发、硬中断/90秒强制返回、断电恢复、供应商计费与效果均无法验证，也不作为本审计结论。",
+    "未逐份复核 impl-reports 下 10 个 spec/standards review JSON 的内部裁决与置信度，仅以代码/测试/diff 交叉抽验其结论；task4-aggregate.md 中 suite-scope 的 JSON 未重跑（依赖外部 skill 脚本 impl_route.py）。",
+    "独立复跑只覆盖两条离线命令：全量 pytest（154 passed, exit 0）与 evidence/reproduce_budget.py（输出与文档修后列一致）；loopback 脚本本身经 tests/test_live_loopback_e2e.py 的 subprocess 包装在全量套件内执行，未单独手工运行其两场景。",
+    "『不出网』仅按代码证据判断（MockTransport、trust_env=False、合成 Key、测试哨兵断言），未做抓包/防火墙层验证。",
+    "关于 git stash 的断言限于『当前 `git stash list` 为空、且 diff 与该说法不符』，无法证明历史上从未存在过 stash；F2 因此表述为当前树的事实性错误。",
+    "所有 file/line 均为 HEAD=111f274 工作树真实行号（与 diff 目标一致）；未修改任何代码/票据，未 commit/push，本任务只新增本 JSON。"
+  ]
+}

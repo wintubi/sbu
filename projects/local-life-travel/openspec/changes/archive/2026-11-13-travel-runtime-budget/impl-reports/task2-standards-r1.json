@@ -1,0 +1,79 @@
+{
+  "run_id": "20261110T182434Z-impl-N2Sw5e",
+  "task_id": "task2-standards-r1",
+  "prefix_receipt": "<!-- prefix-version: principles-b9a054bafa9c -->",
+  "verdict": "pass",
+  "findings": [
+    {
+      "id": "STD-01",
+      "severity": "Minor",
+      "file": "app/runtime.py",
+      "line": 98,
+      "quote": "                raise BudgetExhausted(\"deadline\")",
+      "reason": "97 行的守卫针对的是“配置本身非正的 operation timeout”（base_timeout<=0），98 行却复用 `BudgetExhausted(\"deadline\")`。该 reason 会经 `live.py:_classify_control`→`_mark_exhausted` 落成 `budget.exhaustion_reason=\"deadline\"` 与 `BUDGET_EXHAUSTED: live runtime deadline exhausted`，而此刻 elapsed 可能接近 0、max_total_seconds 根本没到；配置错误被持久化成“deadline 耗尽”。CR-11/诊断一致性要求新分类落到正确类别，否则运营按 deadline 去查供应商延迟会查错方向。当前生产 factory 用默认 timeout=5.0，只经直接构造 AmapClient(timeout<=0) 可达，故按 Minor。",
+      "recommendation": "为非正/非法 operation timeout 单列固定类别（如 `RuntimeControlError(\"INVALID_OPERATION_TIMEOUT\")` 归 STAGE_EXECUTION_ERROR，或在 AmapClient 构造/入口抛 ValueError），不要复用 deadline 耗尽；补 configured=0/-1 的聚焦测试，断言不出现 exhaustion_reason==\"deadline\"。"
+    },
+    {
+      "id": "STD-02",
+      "severity": "Minor",
+      "file": "app/main.py",
+      "line": 382,
+      "quote": "        if outcome == \"terminal\":",
+      "reason": "`Store.cancel_run` 的契约是三值 'ok' | 'missing' | 'terminal'（store.py:192），这里只处理 terminal；'missing' 会继续走下游：写一条 CANCELLED 事件，并返回 200 + 取消前读到的旧快照（LIVE 分支 status 仍是行内旧值、budget 未归一；replay 分支还硬编码 status=\"cancelled\"），即对不存在的行报成功。CR-01/CR-02 要求错误返回值被检查、四路径完整。当前无 DELETE 路径，仅行被外部删除时可达，故 Minor。",
+      "recommendation": "补 `if outcome == \"missing\": raise ApiError(404, \"RUN_NOT_FOUND\", ...)`（或让 store 层把它并成异常），并为该分支加一条单测。"
+    },
+    {
+      "id": "STD-03",
+      "severity": "Minor",
+      "file": "app/live.py",
+      "line": 358,
+      "quote": "        canonical = store.finalize_run(run)",
+      "reason": "成功路径的最终提交与 LIVE_FINISHED 事件被放进了 `finally`（356–361 行），`canonical` 也在 finally 内赋值、块外返回。finally 本应只做清理：一旦 `finalize_run`（或随后的 `add_event`）抛错，异常直接替换返回路径，POST 变 500，而 DB 事务已回滚、run 行停留在 create 时的 status='queued'，永远没有终态（幂等键指向它，后续同键重放会一直返回这个 queued run，只能靠取消收敛），内存里已分类的失败/完成结果既不落盘也不上报。CR-01/CR-02 的“保存失败”路径在新增的 finalize 数据流上没有测试。",
+      "recommendation": "finally 只保留 close + elapsed 采样；把 `finalize_run` 与事件写入放回正常路径（或单独 try 记录一个明确的保存失败分类并保证不掩盖原结果），补一条 finalize 抛错的聚焦测试。"
+    },
+    {
+      "id": "STD-04",
+      "severity": "Minor",
+      "file": "app/live.py",
+      "line": 277,
+      "quote": "              \"live HTTP attempt limit exhausted\" if reason == \"call_limit\"",
+      "reason": "耗尽文案有两份字面量：`runtime.py:20-21` 的 `BudgetExhausted` 异常消息，与 `live.py:276-278` 写入 `BUDGET_EXHAUSTED` issue（即落盘 JSON / GET 可见）的消息。改一处就会让异常文本与持久化诊断漂移（Fowler Duplicated Code），而 docs 6.5 的 JSON 示例又引用了同一句话。",
+      "recommendation": "把两段文案提成 runtime.py 的常量（或给 `BudgetExhausted` 暴露 message 属性），`_mark_exhausted` 复用同源文案，保证异常文本、issues 与文档示例同源。"
+    }
+  ],
+  "dismissed": [
+    {
+      "file": "app/main.py",
+      "line": 240,
+      "reason": "创建/LIVE 修订的同步核心占用 anyio 默认线程池（40 token）整个运行期；40 个并发 LIVE run 会把 GET/cancel 一起卡住。shared-context「Nonfunctional」与 docs 6.6 已明写“线程池有容量边界，不据此宣称生产并发能力或硬中断”，属已声明边界；本票只验证 2–3 并发下取消可达，不按标准偏差上报。"
+    },
+    {
+      "file": "app/store.py",
+      "line": 256,
+      "reason": "`finalize_run` 的 UPDATE 没有 `WHERE status=旧值` 的 CAS。读与写在同一 `BEGIN IMMEDIATE` 内、同一 Store RLock 下完成，且 LIVE 只有取消 writer 与这一处终态 writer（报告 §7.7 已登记“第二 writer 需 CAS”的未来边界）；当前不构成 CR-BE-03 的读后单写风险。"
+    },
+    {
+      "file": "app/main.py",
+      "line": 397,
+      "reason": "LIVE 取消响应里的 `budget.elapsed_seconds` 仍是取消确认时已持久化的 0.0（真实 elapsed 只在原 POST 的最终保存写入）。shared-context「Ownership and Finalization」与 docs 6.6 都显式声明了该口径，且 status/budget/quality/result 来自同一行同一事务，不是混合终态。"
+    },
+    {
+      "file": "tests/test_live_deadline_cancel.py",
+      "line": 531,
+      "reason": "`len(tool_results) == budget.tool_calls` 把证据条数与 HTTP 次数绑定，看似实现耦合；但该用例用的是显式逐 HTTP 准入的 FakeAdapter（一次准入一个 ToolResult），断言守的是“耗尽/清理后已有证据保留”，不是放宽或删断言。"
+    },
+    {
+      "file": "tests/test_live_deadline_cancel.py",
+      "line": 395,
+      "reason": "UTC 墙钟跳变用例看似不可证伪，实测其机制成立：`started_at` 取自 FakeClock=0，若 `elapsed()` 改读 `time.time`/`utc_now`（被 +3600/+1h 污染），`elapsed()==0.0` 与 90 秒边界会立即红，故对目标回归有区分力；已跑过该文件 23 passed。"
+    }
+  ],
+  "limits": [
+    "只审 Standards 轴（CR-01..CR-12 + backend delta + Fowler smells + 测试质量）；未做 Spec 验收，deadline/取消/原子终态的规格符合性不在本报告结论内。",
+    "未重跑整套（按纪律）：只跑了 tests/test_live_deadline_cancel.py（23 passed in 9.06s）与 tests/test_live.py + tests/test_live_admission.py（36 passed in 3.31s），用于确认 run_in_threadpool 重构没有破坏既有 LIVE API/冲突映射与并发用例；未采信实现报告的全量 134 计数。",
+    "未访问真实网络/真实 Key/真实供应商；loopback 用例是进程内 uvicorn（127.0.0.1），不是独立进程 e2e，也未实测真实 socket 挂起或 httpx read 分块。",
+    "TDD 顺序无法可靠判定：改动全部未提交（HEAD=3bed847，工作树脏），无红→绿提交顺序证据，报告 §6 的红证无法独立复核。",
+    "跨进程/多 Store 并发、线程池容量上限、崩溃窗口未实测；只按单进程代码路径与已跑用例判断。",
+    "行号与 quote 均以 2026-11-13 当前工作区（未提交改动）为准。"
+  ]
+}

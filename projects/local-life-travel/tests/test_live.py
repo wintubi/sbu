@@ -14,11 +14,46 @@ NAMES = ["故宫博物院", "景山公园", "天安门广场"]
 
 
 class FakeAdapter:
+    """假适配器：实现新的绑定/清理协议，并逐HTTP发送前走runtime准入。
+
+    模拟的发送次数与真实适配器同一口径：origin 1 / 每个 POI 1 /
+    weather 2（首次 adcode geocode + 预报）/ hours 按已解析的非 origin
+    候选逐个 1 / matrix 每对 1，正常路径合计 15。所以测试断言的是
+    “获准的HTTP尝试数”，而不是工具方法次数。
+    """
+
     def __init__(self, mode: str = "ok"):
         self.mode = mode
-        self.calls = 0
+        self.calls = 0  # POI 查询次数（原测试观察点）
+        self.client = types.SimpleNamespace(calls=0)  # 模拟HTTP发送次数
+        self.sent: list[str] = []  # 预占成功后真正“发出”的模拟HTTP（标签）
+        self._resolved: list[str] = []  # 已匹配的非 origin 候选
+        self._runtime = None
+        self._closed = False
+
+    def bind_runtime(self, runtime):
+        if self._closed or self._runtime is not None:
+            raise RuntimeError("fake adapter is active or closed")
+        self._runtime = runtime
+
+    def close(self):
+        self._closed = True
+        self._runtime = None
+
+    def _send(self, count: int = 1, label: str = "http") -> None:
+        if self._runtime is None:
+            raise RuntimeError("fake adapter is not bound to a runtime")
+        for _ in range(count):
+            self._runtime.reserve_http(5.0)
+            self.client.calls += 1
+            self.sent.append(label)  # 只有获准的发送才进入 sent
+
+    def _remember(self, key: str) -> None:
+        if key not in self._resolved:
+            self._resolved.append(key)
 
     def resolve_origin(self, address: str):
+        self._send(1, "origin")
         city = "天津" if self.mode == "origin_cross_city" else "北京"
         return ToolResult(status=ToolStatus.VALID, source_ref="fake:origin", fetched_at=utc_now(),
                           payload={"poi": {"name": address, "city": city,
@@ -26,8 +61,10 @@ class FakeAdapter:
 
     def poi_lookup(self, key: str, selected_poi_id: str | None = None):
         self.calls += 1
+        self._send(1, "poi")
         if self.mode == "ambiguous" and key == "景山公园":
             if selected_poi_id:
+                self._remember(key)
                 return ToolResult(status=ToolStatus.VALID, source_ref=f"fake:poi:{key}",
                                   fetched_at=utc_now(),
                                   payload={"match_status": "matched", "selected_by_user": True,
@@ -43,57 +80,35 @@ class FakeAdapter:
                               fetched_at=utc_now(), error_code="TOOL_PROVIDER_ERROR",
                               message="fake provider error")
         city = "天津" if self.mode == "cross_city" and key == "景山公园" else "北京"
+        self._remember(key)
         return ToolResult(status=ToolStatus.VALID, source_ref=f"fake:poi:{key}", fetched_at=utc_now(),
                           payload={"match_status": "matched",
                                    "poi": {"provider_poi_id": key, "name": key, "city": city,
                                            "coordinates": {"lon": 116.4, "lat": 39.9}}})
 
     def weather(self, date: str):
+        self._send(2, "weather")  # 首次 adcode geocode + 预报
         return ToolResult(status=ToolStatus.VALID, source_ref="fake:weather", fetched_at=utc_now(),
                           payload={"date": date, "summary": "晴"})
 
     def hours(self):
+        keys = list(self._resolved)  # 真实适配器对每个非 origin 候选各发一次 detail
+        self._send(len(keys), "hours")
         if self.mode == "hours_empty":
             return ToolResult(status=ToolStatus.EMPTY, source_ref="fake:hours",
                               fetched_at=utc_now(), message="no hours")
         return ToolResult(status=ToolStatus.VALID, source_ref="fake:hours", fetched_at=utc_now(),
-                          payload={"windows": {name: ["09:00", "17:00"] for name in NAMES}})
+                          payload={"windows": {name: ["09:00", "17:00"] for name in keys}})
 
     def matrix(self, pairs):
+        pairs = list(pairs)
+        self._send(len(pairs), "matrix")
         matrix = {}
         for a, b in pairs:
             matrix[leg_key(a, b)] = {"duration_seconds": 600, "distance_meters": 1000,
                                      "source_ref": "fake:route", "fetched_at": utc_now()}
         return ToolResult(status=ToolStatus.VALID, source_ref="fake:routes", fetched_at=utc_now(),
                           payload={"matrix": matrix})
-
-
-class CountingAdapter(FakeAdapter):
-    """Fake adapter whose client reports several HTTP calls per method."""
-
-    def __init__(self, mode: str = "ok"):
-        super().__init__(mode)
-        self.client = types.SimpleNamespace(calls=0)
-
-    def resolve_origin(self, address):
-        self.client.calls += 1
-        return super().resolve_origin(address)
-
-    def poi_lookup(self, key, selected_poi_id=None):
-        self.client.calls += 1
-        return super().poi_lookup(key, selected_poi_id)
-
-    def weather(self, date):
-        self.client.calls += 1
-        return super().weather(date)
-
-    def hours(self):
-        self.client.calls += 2
-        return super().hours()
-
-    def matrix(self, pairs):
-        self.client.calls += len(pairs)
-        return super().matrix(pairs)
 
 
 def live_body() -> dict:
@@ -132,7 +147,9 @@ def test_live_run_success(live_client):
     assert data["status"] == "completed"
     assert data["quality_status"] == "verified_feasible"
     assert len(data["result"]["visits"]) == 3
-    assert data["budget"]["tool_calls"] == 7
+    assert data["budget"]["tool_calls"] == 15  # origin1 + poi3 + weather2 + hours3 + matrix6
+    assert adapter.client.calls == data["budget"]["tool_calls"]
+    assert len(adapter.sent) == 15
     assert adapter.calls == 3
 
 
@@ -198,15 +215,29 @@ def test_live_manual_opening_window_is_applied(live_client):
 
 
 def test_live_budget_counts_internal_http_requests(live_client, monkeypatch):
+    """口径区分：预算按逐HTTP发送预占，而不是每个工具方法计 1 次。
+
+    正常路径 15 次发送；把上限压到 14 时，第 15 次（最后一条腿）在预占处被拒，
+    传输层只看到 14 次。旧的“每工具计 1”口径下总共只有 7 个工具方法，
+    limit=14 永远不会耗尽，所以本用例与 test_live_run_success 不再重复。
+    """
     import app.live as live_module
-    monkeypatch.setattr(live_module, "LIVE_MAX_TOOL_CALLS", 20)
+    monkeypatch.setattr(live_module, "LIVE_MAX_TOOL_CALLS", 14)
     client, _ = live_client
-    client.app.state.live_adapter_factory = lambda city, transport: CountingAdapter()
+    adapter = FakeAdapter()
+    client.app.state.live_adapter_factory = lambda city, transport: adapter
     response = client.post("/api/v1/travel/live-runs", json=live_body(),
                            headers={"Idempotency-Key": "live-http-count"})
     data = response.json()
-    assert data["status"] == "completed"
-    assert data["budget"]["tool_calls"] == 13  # origin1 + poi3 + weather1 + hours2 + matrix6
+    assert data["status"] == "failed"
+    assert data["budget"]["status"] == "exhausted"
+    assert data["budget"]["exhaustion_reason"] == "call_limit"
+    assert data["budget"]["tool_calls"] == len(adapter.sent) == adapter.client.calls == 14
+    assert adapter.sent == ["origin", "poi", "poi", "poi", "weather", "weather",
+                            "hours", "hours", "hours"] + ["matrix"] * 5
+    assert any(issue["code"] == "BUDGET_EXHAUSTED" for issue in data["issues"])
+    assert data["result"] is None
+    assert data["quality_status"] == "unverified"
 
 
 def test_live_budget_is_enforced(live_client, monkeypatch):

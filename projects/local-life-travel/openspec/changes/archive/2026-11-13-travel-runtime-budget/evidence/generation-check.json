@@ -1,0 +1,19 @@
+{
+  "checked_at": "2026-11-09T23:34:25+08:00",
+  "memo_generated_at": "2026-11-09T23:13:52+08:00",
+  "decision_hash": "37be910452bf",
+  "requirements": 9,
+  "scenarios": 22,
+  "implementation_tasks_pending": 15,
+  "requirement_task_mapping": "bidirectional exact",
+  "local_links": "valid",
+  "product_source_changed": false,
+  "openspec_strict": "passed in preceding tool execution",
+  "constraints_verified": 10,
+  "planning_complete": true,
+  "design_review_passed": false,
+  "human_design_gate_passed": false,
+  "implementation_performed": false,
+  "real_provider_requests": 0,
+  "scope": "generation checks and baseline bug reproduction only; not implementation tests"
+}

@@ -13,7 +13,10 @@ from __future__ import annotations
 
 import os
 import re
+from threading import Lock
 from typing import Any, Iterable
+
+from .runtime import LiveRuntime
 
 import httpx
 
@@ -31,6 +34,15 @@ AMAP_BASE_URL = "https://restapi.amap.com"
 AMAP_PROVIDER = "amap-web-service"
 _CITY_SUFFIXES = ("特别行政区", "自治州", "地区", "盟", "市")
 _OPEN_RE = re.compile(r"(\d{1,2}):(\d{2})\s*[-~—]\s*(\d{1,2}):(\d{2})")
+_INFOCODE_RE = re.compile(r"[0-9]{1,8}")
+
+
+def _safe_infocode(value: Any) -> str | None:
+    """只接受纯数字供应商码；info/异常原文一律不回显。"""
+    if value is None or isinstance(value, bool):
+        return None
+    text = str(value).strip()
+    return text if _INFOCODE_RE.fullmatch(text) else None
 
 
 class AmapClient:
@@ -48,20 +60,99 @@ class AmapClient:
         if not self.key:
             raise ValueError("AMAP_API_KEY is required for live Amap calls")
         self.calls = 0
-        self._client = httpx.Client(base_url=base_url, timeout=timeout, transport=transport)
+        self._lock = Lock()
+        self._runtime: LiveRuntime | None = None
+        self._state = "open"
+        self._timeout = timeout
+        self._client = httpx.Client(base_url=base_url, timeout=timeout, transport=transport,
+                                    follow_redirects=False)
+
+    def bind_runtime(self, runtime: LiveRuntime) -> None:
+        if runtime is None:
+            raise ValueError("runtime is required")
+        with self._lock:
+            if self._state != "open" or self._runtime is not None:
+                raise RuntimeError("Amap client is active, closing or closed")
+            self._runtime = runtime
+
+    def unbind_runtime(self, runtime: LiveRuntime) -> None:
+        # 按身份解绑只有一处实现：借用路径复用 release(owns_client=False)。
+        self.release(runtime, owns_client=False)
 
     def close(self) -> None:
-        self._client.close()
+        self.release(None, owns_client=True)
+
+    def release(self, runtime: LiveRuntime | None, *, owns_client: bool) -> None:
+        # 身份核对、解绑和closing转换在同一短锁内，HTTP/close在锁外。
+        detach_error: Exception | None = None
+        should_close = False
+        with self._lock:
+            # 进入时快照：只有“本run的open自有绑定”才允许在解绑失败后继续物理close。
+            owned_binding = (owns_client and self._state == "open"
+                             and self._runtime is runtime)
+            try:
+                should_close = self._detach_locked(runtime, owns_client=owns_client)
+            except Exception as exc:  # noqa: BLE001 - 解绑失败不得跳过自有close
+                detach_error = exc
+                # 身份不符意味着client属于另一个active run，绝不关闭它。
+                if owned_binding:
+                    self._runtime = None
+                    self._state = "closing"
+                    should_close = True
+        close_error: BaseException | None = None
+        if should_close:
+            try:
+                self._client.close()
+            except BaseException as exc:  # noqa: BLE001 - 仍要先完成状态收尾
+                close_error = exc
+            finally:
+                # 关闭失败也不能恢复open；不宣称物理释放成功。
+                with self._lock:
+                    self._state = "closed"
+        if detach_error is not None:
+            raise detach_error
+        if close_error is not None:
+            raise close_error
+
+    def _detach_locked(self, runtime: LiveRuntime | None, *, owns_client: bool) -> bool:
+        """短锁内按身份解绑；返回是否需要在锁外执行物理close。
+
+        独立成可注入步骤，使“解绑失败仍尝试物理close”可被观察；身份不符时
+        抛错且不返回closing，保证不会关闭另一个active run的client。
+        """
+        if self._runtime is not runtime:
+            raise RuntimeError("Amap runtime identity mismatch")
+        if self._state != "open":
+            return False
+        self._runtime = None
+        if not owns_client:
+            return False
+        self._state = "closing"
+        return True
+
+    def deliver_evidence(self, tool: str, result: ToolResult) -> None:
+        with self._lock:
+            runtime = self._runtime
+        if runtime is not None:
+            runtime.deliver_evidence(tool, result)
 
     def get(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
-        self.calls += 1
+        with self._lock:
+            if self._state != "open":
+                raise RuntimeError("Amap client is closing or closed")
+            runtime = self._runtime
+        timeout = runtime.reserve_http(self._timeout) if runtime is not None else self._timeout
+        with self._lock:
+            self.calls += 1
         query = {**params, "key": self.key}
         try:
-            response = self._client.get(path, params=query)
+            response = self._client.get(path, params=query, timeout=timeout)
         except httpx.TimeoutException:
             return {"_error": "timeout", "message": "Amap request timed out"}
         except httpx.HTTPError as exc:
-            return {"_error": "http", "message": f"{type(exc).__name__}: {exc}"}
+            # 只报固定类别与安全异常类型：httpx异常的str可能包含带query的URL。
+            return {"_error": "http",
+                    "message": f"Amap transport error ({type(exc).__name__})"}
         if response.status_code != 200:
             return {"_error": "http", "message": f"HTTP {response.status_code}"}
         try:
@@ -69,11 +160,13 @@ class AmapClient:
         except ValueError:
             return {"_error": "format", "message": "response is not valid JSON"}
         if not isinstance(data, dict) or str(data.get("status")) != "1":
+            infocode = _safe_infocode(data.get("infocode")) if isinstance(data, dict) else None
             return {
                 "_error": "provider",
-                "message": f"{data.get('info', 'provider error')} ({data.get('infocode', 'unknown')})"
-                if isinstance(data, dict) else "provider error",
-                "infocode": data.get("infocode") if isinstance(data, dict) else None,
+                # provider.info 是供应商文本，可能含私人/带query内容，一律不回显；
+                # 只有通过数字校验的infocode可以作为安全诊断保留。
+                "message": f"provider error (infocode {infocode})" if infocode else "provider error",
+                "infocode": infocode,
             }
         return data
 
@@ -135,14 +228,48 @@ class AmapAdapter:
     per request and the engine budget must stay observable.
     """
 
-    def __init__(self, client: AmapClient, *, city: str, transport: str = "walking"):
+    def __init__(self, client: AmapClient, *, city: str, transport: str = "walking",
+                 owns_client: bool = False):
         if transport not in ("walking", "driving"):
+            if owns_client:
+                client.close()
             raise ValueError("live adapter supports walking or driving only")
         self.client = client
         self.city = city
         self.transport = transport
+        self._owns_client = owns_client
+        self._lifecycle_lock = Lock()
+        self._runtime: LiveRuntime | None = None
+        self._closed = False
         self._pois: dict[str, dict[str, Any]] = {}
         self._adcode: str | None = None
+
+    def bind_runtime(self, runtime: LiveRuntime) -> None:
+        with self._lifecycle_lock:
+            if self._closed:
+                raise RuntimeError("Amap adapter is active or closed")
+            if self._runtime is not None:
+                # 该adapter已属于另一个运行：本次调用没有取得它，保持其原绑定状态不变。
+                # 调用方（create_live_run）据此不调用本对象的 close，清理仍归原owner。
+                raise RuntimeError("Amap adapter is active or closed")
+            try:
+                self.client.bind_runtime(runtime)
+            except Exception:
+                # client已绑定别的run或已closing/closed：本adapter未取得控制权，
+                # 只把自己作废，绝不物理关闭共享client。
+                self._closed = True
+                raise
+            self._runtime = runtime
+
+    def close(self) -> None:
+        # 只按自身绑定身份清理自有/借用资源；没有 bind 成功就没有可清理的绑定。
+        with self._lifecycle_lock:
+            if self._closed:
+                return
+            self._closed = True
+            runtime = self._runtime
+            self._runtime = None
+        self.client.release(runtime, owns_client=self._owns_client)
 
     # -- POI --------------------------------------------------------------- #
     def _search(self, keywords: str) -> dict[str, Any]:
@@ -292,6 +419,10 @@ class AmapAdapter:
             biz = detail.get("biz_ext") or {}
             parsed = _parse_open_window(biz.get("open_time")) or _parse_open_window(biz.get("opentime2"))
             if parsed:
+                self.client.deliver_evidence("hours_detail", ToolResult(
+                    status=ToolStatus.VALID, source_ref=f"amap:hours:{poi['provider_poi_id']}",
+                    fetched_at=utc_now(), payload={"windows": {key: parsed}},
+                ))
                 windows[key] = parsed
         if not windows:
             status = ToolStatus.EMPTY if errors == 0 else ToolStatus.PROVIDER_ERROR
@@ -336,6 +467,7 @@ class AmapAdapter:
             result = self.leg(from_key, to_key)
             if result.status != ToolStatus.VALID:
                 return result
+            self.client.deliver_evidence("route_leg", result)
             payload = result.payload or {}
             fetched_at = result.fetched_at
             matrix[leg_key(from_key, to_key)] = {

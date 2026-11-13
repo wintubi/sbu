@@ -1,0 +1,118 @@
+{
+  "run_id": "20261110T182434Z-impl-N2Sw5e",
+  "task_id": "task1-spec-r1",
+  "prefix_receipt": "<!-- prefix-version: principles-b9a054bafa9c -->",
+  "verdict": "pass",
+  "checks": [
+    {
+      "item": "1.1",
+      "status": "pass",
+      "evidence": "app/amap_tools.py:102-112 (runtime read under client lock, reserve_http called before httpx, calls incremented only after reserve); app/runtime.py:28-34 (tool_calls increments only when the guard passes, else BudgetExhausted); app/live.py:70-74 (record no budget) and 94-99 (invoke no diff/max(1)); tests/test_live_admission.py:138-154 (limit 0/1/2/40 at real AmapClient+MockTransport; N+1 raises and len(sent) stays N), 157-180 (connect/timeout/provider/format each count 1), 183-195 (matrix([])/hours()/missing leg send 0), 369-391 (reserve before transport); tests/test_live.py:139-141 (13 == client.calls). grep app: no max(1, remains.",
+      "note": "The 7→13 change in test_live_run_success is not a loosened assertion: old 7 was the pre-change per-tool max(1,diff) count on a fake without a send model; the old CountingAdapter test already expected 13, and the new assertion also pins client.calls. Send-point boundary tests intentionally call AmapClient.get directly."
+    },
+    {
+      "item": "1.2",
+      "status": "pass",
+      "evidence": "app/amap_tools.py:391-394 (hours_detail evidence after normalization, source_ref/fetched_at/minimal payload) and 439 (route_leg evidence); app/live.py:293-299 (BudgetExhausted → failed, budget exhausted, exhaustion_reason, result None, unverified) and 307-314 (finally close); tests/test_live_admission.py:93-130 (limit 7 hours_detail and limit 10 route_leg: exactly one evidence row with source_ref/fetched_at/payload, tool_calls==len(sent)==limit, no aggregate hours/routes, result null, unverified; replay does not grow sent or close_attempts).",
+      "note": "Partial batches never reach evaluate_timeline because the exception propagates out of execute_live, so no feasible result is built; only evidence already delivered remains."
+    },
+    {
+      "item": "1.3",
+      "status": "pass",
+      "evidence": "app/amap_tools.py:61-100 (client short lock for active/open/closing/closed, identity unbind, closing set before physical close, closed set in finally even on close error), 209-241 (adapter bind/close, owns/borrow, one-shot failed-bind yield); app/live.py:283-292 (per-run runtime and protocol check before tools) and 300-314 (STAGE_EXECUTION_ERROR, cleanup warning); tests/test_live_admission.py:213-241 (bind-v-bind one winner; loser close leaves close_attempts 0; owner still runs; budgets 1/0), 244-262 (reentrant bind failure leaves owner untouched; budget 0 vs 1), 265-279 (borrowed close_attempts 0, sequential reuse works), 282-316 (bind-v-close rejects new bind; close failure still rejects rebind; close_attempts 1), 336-366 (missing bind_runtime or close → 0 tools/0 HTTP; acquired closable object still gets one close attempt).",
+      "note": "The failed-bind yield is a one-shot flag (report §9.2); within the create_live_run finally path exactly one close follows a failed bind, which the tests cover. The stronger same-object/multi-run identity protocol is not in this ticket."
+    },
+    {
+      "item": "1.4",
+      "status": "pass",
+      "evidence": "tests/test_live_admission.py:58-90 (real AmapAdapter+ProviderTransport through TestClient: completed, tool_calls==sent==15, budget ok, close_attempts 1; GET reread budget and tool_results equal; same-key replay replayed=true with transports still 1, sent still 15, close_attempts still 1, events equal), 93-130 (exhausted: failed/exhausted/call_limit, result null, unverified, close_attempts 1; replay does not grow); tests/test_live.py:259-276 (503 LIVE_NOT_CONFIGURED and 409 IDEMPOTENCY_CONFLICT). Actual local run: tests/test_live_admission.py 22 passed; tests/test_live.py 13 passed.",
+      "note": "Replay returns the persisted run before LiveRuntime/factory creation (app/live.py:272-280), so no new factory/HTTP/LIVE_FINISHED event is possible."
+    },
+    {
+      "item": "1.5",
+      "status": "pass",
+      "evidence": "docs/LIVE-AMAP.md:3 (deadline/cancel not delivered), 63-70 (default 40, pre-send reservation, attempts are not billing, local 0, exhausted shape), 72-78 (binding protocol change, per-run runtime, owned/borrowed cleanup, failed-bind cleanup, fake must reserve), 80-82 (probe script is not under the run's 40/90 guard), 92-101 (isolated pre/post reproduction table), 105 (explicit non-delivery of 90s deadline and cancel); app/main.py:161-162 (default factory owns an independent client); scripts/amap_probe.py:41-42,113-114 (script holds an unbound client and closes it). No claim that deadline/cancel shipped and no claim of real-supplier verification.",
+      "note": "The evidence-script label/field mismatch is noted as F3; it does not turn any doc statement into an overclaim."
+    },
+    {
+      "item": "Review Focus",
+      "status": "pass",
+      "evidence": "tests/test_live_admission.py:244-262: a second bind to the same active adapter/client fails, the failing run sends nothing (len(sent)==close_attempts==0), the original adapter still resolves origin and its budget increments 1 while the rejected run's budget is 0, and the original owner's final close is exactly 1. tests/test_live_admission.py:213-241 independently shows the losing adapter's close leaves close_attempts 0 and the winner's budget/calls stay independent.",
+      "note": "Sequential API-level and threaded adapter-level evidence both cover the focus; same-object concurrent interleaving belongs to ticket 2/3 (see limits)."
+    },
+    {
+      "item": "LRC-01",
+      "status": "pass",
+      "evidence": "All four scenarios are covered: N+1 rejected at the send point with handler count N (tests/test_live_admission.py:138-154, 369-391); batch mid-exhaustion at limit 7/10 (93-130); admitted failures and zero-HTTP local tools (157-195); zero limit and exact use (138-154, plus limit 15 full API run at 58-90).",
+      "note": "The exact 40 case is exercised at AmapClient+MockTransport, not through a full 40-send itinerary; the ticket requires the send point, which is what the test pins."
+    },
+    {
+      "item": "LRC-04",
+      "status": "pass",
+      "evidence": "Counts and evidence survive exhaustion (tests/test_live_admission.py:93-130); persisted budget/tool_results reconcile on reread (58-90); exhausted runs save failed/exhausted/call_limit/result null/unverified (93-130); local-only tools consume zero (183-195).",
+      "note": "Ticket-1 scope only. elapsed_seconds remains DEFAULT_BUDGET's 0.0 and a zero-HTTP new run cannot currently complete (origin always geocodes); both are ticket-2/deadline work (design.md:53, tickets.md:84) and are not claimed by the docs."
+    },
+    {
+      "item": "LRC-05",
+      "status": "pass",
+      "evidence": "app/live.py:272-280 returns the existing run before LiveRuntime/factory creation; tests/test_live_admission.py:83-90 (success replay) and 124-130 (exhausted replay) assert same run_id, transports still 1, sent and close_attempts unchanged, events equal; tests/test_live.py:266-276 and 259-263 keep 409 and 503.",
+      "note": "Budget objects are per-run, so the replay path cannot mix counts; the bind-race test also asserts winner/loser budgets 1/0."
+    },
+    {
+      "item": "LRC-06",
+      "status": "pass",
+      "evidence": "Protocol check and no-tool failure: app/live.py:283-292, 300-306; tests/test_live_admission.py:336-366. Active-client exclusivity, borrowed reuse, and close-vs-bind: app/amap_tools.py:61-100, 209-241; tests/test_live_admission.py:213-241, 244-262, 265-279, 282-316. Independent non-LIVE caller not credited with the guard: docs/LIVE-AMAP.md:80-82, scripts/amap_probe.py:41-42.",
+      "note": "The 'independent non-LIVE caller' scenario is documented and visible in code, not asserted by a test for a script-level run budget (the script has none by design)."
+    },
+    {
+      "item": "LRC-07",
+      "status": "pass",
+      "evidence": "app/amap_tools.py:190-195 closes an owned client when constructor validation fails; 229-241 implements owned close once / borrowed unbind only; app/live.py:307-314 always attempts close on the acquired adapter. Tests: success and exhaustion close_attempts 1 (tests/test_live_admission.py:58-90, 93-130), borrowed 0 (265-279), repeated close 1 (239-241, 315-316), failed bind no touch (244-262).",
+      "note": "Ticket-1 evidence covers success, exhaustion, borrowed, owned, and failed-bind ownership. The provider-error/constructor-failure/deadline/cancel cleanup matrix is explicitly ticket 3 (tickets.md:98) and is not claimed here."
+    },
+    {
+      "item": "LRC-09",
+      "status": "pass",
+      "evidence": "docs/LIVE-AMAP.md:3, 61, 63-70, 72-82, 92-101, 103-105 distinguish attempted HTTP from billing, show default 40, describe the internal protocol change, state the probe is outside the run budget, say the real supplier was not verified, and explicitly exclude deadline/cancel. The pre-fix baseline is the recorded 6a78560 observation; the post-fix command was rerun locally and produced attempts 2 / client 2 / persisted 2 / failed-exhausted / oversent false.",
+      "note": "Ticket-1 material only; 90-second and 5-second defaults and their sources belong to ticket 2/3 documentation and are absent here, consistently with the ticket brief."
+    }
+  ],
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "low",
+      "file": "tests/test_live_admission.py",
+      "line": 231,
+      "quote": "assert sum(won) == 1",
+      "reason": "The Barrier only aligns thread start; the client's check-then-set critical section is a few bytecodes, so a lock-free lost-update implementation would almost always still produce exactly one winner under CPython's default 5ms switch interval. The test can therefore pass a regression that removes AmapClient.bind_runtime's lock, so it proves the outcome of this run rather than mutual exclusion.",
+      "recommendation": "Add a deterministic interleaving test (hold client._lock to order the two attempts, or lower sys.setswitchinterval and repeat the race) so removing the lock makes the test fail; keep the current one-winner assertion."
+    },
+    {
+      "id": "F2",
+      "severity": "low",
+      "file": "tests/test_live.py",
+      "line": 19,
+      "quote": "模拟的发送次数与真实适配器同一口径（origin 1 / poi 1 / weather 1 /",
+      "reason": "The real adapter sends one detail request per resolved non-origin POI (3 for the three-candidate fixture), so the real normal run is 15; the fake models hours as 2 and yields 13. The delta is +2 (weather adcode plus hours), not only the weather adcode as impl-reports/task1-http-admission.md §4 line 74 states (13 + 1 is not 15). The fake is a simplification; the claim misstates the model and can mislead future test authors.",
+      "recommendation": "Correct the docstring and report arithmetic, and either make FakeAdapter.hours send one request per resolved candidate or explicitly label the fake count as a simplified model."
+    },
+    {
+      "id": "F3",
+      "severity": "low",
+      "file": "openspec/changes/travel-runtime-budget/evidence/reproduce_budget.py",
+      "line": 38,
+      "quote": "'scope':'offline MockTransport; synthetic data; current baseline behavior, not a fix',",
+      "reason": "docs/LIVE-AMAP.md:92-101 presents this command as the post-fix observation, but the emitted scope calls itself the current baseline behavior, not a fix, and the JSON has no exhaustion_reason, so the table's '(call_limit)' cell is not reproduced by the stated command. Rerunning it locally does produce attempts 2 / client 2 / persisted 2 / failed-exhausted / oversent false, so the numbers are real; the label and field set are the inconsistency.",
+      "recommendation": "Parameterize or relabel the scope as pre-fix vs post-fix and include the persisted exhaustion_reason (or cite the admission test for call_limit) so the docs table and the command output agree."
+    }
+  ],
+  "limits": [
+    "Did not rerun the full suite: locally ran tests/test_live_admission.py (22 passed) and tests/test_live.py (13 passed), plus the documented evidence/reproduce_budget.py; the remaining reported 110-test total was not independently re-verified.",
+    "LiveRuntime.check() is a no-op (app/runtime.py:24-26); the 90-second monotonic deadline, cancel probe, elapsed_seconds, late-result rejection, and per-operation timeout clipping are ticket 2 and are not verified here or claimed by the docs.",
+    "Ticket 2/3 material not verified: DQ-002 run_in_threadpool/loopback concurrency (app/main.py:215-228 still runs the synchronous core inside an async endpoint), provider/constructor/deadline/cancel cleanup matrix, and LRC-08 redaction (tickets.md:96-99).",
+    "The bind-v-bind interleaving is probabilistic; no injected GIL-independent race proved that removing the client lock would fail the test (F1).",
+    "Only httpx.MockTransport and synthetic-example were used; no real supplier, real Key, billing, or supplier-side semantics were verified.",
+    "LRC-04's zero-HTTP new run cannot be reached by the current LIVE path (origin always requires geocode), and historical-run compatibility was not constructed.",
+    "The failed-bind yield is a one-shot adapter flag (reported at impl-reports/task1-http-admission.md §9.2): the API path guarantees exactly one close after a failed bind, but a same-object/multi-run identity protocol and its concurrent interleavings are left to ticket 2/3."
+  ]
+}

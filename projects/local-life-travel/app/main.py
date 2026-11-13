@@ -15,6 +15,7 @@ from fastapi import FastAPI, Header, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
+from starlette.concurrency import run_in_threadpool
 
 from .amap_tools import AmapAdapter, AmapClient
 from .domain import (
@@ -35,6 +36,13 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB_INDEX = ROOT / "web" / "index.html"
 DEFAULT_DB = ROOT / "data" / "replay.sqlite3"
 NO_AUTOSTART = os.environ.get("TRAVEL_REPLAY_NO_AUTOSTART", "") == "1"
+LIVE_NOTICE = "LIVE / 真实渠道：调用高德 Web 服务；结果取决于供应商返回，不表示已经人工核验。"
+LIVE_CANCEL_MESSAGE = (
+    "已记录取消：将尽力停止后续发送；已发送的尝试可能仍完成或返回，"
+    "不声称撤回在途请求，也不保证立即返回。")
+LIVE_CANCEL_EVENT_REASON = (
+    "LIVE取消已记录：尽力停止后续发送；已发送的请求可能仍完成，"
+    "不声称撤回在途请求")
 
 
 class ApiError(Exception):
@@ -83,8 +91,7 @@ def run_view(run: dict[str, Any], events: list[dict[str, Any]] | None = None) ->
     mode = run.get("mode", "replay")
     return {
         "mode": mode,
-        "replay_notice": REPLAY_NOTICE if mode == "replay" else (
-            "LIVE / 真实渠道：调用高德 Web 服务；结果取决于供应商返回，不表示已经人工核验。"),
+        "replay_notice": REPLAY_NOTICE if mode == "replay" else LIVE_NOTICE,
         "run_id": run["run_id"],
         "request_id": run["request_id"],
         "parent_run_id": run["parent_run_id"],
@@ -115,7 +122,8 @@ def run_view(run: dict[str, Any], events: list[dict[str, Any]] | None = None) ->
 
 def create_app(*, store: Store | None = None, worker: Worker | None = None,
                autostart: bool = False, manual_drain: bool = False,
-               owns_resources: bool = False, live_adapter_factory=None) -> FastAPI:
+               owns_resources: bool = False, live_adapter_factory=None,
+               live_clock=None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         if app.state.store is None:
@@ -140,6 +148,7 @@ def create_app(*, store: Store | None = None, worker: Worker | None = None,
     app.state.manual_drain = manual_drain
     app.state.owns_resources = owns_resources
     app.state.live_adapter_factory = live_adapter_factory
+    app.state.live_clock = live_clock
 
     def state(request: Request) -> tuple[Store, Worker]:
         if request.app.state.store is None:
@@ -158,7 +167,8 @@ def create_app(*, store: Store | None = None, worker: Worker | None = None,
             raise ApiError(503, "LIVE_NOT_CONFIGURED",
                            "真实渠道未配置 AMAP_API_KEY；请先创建高德 Web 服务 Key 并设置环境变量",
                            retryable=False)
-        return lambda city, transport: AmapAdapter(AmapClient(), city=city, transport=transport)
+        return lambda city, transport: AmapAdapter(AmapClient(), city=city, transport=transport,
+                                                   owns_client=True)
 
     @app.exception_handler(ApiError)
     async def _api_error(_: Request, exc: ApiError) -> JSONResponse:
@@ -223,8 +233,12 @@ def create_app(*, store: Store | None = None, worker: Worker | None = None,
         factory = live_factory(request)
         store, _ = state(request)
         scoped_key = f"live:create:{idempotency_key}" if idempotency_key else None
+        clock = request.app.state.live_clock
         try:
-            run, created = create_live_run(store, live_request, factory, scoped_key)
+            # 同步核心放到threadpool：原POST仍等待终态，但同一事件循环可继续受理
+            # 同键重放/取消/GET，取消因此在进程内可达。
+            run, created = await run_in_threadpool(
+                create_live_run, store, live_request, factory, scoped_key, clock=clock)
         except RuntimeError as exc:
             if str(exc) == "IDEMPOTENCY_CONFLICT":
                 raise ApiError(409, "IDEMPOTENCY_CONFLICT",
@@ -299,10 +313,12 @@ def create_app(*, store: Store | None = None, worker: Worker | None = None,
             versions = list(parent["versions"]) + [{"revision": revision, "run_id": "pending"}]
             scoped_key = (f"live:revision:{parent['run_id']}:{revision}:{idempotency_key}"
                           if idempotency_key else None)
+            clock = request.app.state.live_clock
             try:
-                run, created = create_live_run(store, live_request, factory, scoped_key,
-                                               parent_run_id=parent["run_id"], revision=revision,
-                                               versions=versions)
+                run, created = await run_in_threadpool(
+                    create_live_run, store, live_request, factory, scoped_key,
+                    parent_run_id=parent["run_id"], revision=revision,
+                    versions=versions, clock=clock)
             except RuntimeError as exc:
                 if str(exc) == "IDEMPOTENCY_CONFLICT":
                     raise ApiError(409, "IDEMPOTENCY_CONFLICT",
@@ -363,9 +379,32 @@ def create_app(*, store: Store | None = None, worker: Worker | None = None,
         if run is None:
             raise ApiError(404, "RUN_NOT_FOUND", f"运行 {run_id} 不存在", run_id=run_id)
         outcome = store.cancel_run(run_id)
+        if outcome == "missing":
+            # get_run 与条件取消之间行被外部删除：按既有 RUN_NOT_FOUND 语义报 404，
+            # 不写 CANCELLED 事件（events 表没有外键，写事件会留下悬挂记录）。
+            raise ApiError(404, "RUN_NOT_FOUND", f"运行 {run_id} 不存在", run_id=run_id)
         if outcome == "terminal":
+            current = store.get_run(run_id) or run
             raise ApiError(409, "RUN_NOT_CANCELLABLE",
-                           f"运行已处于终态 {run['status']}，不能取消", run_id=run_id)
+                           f"运行已处于终态 {current['status']}，不能取消", run_id=run_id)
+        if run.get("mode") == "live":
+            # 取消确认在短事务内已归一 status/budget/quality/result 并删除耗尽键；
+            # 读回canonical快照，响应和事件如实描述LIVE与检查后竞争。
+            store.add_event(run_id, run["current_stage"], "CANCELLED",
+                            LIVE_CANCEL_EVENT_REASON)
+            canonical = store.get_run(run_id) or run
+            return {
+                "mode": "live",
+                "replay_notice": LIVE_NOTICE,
+                "run_id": run_id,
+                "status": canonical["status"],
+                "budget": canonical["budget"],
+                "quality_status": canonical["state"]["quality_status"],
+                "result": canonical["state"]["result"],
+                "executed_stages": canonical["state"]["executed_stages"],
+                "events": store.get_events(run_id),
+                "message": LIVE_CANCEL_MESSAGE,
+            }
         store.add_event(run_id, run["current_stage"], "CANCELLED",
                         "尽力停止后续调用；已执行阶段保留；本地回放无远端操作需要撤销")
         return {

@@ -24,13 +24,10 @@ from .domain import (
     utc_now,
 )
 from .store import Store, new_state
+from .runtime import BudgetExhausted, LiveRuntime, RunCancelled, RuntimeControlError
 
 
 LIVE_MAX_TOOL_CALLS = 40  # live counts real HTTP requests, including matrix/hours details
-
-
-class BudgetExhausted(RuntimeError):
-    pass
 
 
 def _new_id(prefix: str) -> str:
@@ -70,14 +67,11 @@ def build_live_run(request: LiveTravelRequest, *, idempotency_key: str | None = 
     }
 
 
-def _record(run: dict[str, Any], tool: str, result: ToolResult, calls: int = 1) -> None:
-    calls = max(1, int(calls))
-    if run["budget"]["tool_calls"] + calls > run["budget"]["max_tool_calls"]:
-        raise BudgetExhausted("live HTTP 调用达到预算上限")
+def _record(run: dict[str, Any], tool: str, result: ToolResult) -> None:
+    # 工具/子证据交付不消费预算；只有发送前reserve成功才记HTTP尝试。
     data = result.model_dump(mode="json")
     data["tool"] = tool
     run["state"]["tool_results"].append(data)
-    run["budget"]["tool_calls"] += calls
 
 
 def _record_issue(run: dict[str, Any], result: ToolResult, subject: str) -> None:
@@ -90,7 +84,7 @@ def _record_issue(run: dict[str, Any], result: ToolResult, subject: str) -> None
     run["state"]["degraded"] = True
 
 
-def execute_live(run: dict[str, Any], adapter: Any) -> dict[str, Any]:
+def execute_live(run: dict[str, Any], adapter: Any, runtime: LiveRuntime) -> dict[str, Any]:
     request = run["request"]
     state = run["state"]
     order = state["order"]
@@ -98,11 +92,10 @@ def execute_live(run: dict[str, Any], adapter: Any) -> dict[str, Any]:
     run["budget"]["status"] = "running"
 
     def invoke(tool: str, function, *args):
-        client = getattr(adapter, "client", None)
-        before = getattr(client, "calls", 0)
+        runtime.check()
         result = function(*args)
-        after = getattr(client, "calls", before)
-        _record(run, tool, result, calls=max(1, after - before))
+        runtime.check()
+        _record(run, tool, result)
         return result
 
     origin = invoke("origin", adapter.resolve_origin, request["origin"])
@@ -175,6 +168,7 @@ def execute_live(run: dict[str, Any], adapter: Any) -> dict[str, Any]:
         run["budget"]["status"] = "failed"
         return run
     if state["candidates_for_input"]:
+        runtime.check()  # 接受needs_input终态前仍需在deadline内且未取消
         run["status"] = "needs_input"
     weather = invoke("weather", adapter.weather, request["date"])
     if weather.status == ToolStatus.VALID:
@@ -249,12 +243,14 @@ def execute_live(run: dict[str, Any], adapter: Any) -> dict[str, Any]:
     for candidate in request["candidates"]:
         key = candidate["name"] or candidate["poi_id"]
         candidate_by_key[key] = {**candidate, "key": key}
+    runtime.check()  # 评估前
     outcome = evaluate_timeline(
         request=request, order=order, leg_durations=state["leg_durations"],
         hours=state["hours"], candidate_by_key=candidate_by_key,
         poi_by_key=state["poi_by_key"], prior_issues=list(state["issues"]),
         degraded=state["degraded"],
     )
+    runtime.check()  # 评估后：晚到结论不得当作正常完成
     state["issues"] = outcome["issues"]
     state["quality_status"] = outcome["quality_status"]
     state["result"] = {
@@ -264,16 +260,56 @@ def execute_live(run: dict[str, Any], adapter: Any) -> dict[str, Any]:
         "issues": outcome["issues"], "changes": [],
         "evidence_refs": outcome["evidence_refs"],
     }
+    runtime.check()  # 接受completed/needs_input终态前
     if run["status"] not in ("needs_input", "failed"):
         run["status"] = "completed"
     run["budget"]["status"] = "ok" if run["status"] == "completed" else run["status"]
     return run
 
 
+def _mark_exhausted(run: dict[str, Any], reason: str) -> None:
+    run["status"] = "failed"
+    run["budget"]["status"] = "exhausted"
+    run["budget"]["exhaustion_reason"] = reason
+    run["state"]["result"] = None
+    run["state"]["quality_status"] = "unverified"
+    add_issue(run["state"]["issues"], "BUDGET_EXHAUSTED", "blocker",
+              "live HTTP attempt limit exhausted" if reason == "call_limit"
+              else "live runtime deadline exhausted")
+
+
+def _mark_execution_failure(run: dict[str, Any], message: str) -> None:
+    run["status"] = "failed"
+    run["budget"]["status"] = "failed"
+    run["state"]["result"] = None
+    run["state"]["quality_status"] = "unverified"
+    add_issue(run["state"]["issues"], "STAGE_EXECUTION_ERROR", "blocker", message)
+
+
+def _classify_control(run: dict[str, Any], exc: Exception) -> None:
+    """把边界检查的异常落到主分类；已有主失败不被清理/时间检查覆盖。"""
+    if isinstance(exc, BudgetExhausted):
+        if run["status"] != "failed":
+            _mark_exhausted(run, exc.reason)
+    elif isinstance(exc, RunCancelled):
+        # 取消已由取消事务归一；最终保存按已提交状态决定canonical终态。
+        return
+    elif isinstance(exc, RuntimeControlError):
+        if run["status"] != "failed":
+            if exc.category == "INVALID_OPERATION_TIMEOUT":
+                # 配置错误不是探针失败，也不是总deadline耗尽；固定安全文案，不带原始值。
+                _mark_execution_failure(run, "操作级 timeout 配置非法（INVALID_OPERATION_TIMEOUT）")
+            else:
+                _mark_execution_failure(run, f"运行状态探针失败：{exc}")
+    elif run["status"] != "failed":
+        _mark_execution_failure(run, f"真实渠道执行异常：{type(exc).__name__}")
+
+
 def create_live_run(store: Store, request: LiveTravelRequest,
                     adapter_factory: Callable[[str, str], Any], key: str | None,
                     *, parent_run_id: str | None = None, revision: int = 1,
-                    versions: list[dict[str, Any]] | None = None) -> tuple[dict[str, Any], bool]:
+                    versions: list[dict[str, Any]] | None = None,
+                    clock: Callable[[], float] | None = None) -> tuple[dict[str, Any], bool]:
     run = build_live_run(request, idempotency_key=key, parent_run_id=parent_run_id,
                          revision=revision, versions=versions)
     if key:
@@ -284,27 +320,48 @@ def create_live_run(store: Store, request: LiveTravelRequest,
                 raise RuntimeError("idempotency row exists but run is missing")
             if existing["request_hash"] != run["request_hash"]:
                 raise RuntimeError("IDEMPOTENCY_CONFLICT")
-            return existing, False
+            return existing, False  # 幂等命中不建立runtime/factory/HTTP
     else:
         store.create_run(run)
+    # 新run落盘后、factory之前取单调开始值；每次check用短探针观察持久取消状态。
+    runtime = LiveRuntime(run["budget"], clock=clock,
+                          cancel_probe=lambda: store.probe_run_status(run["run_id"]),
+                          on_evidence=lambda tool, result: _record(run, tool, result))
     adapter = None
+    cleanup_acquired = True  # 缺协议时已取得对象仍尝试清理一次
     try:
+        runtime.check()
         adapter = adapter_factory(request.city, request.transport)
-        execute_live(run, adapter)
-    except BudgetExhausted as exc:
-        run["status"] = "failed"
-        run["budget"]["status"] = "exhausted"
-        add_issue(run["state"]["issues"], "BUDGET_EXHAUSTED", "blocker", str(exc))
+        if not callable(getattr(adapter, "bind_runtime", None)) or not callable(getattr(adapter, "close", None)):
+            raise TypeError("LIVE adapter requires bind_runtime and close")
+        try:
+            adapter.bind_runtime(runtime)
+        except Exception:
+            # 本次run没有取得该adapter（它仍归原owner），不得调用它的close。
+            cleanup_acquired = False
+            raise
+        runtime.check()
+        execute_live(run, adapter, runtime)
     except Exception as exc:  # noqa: BLE001 - a live failure must be persisted
-        run["status"] = "failed"
-        run["budget"]["status"] = "failed"
-        add_issue(run["state"]["issues"], "STAGE_EXECUTION_ERROR", "blocker",
-                  f"真实渠道执行异常：{type(exc).__name__}: {exc}")
+        _classify_control(run, exc)
     finally:
         close = getattr(adapter, "close", None)
-        if callable(close):
-            close()
-    store.save_run(run)
-    store.add_event(run["run_id"], "live", "LIVE_FINISHED",
-                    f"真实渠道执行结束；status={run['status']}；quality={run['state']['quality_status']}")
-    return run, True
+        if callable(close) and cleanup_acquired:
+            try:
+                close()
+            except Exception as exc:
+                # 只保留固定类别与安全异常类型；close“尝试”不等于已释放成功。
+                add_issue(run["state"]["issues"], "RESOURCE_CLEANUP_FAILED", "warning",
+                          f"资源清理尝试失败（{type(exc).__name__}）；资源是否释放未知")
+        # 收尾后最后check：清理可能越过deadline，过期终态不得被接受。
+        try:
+            runtime.check()
+        except Exception as exc:  # noqa: BLE001 - 分类后仍必须保存
+            _classify_control(run, exc)
+        run["budget"]["elapsed_seconds"] = round(runtime.elapsed(), 3)
+        # 单次短事务重新判定取消并返回canonical；实际计数/elapsed/证据一并提交。
+        canonical = store.finalize_run(run)
+        store.add_event(canonical["run_id"], "live", "LIVE_FINISHED",
+                        f"真实渠道执行结束；status={canonical['status']}；"
+                        f"quality={canonical['state']['quality_status']}")
+    return canonical, True

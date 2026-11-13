@@ -1,0 +1,40 @@
+{
+  "run_id": "20261113T091208Z-cr-RW1pFk",
+  "task_id": "cr-adv-concurrency",
+  "prefix_receipt": "<!-- prefix-version: code-review-8b697f286cdb -->",
+  "findings": [],
+  "dismissed": [
+    {
+      "file": "app/main.py",
+      "line": 238,
+      "reason": "交错：≥40 个并发 LIVE POST 各自通过 run_in_threadpool 长期占用 anyio 默认 CapacityLimiter(40)；此时第 41 个请求——包括 cancel 与 GET（都是同步 def 端点，Starlette 同样投到同一 threadpool）——只能排队，取消在整个 90s deadline 内不可达，而 app/main.py:238-239 的注释（“取消因此在进程内可达”）与 docs/LIVE-AMAP.md:124 是无条件口吻。判为不报：这是容量上限而非交错误序——单个在途 run 下取消确实可达（tests/test_live_deadline_cancel.py:607-688 真实 loopback 验证），且 docs/ACCEPTANCE.md:188 已写明“单进程线程池容量不构成生产并发承诺”、:120 写明“单进程 SQLite｜无多实例/并发容量承诺”。临界值 40 = anyio 默认线程 limiter，调高并发属产品容量决策，不是本次实现缺陷；仅建议注释补一句容量前提。"
+    },
+    {
+      "file": "app/store.py",
+      "line": 245,
+      "reason": "交错：cancel_run（BEGIN IMMEDIATE 内 SELECT * → 写 status+budget+state）与 finalize_run（BEGIN IMMEDIATE 内 SELECT status → 若 cancelled 则 _normalize_cancelled → UPDATE 全列）是 LIVE 行的仅有两个写者，二者在同一 Store 实例上被 self._lock（RLock）串行化（app/store.py:194/244），且各自在事务内重读状态。取消先提交 → finalize 读到 cancelled（:252）并对含实际计数/elapsed/证据的内存快照做同样归一后一次写入；finalize 先提交 → cancel_run 读到 completed/failed 直接返回 terminal→409。两条路径都不存在“读旧状态后写”的窗口，单行快照不会出现 status=cancelled 与 budget.status=exhausted/ok 或 quality=verified 的混合（_normalize_cancelled 一次改 status/budget.status/quality/result，app/store.py:17-25）。覆盖：tests/test_live_deadline_cancel.py:760-823（阻塞最后一次 check 后取消，5 次独立连接 GET 全为归一快照）、:826-875（内存已判 call_limit 后取消并删除 exhaustion_reason）；我连续复跑 6 轮全绿。"
+    },
+    {
+      "file": "app/amap_tools.py",
+      "line": 123,
+      "reason": "交错：run B 的 adapter（与 run A 共享同一 client）在 A 持有该 client 或 A 正在物理 close 时 bind。AmapClient.bind_runtime 在 client 短锁内要求 _state=='open' 且 _runtime is None（app/amap_tools.py:70-76）；AmapAdapter.close 先在 _lifecycle_lock 内取走 _runtime 并把 client 置 closing（_detach_locked，:123-131），身份不符时抛错且绝不置 closing（:123-124），故 B 的 bind 必败；create_live_run 在 bind 抛错时置 cleanup_acquired=False（app/live.py:333-338），既不 close 别人的 client，也不进入 execute_live 派发，B 的 tool_calls 保持 0、factory 之后 0 次 HTTP。反向（A 先 bind 成功、B 后到）同一锁只放一个赢家。覆盖：tests/test_live_admission.py:234-267（bind-v-bind 一赢一败、输家 tool_calls 0、物理关闭 0）、:344-378（物理 close 等待期间拒绝新 bind）、:291-323（同一对象两次失败 bind 后两次清理均不触碰原 owner，client 仍 open 且可继续发送）。"
+    },
+    {
+      "file": "app/store.py",
+      "line": 230,
+      "reason": "交错：run A 的取消探针（app/store.py:228-234，单行 SELECT status）与 run B 的 finalize/cancel 写事务并发。两者共用同一 sqlite3 连接（check_same_thread=False）并被同一 RLock 串行化，探针不可能在别人的事务中途读到未提交行，WAL 下也读不到其他连接未提交的数据；唯一可观察后果是探针被短事务阻塞（每次事务只做 1 行 SELECT + 1 行 UPDATE + commit，HTTP 与 close 都在 DB 锁外，docs/LIVE-AMAP.md:139 已声明），不产生错分类或错终态。探针异常/缺行只落固定类别 RuntimeControlError（app/runtime.py:63-71），由 _classify_control 归为 failed，不给混合终态留路径（app/live.py:289-301）。"
+    },
+    {
+      "file": "app/main.py",
+      "line": 247,
+      "reason": "交错：GET 与同键重放分两次短读（app/main.py:285-288 的 get_run 与 get_events；:247 的 run_view(run, get_events)），两次读之间 finalize_run 的提交与 add_event 的提交可以插入，理论上可观察到 status='queued' 却已带 LIVE_FINISHED(status=completed) 事件，或 status=completed 而事件尚无 LIVE_FINISHED；同形窗口还有“取消已确认→finalize 之前”的 budget.tool_calls 仍是当时已持久化的值。判为不报：这不是行级混合终态——status/budget.status/quality/result 由单个 UPDATE 原子写入（app/store.py:255-266），契约禁止的是“cancelled 与 verified/ok 混合”，而该四元组任何时刻自洽；行与事件本就分属两个事务，跨表快照一致不在本 change 契约内（replay/worker 路径同形），且 docs/LIVE-AMAP.md:125 已显式声明计数窗口的读出口径。"
+    }
+  ],
+  "limits": [
+    "范围：git diff 6a78560..HEAD（HEAD=111f274）内的 app/runtime.py、app/store.py、app/live.py、app/main.py、app/amap_tools.py 与 tests/test_live_deadline_cancel.py、tests/test_live_cleanup_redaction.py、tests/test_live_admission.py；另读 app/domain.py 的常量、specs/live-runtime-control/spec.md、docs/LIVE-AMAP.md、docs/ACCEPTANCE.md 作为契约锚。未审 app/engine.py、app/worker.py、web/。",
+    "实测：python -m pytest tests/test_live_deadline_cancel.py tests/test_live_admission.py = 46 passed；另 4 个 live 文件（test_amap_tools/test_live/test_live_cleanup_redaction/test_live_loopback_e2e）= 47 passed，合计 93，与 docs/LIVE-AMAP.md:168 声称一致。4 个真实 loopback 并发用例（cancel 与 final check 竞争、cancel 胜出内存耗尽、创建与修订的并发重放+取消）连续复跑 6 轮全绿，未见 flake。",
+    "未做：未构造 ≥40 并发 LIVE POST 的线程池饱和实验（该维已被 ACCEPTANCE 明确声明为容量不承诺，见 dismissed 第 1 条）；未接真实 AMAP Key/真实网络（全部离线合成）；未模拟多进程或多 Store 实例共库（架构限定单进程单 Store）；未注入调度器级强制造窗口手段，结论均为可机械复核的锁/事务/状态机推理 + 既有测试锚。",
+    "环境：Windows，CPython 3.12.9，fastapi 0.115.12，starlette 0.46.1；pytest 用 data/pytest 下一次性 SQLite，TRAVEL_REPLAY_NO_AUTOSTART=1。",
+    "口径：本镜只对“能给出具体交错且运行期会爆”的位置记 finding（本次为 0，即默认 refuted 成立），对已审视但判为不构成问题的位置列 dismissed（5 条，未发生截断）；未改代码、未提交、未 push。"
+  ]
+}

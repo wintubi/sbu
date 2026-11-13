@@ -1,0 +1,186 @@
+{
+  "prefix_receipt": "<!-- prefix-version: spec-review-3a80ec0b276f -->",
+  "reviewed_commit": "b4a08e4735ac09c7d38886901fbd1132915f52a7",
+  "review_mode": "独立综合冷审；单一评审者，无主会话历史，无其他评审结果，无代理派发或跨模型意见",
+  "git_context": {
+    "repository_root": "D:/workspace-dsh/tmp/sbu-travel-runtime-budget",
+    "project_prefix": "projects/local-life-travel/",
+    "initial_status": "唯一观察到的未跟踪项为 openspec/changes/travel-runtime-budget/review-dispatch.json；未打开其内容。未修改任何受审文件。"
+  },
+  "files_read": [
+    "projects/local-life-travel/openspec/changes/travel-runtime-budget/.outside-voice/20261110T035200Z-zq5Eum/prefix-spec-review.md",
+    "projects/local-life-travel/openspec/changes/travel-runtime-budget/proposal.md",
+    "projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md",
+    "projects/local-life-travel/openspec/changes/travel-runtime-budget/specs/live-runtime-control/spec.md",
+    "projects/local-life-travel/openspec/changes/travel-runtime-budget/tasks.md",
+    "projects/local-life-travel/openspec/changes/travel-runtime-budget/decision-memo.md",
+    "projects/local-life-travel/app/live.py",
+    "projects/local-life-travel/app/amap_tools.py",
+    "projects/local-life-travel/app/main.py",
+    "projects/local-life-travel/app/store.py",
+    "projects/local-life-travel/app/domain.py:1-250",
+    "projects/local-life-travel/scripts/amap_probe.py",
+    "projects/local-life-travel/tests/test_live.py",
+    "projects/local-life-travel/tests/test_amap_tools.py",
+    "projects/local-life-travel/tests/test_worker.py:105-165",
+    "projects/local-life-travel/tests/conftest.py",
+    "projects/local-life-travel/openspec/config.yaml",
+    "projects/local-life-travel/docs/LIVE-AMAP.md",
+    "projects/local-life-travel/docs/change-single-day-replay/specs.md",
+    "projects/local-life-travel/openspec/changes/travel-runtime-budget/evidence/reproduce_budget.py",
+    "projects/local-life-travel/requirements.txt",
+    "D:/workspace-dsh/sdflow-windows-fix/sdflow-init/assets/workflow/spec-checklists/domains/backend.md",
+    "D:/workspace-dsh/sdflow-windows-fix/sdflow-init/assets/workflow/spec-checklists/domains/devex.md"
+  ],
+  "findings": [
+    {
+      "id": "COLD-001",
+      "severity": "high",
+      "priority": "P1",
+      "title": "批内中断缺少已成功子结果的交付契约",
+      "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/specs/live-runtime-control/spec.md",
+      "line": 71,
+      "quote": "- **THEN** 保存已有ToolResult/证据和全部已准入尝试，result为空，不伪造可行结论；读取可区分两种耗尽原因",
+      "trigger_condition": "hours已取得一个有效开放窗口或matrix已取得一条有效leg，下一次内部reserve因次数/deadline/取消中断。",
+      "consequence": "按拟定的get抛运行级异常、invoke返回后才记录ToolResult的数据流实现，异常会越过整个批次返回点；已成功leg的ToolResult及hours窗口仅在局部变量中，随栈退出丢失。最终尝试数可以准确，却缺少已取得的批内证据。只断言先前顶层工具仍在、result=null和发送数正确，也能误报LRC-04通过。不能以目前没有部分结果接口为理由缩掉保留证据的目标。",
+      "evidence_pack": [
+        {"file":"projects/local-life-travel/app/live.py","line":103,"quote":"        result = function(*args)"},
+        {"file":"projects/local-life-travel/app/live.py","line":105,"quote":"        _record(run, tool, result, calls=max(1, after - before))"},
+        {"file":"projects/local-life-travel/app/amap_tools.py","line":295,"quote":"                windows[key] = parsed"},
+        {"file":"projects/local-life-travel/app/amap_tools.py","line":336,"quote":"            result = self.leg(from_key, to_key)"},
+        {"file":"projects/local-life-travel/app/amap_tools.py","line":341,"quote":"            matrix[leg_key(from_key, to_key)] = {"},
+        {"file":"projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md","line":35,"quote":"| `AmapClient` | `get()`在进入httpx前调用runtime准入；calls只在准入成功后+1；返回/异常后再次check；支持绑定/解绑runtime | 不把工具方法次数当HTTP；不隐藏预算异常 |"}
+      ],
+      "suggestion": "明确保留的最小粒度包含截止前已成功的内部leg/营业详情。推荐在适配器解析完成时用进度回调交付规范化子证据，或让运行级中断携带已完成子结果快照，由编排统一记录后继续传播中断；不把部分批次标为完整成功，不接受截止后的数据。任务1.2/2.2增加真实MockTransport场景：第一条leg或第一POI详情成功，第二次准入拒绝，重读Store仍可定位第一条证据且result=null。此为局部可逆技术选择，无须新增真人决策门。",
+      "blocks_implementation": true,
+      "blocking_scope": "需先补齐HTTP/证据切片契约；不是要求重构replay或建立逐HTTP崩溃账本。",
+      "confidence": 94,
+      "rules": ["BASE-01","BASE-06","BASE-17","BASE-27"]
+    },
+    {
+      "id": "COLD-002",
+      "severity": "high",
+      "priority": "P1",
+      "title": "保存后修补取消态会公开混合结果，预算归一也未规定",
+      "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md",
+      "line": 79,
+      "quote": "- guard观察到取消：cancelled、budget.status=cancelled，停止新工作，未完成结果不标verified。Store保存的cancelled保护继续有效；保存后读回canonical run，避免内存completed覆盖API返回的真实取消态。必要时把已被SQL取消保护截获的结果同步为unverified/null后再保存，不新增HTTP。",
+      "trigger_condition": "最后check通过后cancel_run提交，随后旧内存completed/verified结果执行save_run；并发GET或同键重放位于第一次保存与读回修补之间。",
+      "consequence": "现有SQL只保护status，其余budget/state全部覆盖。因此第一次提交可被其他读取者观察为cancelled、budget.status=ok、quality_status=verified_feasible且result非空；之后修补不能收回已返回的内容。设计只指示修补quality/result，没有明确把晚保存的budget状态及耗尽字段归一为取消语义，最终也可能留下混合分类。这是run本身的一致性问题，不能用另行处理的run/event两次提交边界解释。",
+      "evidence_pack": [
+        {"file":"projects/local-life-travel/app/store.py","line":216,"quote":"                     status = CASE WHEN status='cancelled' AND ? != 'cancelled'"},
+        {"file":"projects/local-life-travel/app/store.py","line":218,"quote":"                     current_stage=?, revision=?, versions=?, budget=?, request=?, state=?,"},
+        {"file":"projects/local-life-travel/app/store.py","line":228,"quote":"            self._conn.commit()"},
+        {"file":"projects/local-life-travel/openspec/changes/travel-runtime-budget/tasks.md","line":22,"quote":"- [ ] 2.4 [LRC-03,LRC-04,LRC-05] 保存后以canonical run返回并处理被SQL取消保护截获的晚结果；验证最后检查与保存之间的取消竞争仍返回cancelled及非verified未完成结果，同键重放保留旧消耗而不重执行。"}
+      ],
+      "verification": "独立python -B内存验证：Store(':memory:')创建run，cancel_run后以completed/verified旧快照save_run，重读得到status=cancelled、budget_status=ok、quality=verified_feasible、result_is_null=false。无磁盘库、无网络。",
+      "suggestion": "推荐增加LIVE最终保存操作：在同一短SQLite事务内决定取消是否胜出，归一status、budget.status、quality_status与result，再一次提交并返回canonical快照；保留准确尝试数、耗时、证据和原失败诊断，明确取消与先前失败的优先级。无需改表，也无需把HTTP放进锁。验收用barrier在取消提交后、最终写入期间并发GET/幂等重放，要求任何已提交的最终LIVE记录都不出现cancelled+verified/ok混合态；不要只测原POST最终响应。",
+      "blocks_implementation": true,
+      "blocking_scope": "deadline/取消/终态持久化切片需要先确定原子归一契约。",
+      "confidence": 97,
+      "rules": ["BE-05","BASE-07","BASE-17","BASE-27"]
+    },
+    {
+      "id": "COLD-003",
+      "severity": "high",
+      "priority": "P1",
+      "title": "沿用普通错误映射与新脱敏要求冲突，验收只覆盖清理异常",
+      "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md",
+      "line": 67,
+      "quote": "6. get返回或网络异常后再次check；若总deadline已到，运行级耗尽优先于把迟到响应当正常工具结果；若仍有时间，按原规则映射普通HTTPX timeout/provider/format错误。",
+      "trigger_condition": "总deadline内发生HTTPError，异常文本含带key查询参数的供应商URL；或其他执行异常文本包含凭据/私人请求。",
+      "consequence": "原HTTPError映射把str(exc)放入ToolResult.message，LIVE又把message写入issues并持久化、通过run_view返回。照设计保留原规则会违反同一设计要求的错误/证据不回显真实Key；tasks 3.2只要求清理异常不泄漏，当前普通网络错误测试也只覆盖TimeoutException，容易漏验正常失败路径。",
+      "evidence_pack": [
+        {"file":"projects/local-life-travel/app/amap_tools.py","line":64,"quote":"            return {\"_error\": \"http\", \"message\": f\"{type(exc).__name__}: {exc}\"}"},
+        {"file":"projects/local-life-travel/app/live.py","line":88,"quote":"              f\"{subject} 工具状态 {result.status.value}：{result.message or '无有效结果'}\","},
+        {"file":"projects/local-life-travel/app/main.py","line":103,"quote":"        \"tool_results\": state[\"tool_results\"],"},
+        {"file":"projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md","line":179,"quote":"- Key只在环境/HTTPX请求query；测试用synthetic-example，MockTransport不出网；错误/证据不回显真实Key。外部POI文本只作数据，不执行指令。无新身份/数据公开许可结论。"},
+        {"file":"projects/local-life-travel/openspec/changes/travel-runtime-budget/tasks.md","line":30,"quote":"- [ ] 3.2 [LRC-07,LRC-08] 注入解绑与关闭异常，独立尝试其余清理，记录固定类别/异常类型警告；验证第7类cleanup_failure仍保存原主失败/准确预算及警告，不声称释放成功、不因finally异常跳过save，不泄漏测试凭据/带query URL。"}
+      ],
+      "verification": "独立python -B + SQLite :memory: + MockTransport：handler抛出ConnectError('synthetic failure: '+str(request.url))，使用纯合成Key；create_live_run后持久state同时包含合成Key和供应商query URL，两个布尔检查均为true。没有使用环境Key，没有真实HTTP。",
+      "suggestion": "明确普通错误的状态分类保持，错误文本必须改为允许列表的固定描述/异常类型；普通HTTPError与顶层执行错误均禁止原样str(exc)写入结果。给任务加入正常deadline内网络异常、普通顶层异常、cleanup异常三类合成含Key/query/私人文本的测试，并扫描API结果、持久state及事件。优先固定类别，避免依赖脆弱的字符串替换。属于满足现有安全契约的可逆实现选择，无须另开真人行为门。",
+      "blocks_implementation": true,
+      "blocking_scope": "需修正设计的原规则保留范围并补跨失败路径脱敏任务。",
+      "confidence": 99,
+      "rules": ["BASE-07","BASE-28","BE-04","BE-03"]
+    },
+    {
+      "id": "COLD-004",
+      "severity": "medium",
+      "priority": "P2",
+      "title": "解绑后关闭之间缺少client关闭状态的原子占位",
+      "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md",
+      "line": 76,
+      "quote": "- adapter.close先尝试解绑，拥有资源时尝试关闭；重复调用不产生第二次close。解绑/关闭抛错仍需完成其他可执行清理步骤，不能因其中一步失败静默跳过另一步。",
+      "trigger_condition": "自有client的run A进入close并成功解绑后、实际client.close前，另一个adapter为run B绑定同一client；现有拟定互斥只覆盖active runtime检查/更新。",
+      "consequence": "active指针已清空，B可以按当前绑定规则成功，随后A关闭B刚取得的client。两个同时bind至多一赢的测试不会覆盖bind与close交错；仅按原runtime身份解绑也无法阻止此窗口。生产独立client通常避开此路径，但LRC-06/07明确覆盖共享/借用的边界，不能只靠默认factory独立来证明所有权契约。",
+      "evidence_pack": [
+        {"file":"projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md","line":44,"quote":"绑定/解绑的检查与更新由client短互斥保护；解绑携带原runtime身份，只清除本次成功绑定，绑定失败对象的清理不得解绑或关闭另一active run所拥有的client。HTTP不在绑定锁内；单个LIVE执行仍顺序调用。受控client拒绝第二个active拥有者，两个并发绑定至多一个成功，不用GIL假装复合检查原子。"},
+        {"file":"projects/local-life-travel/openspec/changes/travel-runtime-budget/specs/live-runtime-control/spec.md","line":99,"quote":"- **THEN** 前者拒绝且不改变原run控制，后者建立独立计数，不串用前次消耗"}
+      ],
+      "suggestion": "推荐在同一client短锁内将自有client标为closing并解除本run绑定，之后在锁外实际close；bind必须拒绝closing/closed，关闭失败也不能重新进入可借用状态。借用client的成功解绑仍可顺序复用。补充确定性barrier测试：暂停在解绑与物理关闭之间，第二绑定必须失败且无工具调用；保留失败绑定不影响原run与幂等close测试。无需把网络/close长操作放进互斥锁。",
+      "blocks_implementation": false,
+      "blocking_scope": "可并行开展无关准入实现；资源切片验收前应补此约束和测试。",
+      "confidence": 89,
+      "rules": ["BASE-05","BASE-06","BASE-27","BE-09"]
+    }
+  ],
+  "decision_questions": [
+    {
+      "id": "DQ-001",
+      "question": "单次LIVE要求的是可观察边界上的协作式deadline，还是严格90秒墙钟返回？本次评审不替真人批准现有设计门。",
+      "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/proposal.md",
+      "line": 73,
+      "quote": "- 设计门待确认：协作式deadline（推荐，代价是不能强制打断挂起同步I/O）是否满足本次目标；若必须严格90秒返回，采用独立可终止执行边界重新设计。负责人：主助手整理证据、真人拍板；截止：实现前。",
+      "recommendation": "针对已给出的发送前上限、deadline后停止新工作和拒绝晚结果目标，推荐明确批准协作式deadline；不得把它命名为90秒返回SLA。若真人要求硬返回边界，则需改变执行边界后重评，不能由评审者自行缩目标。",
+      "options": [
+        {"name":"协作式deadline","system":"复用同步核心和HTTPX剩余timeout，复杂度较低；挂起I/O/close仍可超时长。","user":"后续发送与晚结果受控，但请求等待可能超过90秒。","development":"假clock和MockTransport可确定性验收；需持续保持局限说明。"},
+        {"name":"严格墙钟返回","system":"需要可终止执行边界及收尾/结果提交协议，重评隔离和取消。","user":"返回时间可界定，但必须定义被终止时的状态与资源处理。","development":"增加执行器、跨边界持久化和异常验收成本。"}
+      ],
+      "priority_judgment": "本地项目以准确准入和诚实结果为主；是否增加硬返回保证由真人决定。",
+      "owner":"真人用户",
+      "decision_deadline":"实现前",
+      "blocks_design_gate":true
+    },
+    {
+      "id": "DQ-002",
+      "question": "取消保证是否必须能由实际本地API在LIVE执行期间发起并被接收，还是只验证其他线程/连接已经写入持久取消后的运行控制？",
+      "file": "projects/local-life-travel/openspec/changes/travel-runtime-budget/design.md",
+      "line": 178,
+      "quote": "- 隔离：每run独立runtime；共享client不能同时覆盖绑定。取消读为短锁，网络不持DB事务；不承诺同事件循环可同时处理阻塞LIVE和取消，需另外线程/连接测试状态观察。",
+      "evidence_pack": [
+        {"file":"projects/local-life-travel/app/main.py","line":215,"quote":"    async def create_live_travel_run(request: Request, idempotency_key: str | None = Header("},
+        {"file":"projects/local-life-travel/app/main.py","line":227,"quote":"            run, created = create_live_run(store, live_request, factory, scoped_key)"},
+        {"file":"projects/local-life-travel/app/main.py","line":303,"quote":"                run, created = create_live_run(store, live_request, factory, scoped_key,"},
+        {"file":"projects/local-life-travel/openspec/changes/travel-runtime-budget/tasks.md","line":21,"quote":"- [ ] 2.3 [LRC-03,LRC-06] 用短持久状态探针观察取消/缺失/读取异常，HTTP不持DB事务；验证另一连接在两次发送间取消后下一handler不命中，探针失败不绕过控制，in-flight竞争局限如实记录。"}
+      ],
+      "verified_fact":"内存ASGITransport验证实际async创建路由直接调用同步函数：函数中call_soon排队的事件循环回调仅在LIVE函数返回后执行。序列为live_enter、live_leave、queued_loop_callback；未启动服务或真实网络。源码修订路由具有同样同步调用。",
+      "recommendation":"推荐取消至少能从同一单进程API进入：同步LIVE核心可保留，但在async路由完成解析后交线程执行，并明确调用者在运行中取得run_id的路径及HTTP取消集成验收。是否进一步改为提前202返回属于响应行为取舍，需要真人拍板。若真人只要求持久状态探针，请显式批准这项较窄行为范围，不能把旁路DB测试当作真实API取消可用的证明。",
+      "options": [
+        {"name":"实际API可发起取消（推荐）","system":"至少移出事件循环执行同步核心，无须直接引入worker平台；仍需明确run_id可获得性。","user":"等待LIVE期间可以使用取消入口；响应时序变化需说明。","development":"增加loopback并发POST/cancel/GET验收，创建与修订两入口都覆盖。"},
+        {"name":"仅持久取消观察契约","system":"保留当前同步阻塞API，guard从其他连接读取取消。","user":"同一单进程API中的取消可能等到LIVE结束；不能承诺用户能够在运行中取消。","development":"旁路Store测试成本较低，但材料必须清楚区分其与实际API体验。"}
+      ],
+      "priority_judgment":"已有明确的本地单进程与取消目标，用户可发起性优先；是否接受仅旁路取消是实质行为范围取舍，不能由评审者自行批准。",
+      "owner":"真人用户",
+      "decision_deadline":"取消切片设计门前",
+      "blocks_design_gate":true
+    }
+  ],
+  "recommendation": {
+    "verdict":"request_changes_and_human_design_gate",
+    "finding_count":4,
+    "severity_counts":{"high":3,"medium":1},
+    "implementation_blocking_findings":["COLD-001","COLD-002","COLD-003"],
+    "summary":"不建议按当前文本直接进入实现。发送前准入放在AmapClient.get、无重试/重定向、零HTTP不虚增、monotonic deadline、晚结果拒收和显式借用/拥有方向合理；需先补批内证据交付、LIVE取消原子归一和所有普通失败路径脱敏，资源切片补关闭与重绑定竞争。两项真人行为决策单列，不因规格现状而默认豁免，也不代为批准设计门。",
+    "scope_notes":"主spec目录仅发现.gitkeep，未发现ADR文件；无既有权威LRC主spec可对读。不把没有已实现runtime本身报为问题，不要求全局配额、供应商费用验证、replay恢复或run/event原子化。"
+  },
+  "limits": {
+    "read_only_scope":"除本JSON外未写任何文件；不改规格、产品或测试，不commit/push，不调用真实或收费渠道，不读其他review结果，不派代理。",
+    "validation":"执行了git HEAD/root/status核对、Python/HTTPX版本核对，以及3组python -B只在进程内运行的验证；所有Store为:memory:，所有HTTP为MockTransport/ASGITransport，合成Key固定传入，不读取环境Key。PYTHONDONTWRITEBYTECODE=1；未运行会生成SQLite文件的pytest fixture，未生成pytest cache。",
+    "mechanical_validation":"最终交付JSON解析成功；27处主引用/证据包逐条与真实文件对应整行完全相等，前缀回执逐字相等；git复核HEAD仍为b4a08e4735ac09c7d38886901fbd1132915f52a7，受跟踪文件git diff为空，交付新增差异已用git diff --no-index核验。",
+    "test_status":"未跑完整pytest；本次是规格冷审，runtime尚未实现，不能把基线探针声称为修复验收。COLD-004为由拟定时序推导的设计竞态，未声称在未实现接口上执行过并发测试。",
+    "timing":"不验证真实90秒耗时、真实高德可达性/计费、进程终止清理或磁盘故障容灾。",
+    "method":"采用已读前缀base清单及backend/devex清单做单人综合审查，加载sdflow-spec-review纪律；按本任务明确约束不执行该编排器的多代理/报告/提交流程，不冒充多名独立镜或跨模型第二意见。",
+    "documentation_read_ranges":"app/domain.py只读1-250行；tests/test_worker.py只读105-165行，其余files_read所列文件均完整读取。SKILL工具返回的sdflow-spec-review内容包含工具截断，未声称逐字审计完整skill正文。"
+  }
+}

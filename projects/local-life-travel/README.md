@@ -19,9 +19,12 @@ Python 3.12；本次验证环境已具有所需依赖。新环境建议先建虚
 
 ```bash
 set TRAVEL_REPLAY_NO_AUTOSTART=1
-python -m pytest -q
-# 期望：88 passed（回放 61 + 高德离线 14 + live API 13）
+python -m pytest -q -p no:cacheprovider
+# 本分支 2026-11-13 实测：159 passed（含 LIVE 异常收尾/脱敏、独立进程 loopback 包装与代码审修复回归）
+# 逐条命令、exit 与计数见 docs/ACCEPTANCE.md 第 10 节
 ```
+
+> 计数以实际运行输出为准；`159` 是 `feat/travel-runtime-budget` 分支的离线结果，不代表 main 已合并或真实供应商已验。
 
 ## 这个切片验证什么
 
@@ -35,7 +38,7 @@ python -m pytest -q
 
 真实外部 API 的已验证联调、LLM、真实 POI 核验、支付/订单/核销、多日规划、灵感发现、活动清单、公网多用户、认证与部署、LangGraph 迁移、Vue/TS 前端构建、效果阈值与模型对照实验、独立/跨模型评审、OpenSpec/sdflow 正式门禁。**不宣称原 `docs/SPEC-DRAFT.md` 全规格通过，也不宣称业务效果验收完成。**
 
-可选的高德适配器、`live-runs` API 路径和假适配器测试已实现（14 项离线 + 9 项 live API），但历史 Key 已被回收（`USER_KEY_RECYCLED`/10013），**尚未用新 Key 成功联调**；无 Key 时返回 503，不会伪造真实结果。详见 `docs/LIVE-AMAP.md`。
+可选的高德适配器、`live-runs` API 路径、发送前 HTTP 预算准入（默认40）、单调 deadline（默认90秒）、可达的 API 取消、异常资源收尾/脱敏和独立进程 loopback 验收已实现并**离线验证**。历史 Key 已被回收（`USER_KEY_RECYCLED`/10013），**尚未用新 Key 成功联调**；无 Key 时返回 503，不会伪造真实结果。独立进程脚本：`python scripts/live_loopback_e2e.py`（仅本地 127.0.0.1 + 合成 Key + `MockTransport`）。当前分支 `feat/travel-runtime-budget` **不是 main、未独立代码审、未合并**。详见 `docs/LIVE-AMAP.md` 与 `docs/ACCEPTANCE.md` 第 10 节。
 
 真实浏览器：Chrome/CDP 已跑 F01 可行、F07 冲突、F11 歧义、F16 工具错误（`docs/evidence/ui-travel.png`）；Playwright 因临时目录 EPERM 未用。
 
@@ -43,9 +46,14 @@ python -m pytest -q
 
 | 文档 | 内容 |
 |---|---|
+| `docs/TECH-STACK.md` | 技术栈总结（组件/技术/作用/状态）、现状与目标态、选型理由与代价 |
+| `docs/ARCHITECTURE.md` | 整体架构：分层、两条执行路径、模块职责、关键契约、目标态 Python Agent—Java—Vue |
 | `docs/IMPLEMENTATION.md` | 目录、启动、六阶段流水线、数据契约、API、fixture 格式、预算与并发、未运行项 |
-| `docs/ACCEPTANCE.md` | 精确测试命令与结果、首次失败与修复、真实 HTTP 验证、20 场景矩阵、覆盖与缺口 |
-| `docs/LIVE-AMAP.md` | 高德适配器、Key 现状、官方申请流程、限制与离线测试 |
+| `docs/ACCEPTANCE.md` | 精确测试命令与结果、首次失败与修复、真实 HTTP 验证、20 场景矩阵、覆盖与缺口；第 10 节为本次 LIVE 预算/资源/LRC-01..09 验收记录 |
+| `docs/LIVE-AMAP.md` | 高德适配器、Key 现状、官方申请流程、LIVE API 契约、预算/deadline/取消/异常收尾/独立进程 loopback 与限制 |
+| `openspec/changes/travel-runtime-budget/impl-reports/task1-http-admission.md` | ticket 1 实现与证据（HTTP 准入、真实计数、正常资源闭环） |
+| `openspec/changes/travel-runtime-budget/impl-reports/task2-deadline-cancel.md` | ticket 2 实现与证据（单调 deadline、API 取消、原子终态） |
+| `openspec/changes/travel-runtime-budget/impl-reports/task3-cleanup-e2e.md` | ticket 3 实现与证据（异常收尾、脱敏、独立进程 loopback、LRC 覆盖） |
 | `docs/change-single-day-replay/proposal.md` | 范围、不做的事、窄化与局限 |
 | `docs/change-single-day-replay/design.md` | 架构与 D1–D11 决策（含依据/代价/备选） |
 | `docs/change-single-day-replay/specs.md` | S1–S6 行为规格、API 契约、issue code、验收门槛 |
