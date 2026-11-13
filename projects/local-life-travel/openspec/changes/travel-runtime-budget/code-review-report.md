@@ -13,6 +13,8 @@ ship-gate:
 
 - 栈：Python 3.12 / FastAPI / SQLite；清单：`code-review-base.md` 全部 CR-01..CR-12 + backend delta。
 - Step1 自持 scope 审计（`impl-reports/cr-scope.json`）：15 项任务 **14 DONE / 1 CHANGED**（1.3 的 CountingAdapter 被删除、fake 改为逐 HTTP reserve，契约意图满足），无 NOT DONE、无 UNVERIFIABLE 阻塞项；切片偏离与 `planning-decisions.md` 一致，无静默偏离。
+
+<!-- sdflow:step1-broad-review v1 mode="subagent" -->
 - 镜集合：领域镜 1、对抗镜 3（并发/资源/错误路径）、历史镜按条件跳过（无 rename、无 ≥200 行既有文件改动）、Step1 scope 审计 1。
 - `trivial_shape`：NOT_EXEMPT（有逻辑面），故全量 fan-out。
 
