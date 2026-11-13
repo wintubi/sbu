@@ -1,0 +1,63 @@
+{
+  "run_id": "20261110T182434Z-impl-N2Sw5e",
+  "task_id": "task1-standards-r2",
+  "prefix_receipt": "<!-- prefix-version: principles-b9a054bafa9c -->",
+  "verdict": "pass",
+  "resolution": [
+    {
+      "finding": "STD-01（Important）失败绑定靠 adapter 上一枚与 runtime 身份无关的一次性 `_binding_failed`；两次失败 bind 后的两次 close 会按原 owner 的 `_runtime` 物理关闭仍在执行的 client",
+      "status": "fixed",
+      "evidence": "采用 r1 建议的 (a) 方案，判定上移到编排层：app/live.py:285 `cleanup_acquired = True`（缺协议时已取得对象仍清理一次），:291-296 包住 `bind_runtime`，失败置 False 再抛；:313-315 `finally` 仅在 `callable(close) and cleanup_acquired` 时调用 close，:317 是 app 内唯一的 adapter.close 调用点（grep 确认 amap_tools.py 内只有 client.close）。adapter 侧删净 `_binding_failed`：app/amap_tools.py:204-219 失败 bind 不改原 owner 的 `_runtime`/`_closed`（只有 client 绑定失败分支把自己置 `_closed`），:221-229 `close()` 只取自身 `_runtime` 快照并交给 `client.release(runtime, ...)`，由 :78-80 的身份核对决定是否可释放——即“只按自身绑定身份清理”。四项保留均成立：缺协议仍 close 一次（tests/test_live_admission.py:416-426，missing=bind_runtime 期望 close=1）；借用只解绑（:327-341，close_attempts=0）；自有幂等（:265-267 两次 close、close_attempts=1）；bind-v-close 仍拒绝（:344-378 及 :375-376 client 关闭后 bind 仍抛）。回归测试 tests/test_live_admission.py:291-324 用实例级 close 探针钉住“失败 bind 的 cleanup 不调用 close”：:314 `attempted == []`、:315 client 仍 open、:316 sent 与 close_attempts 均 0、:318 原 run 仍能发送、:319 原预算独立——这是行为断言而非结果断言；按修复前 finally 无条件 close 的形状该断言必为 ['close','close']（与报告 §10.2 红证据一致；我未回滚代码复验）。我另用不落盘探针确认：同一 owner adapter 上手动 close 仍关闭其自身 client（close_attempts=1、owner 再发送抛 closed）——这是“按自身身份清理”的正确语义，不再是失败 run 的 cleanup 行为，r1 探针形状已不是契约路径。"
+    },
+    {
+      "finding": "STD-02 / F2（Minor）FakeAdapter 口径与真实适配器不一致（hours 固定 2、weather 固定 1 → 13，真实 15）",
+      "status": "fixed",
+      "evidence": "tests/test_live.py:90 `self._send(2, \"weather\")`（首次 adcode geocode + 预报）；:51-53/:83 `_remember` 记录已匹配的非 origin 候选，:94-96 hours 按候选逐个 `_send(len(keys))`；:19-22 docstring 已改为“weather 2 / hours 逐候选 / 正常路径合计 15”。断言同步收紧：:150 `tool_calls == 15`、:151 `adapter.client.calls == budget.tool_calls`、:152 `len(adapter.sent) == 15`（原 13 断言被替换而非放宽，另加发送标签长度对账）。与真实适配器路径对账：tests/test_live_admission.py:60 把 limit 设 15、:76/:78 断言真实 Adapter 走同一 body 恰好 15 次发送，故 live.py 层 15 与真实口径一致，也符合 docs/LIVE-AMAP.md:67“天气（含首次 adcode）最多 2 次、营业详情每个 POI 1 次”。实跑 tests/test_live.py 13 passed，15 断言为绿。"
+    },
+    {
+      "finding": "STD-03（Minor）`test_live_budget_counts_internal_http_requests` limit=20 > 13 永不触发上限，与 success 重复、区分度消失",
+      "status": "fixed",
+      "evidence": "tests/test_live.py:217-240 改为 limit=14 的边界用例：:232-235 断言 failed / exhausted / call_limit、`tool_calls == len(sent) == adapter.client.calls == 14`，:236-237 断言 sent 恰为前 14 次（第 15 次最后一条腿未到达发送点），:238-240 断言 BUDGET_EXHAUSTED 存在、result None、unverified。区分度恢复且可证伪：旧的“每工具方法计 1”口径下总共 7 个工具方法，limit=14 永不耗尽，本用例必红；当前逐 HTTP 预占口径下第 15 次在预占处被拒。用例未删除、断言未放宽。实跑该文件 13 passed。"
+    },
+    {
+      "finding": "STD-04（Minor）新增 issue code `RESOURCE_CLEANUP_FAILED` 未登记进 app/domain.py 的 ISSUE_CODES",
+      "status": "fixed",
+      "evidence": "app/domain.py:100 已加入 `RESOURCE_CLEANUP_FAILED`；:102-104 的 DEGRADING_ISSUES 推导式按前缀/白名单派生，该 code 不在其中（与 spec“仅为 warning”、engine.py:318 用 DEGRADING_ISSUES 判降级的语义一致，未被动扩大降级面）。影响面按 CR-11 逐个消费点核过：grep 全仓 ISSUE_CODES 仅 app/domain.py 定义与 engine.py 的 DEGRADING_ISSUES 消费，无 allowlist/过滤器按 ISSUE_CODES 拒收未知 code；add_issue（app/domain.py:400-406）不校验成员资格，只有 (code,subject) 去重，故登记只是登记表同步，不改变任何运行时行为，也无测试快照该元组。"
+    },
+    {
+      "finding": "STD-05（Minor）`unbind_runtime` 与 `release(runtime, owns_client=False)` 两套“身份核对 + 清 _runtime”实现，语义略有差异",
+      "status": "fixed",
+      "evidence": "app/amap_tools.py:69-71 改为委托 `self.release(runtime, owns_client=False)`，身份核对与解绑只剩 release 一处（:76-86）。语义差异不可达：`_state` 非 open 时 `_runtime` 已在同一短锁内先被清空（:83-86），所以“少了 _state 检查”不会带来可观察分支。测试补强：tests/test_live_admission.py:452-453 断言用别的 runtime 解绑抛 RuntimeError（身份只认原 runtime），:454-455 断言解绑后 `_runtime is None`；全仓只有该测试与 scripts 之外无其它调用者（grep：仅 tests/test_live_admission.py 使用 unbind）。"
+    },
+    {
+      "finding": "F1（low）bind-v-bind 测试只证明本次结果（sum(won)==1），去掉 client 短锁仍会通过，不靠 GIL 假设的要求未满足",
+      "status": "fixed",
+      "evidence": "tests/test_live_admission.py:213-231 新增 CountingLock（`_lock = RLock()` + `enters`），:234-267 保留 `sum(won) == 1` 并新增 :258 `assert probe.enters == 2`。我独立做了不落盘突变探针（进程内把 `AmapClient.bind_runtime` 换成无锁版本，不改文件、5 次重复）：真实锁 → 5/5 `(winners=1, enters=2)`；去锁 → 5/5 `(winners=1, enters=0)`。即“去掉 client 短锁”现在确定性变红，不再依赖调度，F1 的确定性诉求达成；红/绿证据与报告 §10.2 一致。白盒本身是 r1 建议的手段（“hold client._lock”），不作为缺陷；断言选取上的残留见新 finding STD-06。"
+    },
+    {
+      "finding": "F3（low）evidence/reproduce_budget.py 自称 current baseline behavior, not a fix，且输出缺 exhaustion_reason，与 docs 6.4 修后列对不上",
+      "status": "fixed",
+      "evidence": "脚本 openspec/changes/travel-runtime-budget/evidence/reproduce_budget.py:38 改为 `scope: 'offline MockTransport; synthetic data; post-fix behavior'`，:41 输出 `exhaustion_reason`；docs/LIVE-AMAP.md:98 新增 `budget.exhaustion_reason` 行，:102 声明修后列可由该命令输出逐项复现。我实跑了该命令（不落盘、无网络）：输出 `limit=2 / transport_attempts=2 / client_calls=2 / persisted_count=2 / exhaustion_reason=call_limit / run_status=failed / budget_status=exhausted / path_categories=[geocode,place/text] / issue_codes=[BUDGET_EXHAUSTED] / oversent=false`，与 docs 6.4 修后列逐项一致，脚本与 docs 现在同一口径。"
+    }
+  ],
+  "findings": [
+    {
+      "id": "STD-06",
+      "severity": "Minor",
+      "file": "tests/test_live_admission.py",
+      "line": 258,
+      "quote": "    assert probe.enters == 2",
+      "reason": "F1 的确定性目标已达成（去锁 → enters==0 必红），但新探针把“机制被调用恰好两次”当成互斥证据，有两处新引入的脆弱面：① 探针用 RLock 替换了生产的非重入 Lock（:221 `self._lock = RLock()`）——同一线程重入临界区在测试里被放行，而真实 `AmapClient._lock = Lock()`（app/amap_tools.py:54）会死锁，于是“bind 路径里嵌套加锁”这类回归在本测试中永远看不到；② 精确等值对合法重构过敏（改用 `lock.acquire()/release()`、把身份锁与状态锁拆开、或在失败分支多加一次加锁都会变红），而它并不证明“任一时刻只有一个持有者”。反向也不完备：把 check 挪到锁外（TOCTOU）时 enters 仍为 2，一赢一败退回到依赖 GIL 调度的概率判定——正是 F1 指出的老问题换了个位置。这些局限实现者在 :255-257 注释与报告 §10.4 已自承，故按 Minor 上报、不阻塞。",
+      "recommendation": "让探针断言性质而非机制：`__enter__` 里 `active += 1; max_active = max(max_active, active)`、`__exit__` 里 `active -= 1`，断言 `max_active == 1 and enters >= 2`（保留 `sum(won) == 1`）；`__enter__` 遇 `active > 0` 直接抛错以保留生产 Lock 的非重入语义，或干脆用 `Lock()` 而非 `RLock()`。这样“去掉锁/降级成无守卫”仍确定性变红，“合法重构”不再假红。"
+    }
+  ],
+  "limits": [
+    "未重跑整套：实跑 `tests/test_live.py` + `tests/test_live_admission.py` → 36 passed（13+23，与 docs §7 / 报告 §10.3 的 50、111 中这两项对得上）、`evidence/reproduce_budget.py` → 与 docs 6.4 修后列逐项一致；未复跑 test_amap_tools 的 14 项与全量 111，也未采信报告里的其它通过数。",
+    "F1 的确定性由我自己的不落盘突变探针证实（去锁 5/5 `(1, 0)`、真实 5/5 `(1, 2)`）；但“check 挪到锁外”等其余变异未逐一跑，STD-06 中该点按机制推理得出。",
+    "TDD 顺序不可判：改动仍全部未提交（git log 仍停在 795f1de），报告 §10.2 的红证据无法按提交顺序核验；STD-03/STD-05 没有对应的红证据，STD-02 的红证据是对旧 fake 的旁路探针。",
+    "STD-01 的旧“物理关闭交错”在契约路径已不可达，新测试只能以“cleanup 是否调用 close”为锚（attempted==[]）并旁证 client 仍 open；未在真实并发/真实 API 下复现旧交错。失败绑定后的保护现在完全落在编排层（close() 无身份参数），grep 确认 app 内唯一调用点在 app/live.py:317；若将来新增第二个调用点，风险会回来（docs/LIVE-AMAP.md:74 与报告 §9.2 已写明该边界，未按缺陷上报）。",
+    "cleanup 抛错 → RESOURCE_CLEANUP_FAILED 落库这条异常矩阵没有测试覆盖（grep 测试无该 code 断言）；按 tickets.md:98 属票3的异常资源矩阵，本票未测，未据此判红。",
+    "只审 Standards 轴（CR-01..CR-12 + backend delta + Fowler smells）与“修复是否正确 / 有无新问题”，未重审整票风格、未做 Spec 验收；deadline/取消/脱敏/loopback 并发属票2–3，不在本报告结论内。",
+    "未访问网络/真实供应商/真实 Key，未派子代理（delegation depth 0），未改代码/设计/票据，未 commit/push；行号与 quote 以 2026-11-13 当前未提交工作区为准。"
+  ]
+}

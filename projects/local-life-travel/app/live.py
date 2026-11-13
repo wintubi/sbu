@@ -282,12 +282,18 @@ def create_live_run(store: Store, request: LiveTravelRequest,
         store.create_run(run)
     runtime = LiveRuntime(run["budget"], on_evidence=lambda tool, result: _record(run, tool, result))
     adapter = None
+    cleanup_acquired = True  # 缺协议时已取得对象仍尝试清理一次
     try:
         runtime.check()
         adapter = adapter_factory(request.city, request.transport)
         if not callable(getattr(adapter, "bind_runtime", None)) or not callable(getattr(adapter, "close", None)):
             raise TypeError("LIVE adapter requires bind_runtime and close")
-        adapter.bind_runtime(runtime)
+        try:
+            adapter.bind_runtime(runtime)
+        except Exception:
+            # 本次run没有取得该adapter（它仍归原owner），不得调用它的close。
+            cleanup_acquired = False
+            raise
         runtime.check()
         execute_live(run, adapter, runtime)
     except BudgetExhausted as exc:
@@ -306,7 +312,7 @@ def create_live_run(store: Store, request: LiveTravelRequest,
                   f"真实渠道执行异常：{type(exc).__name__}")
     finally:
         close = getattr(adapter, "close", None)
-        if callable(close):
+        if callable(close) and cleanup_acquired:
             try:
                 close()
             except Exception as exc:

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier, Event
+from threading import Barrier, Event, RLock
 from types import SimpleNamespace
 
 import httpx
@@ -210,9 +210,32 @@ def test_weather_adcode_is_cached_but_http_forecast_is_not():
         adapter.close()
 
 
-def test_bind_race_one_winner_and_failed_cleanup_preserves_owner():
+class CountingLock:
+    """探针锁：记录进入client临界区的次数，再委托给真实的可重入锁。
+
+    去掉 `AmapClient.bind_runtime` 的短锁后，本探针一次也不会被进入
+    （enters==0），绑定竞争测试因此能确定性变红，而不是靠 GIL 调度。
+    """
+
+    def __init__(self):
+        self._lock = RLock()
+        self.enters = 0
+
+    def __enter__(self):
+        self.enters += 1
+        self._lock.acquire()
+        return self
+
+    def __exit__(self, *exc_info):
+        self._lock.release()
+        return False
+
+
+def test_bind_race_serializes_on_client_lock_and_one_winner():
     boundary = ProviderTransport()
     client = AmapClient(key="synthetic-example", transport=boundary)
+    probe = CountingLock()
+    client._lock = probe
     adapters = [AmapAdapter(client, city="北京", owns_client=True) for _ in range(2)]
     runtimes = [runtime_with(1), runtime_with(2)]
     start = Barrier(2)
@@ -229,9 +252,12 @@ def test_bind_race_one_winner_and_failed_cleanup_preserves_owner():
         futures = [threads.submit(bind, index) for index in range(2)]
         won = [future.result(timeout=5) for future in futures]
     assert sum(won) == 1
+    # 确定性：去掉 client 短锁则两次 bind 都不进入临界区（enters==0），本断言必红。
+    # 局限：探针证明“锁被进入”，不证明任意调度交错下的互斥性；行为侧由上一行
+    # “一赢一败”与下面的所有权断言共同守住。
+    assert probe.enters == 2
     winner = won.index(True)
     loser = won.index(False)
-    adapters[loser].close()
     assert boundary.close_attempts == 0
     assert adapters[winner].resolve_origin("合成起点").status.value == "valid"
     assert runtimes[winner].budget["tool_calls"] == 1
@@ -260,6 +286,42 @@ def test_reentrant_factory_object_failure_does_not_clean_active_owner(store, wor
     finally:
         adapter.close()
     assert boundary.close_attempts == 1
+
+
+def test_two_failed_binds_then_cleanups_leave_owner_client_open(store, worker):
+    """同一对象连续两次失败 bind（两个run）后，两次清理尝试都不得触碰原 owner。
+
+    失败 bind 意味着本 run 没有取得该对象，它仍归原 owner；因此 create_live_run
+    不调用它的 close。这里同时观测 close 是否被调用（attempted）与物理关闭次数。
+    """
+    boundary = ProviderTransport()
+    client = AmapClient(key="synthetic-example", transport=boundary)
+    adapter = AmapAdapter(client, city="北京", owns_client=True)
+    original = runtime_with(1)
+    adapter.bind_runtime(original)
+    attempted: list[str] = []
+    real_close = adapter.close
+    adapter.close = lambda: (attempted.append("close"), real_close())[1]
+    try:
+        with TestClient(create_app(store=store, worker=worker,
+                                  live_adapter_factory=lambda city, transport: adapter)) as api:
+            for key in ("failed-bind-1", "failed-bind-2"):
+                rejected = api.post("/api/v1/travel/live-runs", json=live_body(),
+                                    headers={"Idempotency-Key": key}).json()
+                assert rejected["status"] == "failed"
+                assert rejected["issues"][0]["code"] == "STAGE_EXECUTION_ERROR"
+                assert rejected["budget"]["tool_calls"] == 0
+        assert attempted == []  # 两次失败 bind 的清理都不调用该对象的 close
+        assert client._state == "open"
+        assert len(boundary.sent) == boundary.close_attempts == 0
+        # 原 run 仍能发送，预算独立
+        assert adapter.resolve_origin("合成起点").status.value == "valid"
+        assert original.budget["tool_calls"] == 1
+    finally:
+        adapter.close()
+    assert attempted == ["close"]
+    assert boundary.close_attempts == 1
+    assert client._state == "closed"
 
 
 def test_borrowed_client_unbinds_for_sequential_runs_without_close():
@@ -302,7 +364,7 @@ def test_owned_close_rejects_bind_while_physical_close_waits(fail_close):
             rejected = AmapAdapter(client, city="北京", owns_client=True)
             with pytest.raises(RuntimeError):
                 rejected.bind_runtime(runtime_with())
-            rejected.close()
+            # 失败 bind 的对象未取得client，不在这里调用它的close（清理归原owner）。
         finally:
             finish.set()
         if fail_close:
@@ -387,5 +449,8 @@ def test_http_limit_is_reserved_before_transport():
         assert sent == ["/first", "/second"]
         assert budget["tool_calls"] == client.calls == 2
     finally:
+        with pytest.raises(RuntimeError):
+            client.unbind_runtime(runtime_with(2))  # 身份解绑只认原runtime
         client.unbind_runtime(runtime)
+        assert client._runtime is None
         client.close()

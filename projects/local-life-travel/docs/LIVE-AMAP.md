@@ -71,7 +71,7 @@ issue_codes=
 
 ### 6.2 内部绑定协议（本次破坏性内部变更）
 
-- 注入的 factory 仍接收 `(city, transport)` 并返回 adapter，构造过程不得外呼；返回对象**必须有** `bind_runtime(runtime)` 和 `close()`。缺任一协议或绑定失败 → `failed` + `STAGE_EXECUTION_ERROR`，工具调用与HTTP发送均为 0（已取得且可清理的对象仍会尝试 `close()`）。没有会静默绕过 guard 的 fallback。
+- 注入的 factory 仍接收 `(city, transport)` 并返回 adapter，构造过程不得外呼；返回对象**必须有** `bind_runtime(runtime)` 和 `close()`。缺任一协议或绑定失败 → `failed` + `STAGE_EXECUTION_ERROR`，工具调用与HTTP发送均为 0。缺协议时，已取得且可清理的对象仍会尝试 `close()` 一次；绑定失败时该对象仍归原 owner，本次run**不调用**它的 `close()`。没有会静默绕过 guard 的 fallback。
 - 每个新run创建独立 `LiveRuntime`（自己的预算计数）；同一 client 同时只能绑定一个 active run，第二个绑定被拒绝，不覆盖前者的控制，原run仍可执行且预算独立。
 - 拥有权：默认 factory 用 `AmapAdapter(AmapClient(), owns_client=True)` 显式拥有独立 client；借入 client 只解绑、物理关闭次数为 0；自有 client 的 `close()` 先在同一短锁内置 `closing` 并按身份解绑，再在锁外物理关闭一次，重复清理不增加关闭次数；关闭失败也不恢复“可借用”状态。
 - 绑定失败的清理不得解绑/关闭另一个 active run 的 client；借入 client 解绑后可按顺序给下一个run复用。
@@ -95,10 +95,11 @@ python openspec/changes/travel-runtime-budget/evidence/reproduce_budget.py
 | 传输层实际 attempts | 3 | 2 |
 | `client.calls` | 3 | 2 |
 | 持久化 `budget.tool_calls` | 2 | 2 |
+| `budget.exhaustion_reason` | 缺失（该键本次新增，历史run可缺） | `call_limit` |
 | `oversent` | true | false |
-| 终态 | failed / exhausted | failed / exhausted（`call_limit`） |
+| 终态 | failed / exhausted | failed / exhausted |
 
-修前按工具方法返回后的差额记账，超限的第3次已经发出、只是没入账；现在第3次在预占处被拒，传输层只有 2 次，持久化计数与实际准入一致。
+修后一列可由该命令输出的 `limit` / `transport_attempts` / `client_calls` / `persisted_count` / `exhaustion_reason` / `run_status`+`budget_status` / `oversent` 逐项复现。修前按工具方法返回后的差额记账，超限的第3次已经发出、只是没入账；现在第3次在预占处被拒，传输层只有 2 次，持久化计数与实际准入一致。
 
 ### 6.5 本票未交付
 
@@ -110,12 +111,12 @@ python openspec/changes/travel-runtime-budget/evidence/reproduce_budget.py
 ```powershell
 $env:TRAVEL_REPLAY_NO_AUTOSTART='1'
 python -m pytest -q -p no:cacheprovider tests/test_amap_tools.py tests/test_live.py tests/test_live_admission.py
-# 49 passed（高德离线 14 + live API 13 + 发送前准入/资源闭环 22）
+# 50 passed（高德离线 14 + live API 13 + 发送前准入/资源闭环 23）
 python -m pytest -q -p no:cacheprovider
-# 110 passed（回放 61 + 高德离线 14 + live API 13 + 发送前准入/资源闭环 22）
+# 111 passed（回放 61 + 高德离线 14 + live API 13 + 发送前准入/资源闭环 23）
 ```
 
-每个测试用 pytest fixture 在 `data/pytest/` 下建一次性 SQLite（或在进程内用 `httpx.MockTransport`），不共享库、不出网。离线测试覆盖：唯一匹配、同名歧义、空结果、Key 回收、超时、坏坐标、天气日期覆盖/不覆盖、路线时长距离、营业时间有/无；以及发送前准入（limit=0/1/2/40、第N+1次不命中handler、失败尝试计数、本地0消耗）、批次中断保留子证据、同键重放不重执行、自有/借入client清理与 bind-v-bind / bind-v-close 并发。**没有真实网络请求**，全部用合成凭据 `synthetic-example`。
+每个测试用 pytest fixture 在 `data/pytest/` 下建一次性 SQLite（或在进程内用 `httpx.MockTransport`），不共享库、不出网。离线测试覆盖：唯一匹配、同名歧义、空结果、Key 回收、超时、坏坐标、天气日期覆盖/不覆盖、路线时长距离、营业时间有/无；以及发送前准入（limit=0/1/2/40、第N+1次不命中handler、失败尝试计数、本地0消耗）、批次中断保留子证据、同键重放不重执行、自有/借入client清理、bind-v-bind / bind-v-close 并发，以及同一对象连续两次失败 bind 后两次清理均不触碰原 owner（client 仍 open、物理关闭 0 次、原 run 仍可发送）。**没有真实网络请求**，全部用合成凭据 `synthetic-example`。
 
 
 ## 8. 下一步

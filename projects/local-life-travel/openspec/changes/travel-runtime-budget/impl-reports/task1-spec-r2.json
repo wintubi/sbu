@@ -1,0 +1,131 @@
+{
+  "run_id": "20261110T182434Z-impl-N2Sw5e",
+  "task_id": "task1-spec-r2",
+  "prefix_receipt": "<!-- prefix-version: principles-b9a054bafa9c -->",
+  "verdict": "pass",
+  "checks": [
+    {
+      "item": "1.1",
+      "status": "pass",
+      "evidence": "app/amap_tools.py:100-111（101-103 短锁读 state/runtime；105 reserve 在 110 httpx 之前；106-107 只有 reserve 成功后才 calls+1）; app/runtime.py:28-34（check→达到上限抛 BudgetExhausted→否则 +1）; tests/test_live_admission.py:138-154（limit=0/1/2/40 在真实 MockTransport 发送点：150 第 N+1 次抛错，152 tool_calls==client.calls==len(sent)==N）; 157-180（connect/timeout/provider/format 已准入各计 1）; 183-195（matrix([])/hours()/缺腿 0 消耗）; 198-210（adcode 缓存、预报不缓存=3）; tests/test_live.py:150-152（正常路径 tool_calls==client.calls==len(sent)==15）; 217-240（limit=14：232-234 failed/exhausted/call_limit，235 三者==14，236-237 精确 14 个标签序列，239-240 result 空/unverified）; tests/test_live_admission.py:58-90（真实 AmapAdapter+ProviderTransport limit=15 恰好用完 completed，76-79 计数与关闭 1）。app 下 grep 无 max(1 与 _binding_failed；app/live.py:30 默认 40。",
+      "note": "13→15 是收紧而非放宽：真实适配器独立测得的正常路径同为 15（origin1+poi3+weather2+hours_detail3+leg6），fake 的 weather/hours 已按真实模型改为 2/逐候选 3，并为每个发送打标签。limit=14 用例的“第 15 次未发送”由两件事共同钉住：14 次全部进入 sent/client.calls 后下一次预占抛错导致 failed/exhausted；sent 序列显示 6 条腿只成功 5 条（第 6 条是第 15 次）。FakeAdapter 没有 transport，因此该用例证明的是“模型层发送点”；真实 transport handler 命中数由 test_http_boundaries_at_transport 与 admission 的 93-130 覆盖，两者合起来守住“真实 HTTP 尝试计数”。"
+    },
+    {
+      "item": "1.2",
+      "status": "pass",
+      "evidence": "app/amap_tools.py:379-382（hours_detail 在规范化后经 deliver_evidence 即时交付，含 source_ref/fetched_at/最小 payload）与 427（route_leg 逐腿交付）; app/live.py:299-305（BudgetExhausted → failed/exhausted/exhaustion_reason/result None/unverified）; tests/test_live_admission.py:93-130（limit=7 hours_detail、limit=10 route_leg：DB 重读恰 1 条子证据含 source_ref/fetched_at/payload，112 tool_calls==len(sent)==limit，113-114 result 空/unverified，121-122 无聚合 hours/routes，123 close_attempts 1，124-130 重放不增长）。修复轮未改这条路径；新增的 cleanup_acquired 在耗尽出口仍为 True（app/live.py:315），因此恢复 finally 清理，测试 123 断言关闭 1 次。",
+      "note": "部分批次不进 evaluate_timeline：异常从 execute_live 抛出，未构造可行结果，只剩已交付子证据。修复没有在此票引入 deadline/取消判定，故“部分批次不成为完整成功”的现有语义未被改写。"
+    },
+    {
+      "item": "1.3",
+      "status": "pass",
+      "evidence": "app/amap_tools.py:61-67（client 短锁内校验 open 且未绑定）; 69-71（unbind 委托 release(runtime, owns_client=False)，身份核对留在 78-92）; 76-92（锁内身份核对/置 closing 再锁外物理 close，finally 置 closed，关闭失败也不恢复 open）; 204-219（adapter 已 active/closed 时拒绝且不改原 owner；client.bind 失败只置自身 _closed，不碰共享 client）; 221-229（close 只按自身绑定身份清理）; app/live.py:285（cleanup_acquired=True）、291-296（bind 失败置 False）、313-320（finally 仅对本次取得或“缺协议但可清理”的对象 close）; tests/test_live_admission.py:213-267（CountingLock 探针进入 client 临界区 2 次 + 一赢一败，261-267 败者预算 0、winner 关闭 1 次）、270-289（重入失败 0 发送 0 关闭、原 run 仍执行、预算 1/0）、291-324（同一对象两次失败 bind 后 attempted==[]、client 仍 open、原 run 仍发送、最终 owner 关闭 1 次）、327-341（借入 0 物理关闭、可顺序复用）、344-378（bind-v-close 与关闭失败后拒绑）、416-428（缺协议 0 工具 0 HTTP，缺 bind_runtime 时 close 1 次、缺 close 时 0）。",
+      "note": "修复后的语义是“bind 失败=本次 run 未取得该对象，因此不调用其 close”，把判定放在编排层；缺协议路径仍按 LRC-06 清理已取得对象。该语义与 design.md:40/44 的“绑定失败清理不得改变/关闭另一个 active run 的 client”一致，且正常/耗尽/借用/缺协议四个出口的清理均有测试；未发现漏清理或重复清理（cleanup 只在 finally 调用一次，adapter/client 均幂等）。残余防护深度问题见 R2-F3。"
+    },
+    {
+      "item": "1.4",
+      "status": "pass",
+      "evidence": "tests/test_live_admission.py:58-90（真实 adapter+MockTransport 经 TestClient：completed/verified_feasible，76 tool_calls 15，78-79 sent 15、close 1；80-82 GET 重读 budget/tool_results 相等；83-90 同键重放 run_id 相同、replayed、events 不变、transports 仍 1、sent 仍 15、close 仍 1）; 93-130（耗尽闭环与重放不增长）; tests/test_live.py:285-289（缺 Key 503 LIVE_NOT_CONFIGURED）、292-302（同键改载荷 409 IDEMPOTENCY_CONFLICT）; app/live.py:272-280（重放命中先于 runtime/factory 返回）。实跑 documented 三文件命令：50 passed（14+13+23）。",
+      "note": "修复轮只改 fake 计数与清理判定，未改 API 重放路径；新增的 cleanup_acquired 在正常/耗尽出口均为 True，不影响“已取得自有资源关闭尝试一次”的断言。"
+    },
+    {
+      "item": "1.5",
+      "status": "pass",
+      "evidence": "docs/LIVE-AMAP.md:3（deadline/取消未交付、无真实 Key 成功调用）; 63-70（默认 40、预占先于发送、尝试非计费、本地 0、耗尽形状）; 72-78（绑定协议、per-run runtime、自有/借用、缺协议清理一次、失败 bind 不调用 close、fake 必须逐 HTTP 准入）; 80-82（探测脚本不拥有 run 预算）; 92-102（修前/修后表 + exhaustion_reason 行 + “可由该命令逐项复现”）; 104-106（明确未交付 90 秒 deadline 与取消）; app/main.py:161-162（默认 factory 独立 client + owns_client=True）; scripts/amap_probe.py:41-42 持有未绑定 client。实跑 evidence/reproduce_budget.py 输出 {limit:2, transport_attempts:2, client_calls:2, persisted_count:2, exhaustion_reason:call_limit, run_status:failed, budget_status:exhausted, oversent:false}，与 6.4 修后列逐项一致；修前列与 evidence/baseline-overshoot.json（6a78560，attempts 3/persisted 2）一致。",
+      "note": "文档没有宣称 deadline/取消已交付或真实供应商已验证；6.1/6.4 的数字与代码/测试一致（6.4 修后列已用命令复现）。docs:114/116 的 50/111 与报告 §7/§10.3 同源；50 已本地复跑确认，111 属全量未重跑（见 limits）。报告 §4 的一处证据归属失准见 R2-F2。"
+    },
+    {
+      "item": "Review Focus",
+      "status": "pass",
+      "evidence": "tests/test_live_admission.py:270-289（factory 返回已绑定 run1 的 adapter：run2 的 POST → failed/STAGE_EXECUTION_ERROR、tool_calls 0、len(boundary.sent)==boundary.close_attempts==0；run1 仍可 resolve_origin、预算 1；run1 最终关闭 1 次）; 291-324（同一对象连续两次失败 bind：两次 cleanup 均不调用 close（attempted==[]）、client 仍 open、物理关闭 0、原 run 仍能发送、预算独立、最后 owner close 生效）; 234-267（两个 adapter 竞争同一 client：至多一赢、probe.enters==2、败者预算 0、winner 关闭物理 1 次）; app/live.py:291-296、315（失败 bind 直接跳过 finally 的 close）。",
+      "note": "“失败绑定不清理原 owner”在契约路径（create_live_run）上仍然满足，且新测试比上轮更直接（断言 cleanup 根本不调用 close，而不是 close 恰好无害）。该保证现在完全依赖编排层不调用 close：对象级 close 对“已被别的 run 持有”的对象仍会按原 owner 身份解绑/物理关闭（见 R2-F3，报告 §10.4 #2/#3 已披露）。"
+    },
+    {
+      "item": "LRC-01",
+      "status": "pass",
+      "evidence": "四种场景均有发送点证据：第 N+1 拒绝（tests/test_live_admission.py:138-154、431-456）; 批次中途耗尽（93-130 limit 7/10，112 计数==sent==limit）; 已准入失败与零 HTTP 本地工具（157-180、183-195）; 零额度与恰好用完（138-154 的 limit 0/1/2/40；58-90 的 limit=15 恰好完成）。fakes 的逐 HTTP 预占由 tests/test_live.py:43-49、217-240 守住。",
+      "note": "exact-40 场景在 AmapClient+MockTransport 直接发送点验证（40 次后第 41 次抛错、handler 仍 40），完整 40 次行程未构造；“恰好用完”用同样的 guard 语义在 limit=15 的真实 adapter 行程上验证。与 r1 判断一致：票要求的是发送点语义，已被钉住。"
+    },
+    {
+      "item": "LRC-04",
+      "status": "pass",
+      "evidence": "计数与证据跨耗尽保留（tests/test_live_admission.py:93-130）; 持久化 budget/tool_results 重读一致（58-90）; 耗尽保存 failed/exhausted/call_limit/result null/unverified（93-130）; 本地工具零消耗（183-195）。",
+      "note": "elapsed_seconds 仍为 DEFAULT_BUDGET 的 0.0、零 HTTP 新 run 仍无法完成（origin 必 geocode），属票2/deadline 工作（design.md:53、tickets.md:84），文档未宣称。修复轮未触及。"
+    },
+    {
+      "item": "LRC-05",
+      "status": "pass",
+      "evidence": "app/live.py:272-280（命中即返回，未建 runtime/factory）; tests/test_live_admission.py:83-90（成功重放：同 run_id、transports 1、sent 15、close 1、events 相等）、124-130（耗尽重放不增长）; tests/test_live.py:285-289（503）、292-302（409）。",
+      "note": "budget 对象 per-run，重放路径不共享计数；bind 竞争测试同时断言 winner/loser 预算 1/0。修复轮未改该路径。"
+    },
+    {
+      "item": "LRC-06",
+      "status": "pass",
+      "evidence": "协议校验与 0 工具失败：app/live.py:283-296、299-312；tests/test_live_admission.py:416-428。active 互斥、借用复用、bind-v-close：app/amap_tools.py:61-67、76-92、204-219、221-229；tests/test_live_admission.py:213-267、270-289、291-324、327-378。独立脚本不误称拥有 run 预算：docs/LIVE-AMAP.md:80-82、scripts/amap_probe.py:41-42。",
+      "note": "修复后“绑定失败”仍被拒绝且不改变原 run 控制（app/amap_tools.py:208-211 只抛错、不改 _runtime），文档 6.2 已同步为“缺协议仍 close 一次 / 失败 bind 不调用 close”，与代码一致。"
+    },
+    {
+      "item": "LRC-07",
+      "status": "pass",
+      "evidence": "自有资源：成功 close 1 次（tests/test_live_admission.py:79）、耗尽 close 1 次（123）、借入 0 次且可复用（327-341）、重复 close 仅 1 次物理关闭（264-267、377-378）、关闭失败仍拒绑（344-378）; 缺协议时已取得对象仍尝试 close（416-428）; 构造失败路径：app/amap_tools.py:190-193（Invalid transport 时 owns_client 先 close）; 失败绑定=所有权未转移，不调用 close（app/live.py:291-296，测试 291-324）。",
+      "note": "票1范围只要求正常拥有权出口；provider_error/deadline/cancel/constructor_failure 清理矩阵属票3（tickets.md:98），本票未宣称。修复引入的“失败 bind 不清理”与 design.md:40/44 的“已移交 client 才清理/不得关闭另一个 active run 的 client”自洽。"
+    },
+    {
+      "item": "LRC-09",
+      "status": "pass",
+      "evidence": "docs/LIVE-AMAP.md:3（无真实 Key 成功调用、deadline/取消未交付）、61-82（默认 40/尝试非计费/协议变更/脚本边界）、92-102（隔离复现表与 exhaustion_reason）、104-106（明确不交付 90 秒与取消）。默认 40 来源可查（app/live.py:30，doc 6.1）；新耗尽原因字段在 6.4 与代码一致（app/live.py:302）。文档未出现“真实供应商已验证/硬中断/已合并 main”的宣称。",
+      "note": "票1.5 要求的五项说明齐备；“90/5 默认值来源”属票2/票3 文档范围（本票仅点出 90 属票2），与 r1 一致。文档 6.6/报告 §6.6 的证据引用已更新到新测试名。"
+    },
+    {
+      "item": "R-ID 覆盖",
+      "status": "pass",
+      "evidence": "brief 的 6 个 R-ID 与票1.1–1.5 全部有对码证据：LRC-01/04→1.1、1.2；LRC-05/07→1.4；LRC-06/07→1.3；LRC-09→1.5；Review Focus 单列。tickets.md:64 的 R-ID 列表未被改（修复轮未触碰 tickets/design/specs；git status 仅 7 个代码/文档/测试文件 + 报告 + dispatch）。",
+      "note": "修复轮新增/改名的测试仍落在这些 R-ID 内：two_failed_binds（LRC-06/07、Review Focus）、CountingLock（LRC-06、票1.4“不靠 GIL”）、limit=14（LRC-01/06 fake 准入）。没有新增 R-ID 或删减覆盖。"
+    },
+    {
+      "item": "修复语义回归扫描",
+      "status": "pass",
+      "evidence": "逐项对比 795f1de..WORKTREE：① 13→15（收紧：真实 adapter 独立同值 15，且新增 sent 标签断言）; ② limit=20 的重复用例改为 limit=14 耗尽边界（收紧而非放宽）; ③ 删除 _binding_failed，失败 bind 由 create_live_run 判定（正常/耗尽/借用/缺协议出口不变；仅“对未取得对象直接 close”不再是契约路径）; ④ unbind_runtime 委托 release（身份不符仍 RuntimeError，解绑后 _runtime None，测试 452-455）; ⑤ ISSUE_CODES 新增 RESOURCE_CLEANUP_FAILED（不在 DEGRADING_ISSUES，engine.py:318 的降级判定未变；全仓仅此一处消费该元组）; ⑥ docs 6.2/6.4 与报告 §10 同步。",
+      "note": "未发现被削弱或删除的票1断言：被删的只有 test_bind_race 里“对败者调用 close”的探针调用与 test_owned_close 里对被拒对象的 close（两者都是修复后声明的非契约路径），其守护的行为已由 291-324 的 attempted==[] 与 344-378 的 client 仍拒绝 bind 接住；测试总数 22→23、50→111 与报告一致。行为面唯一变化是对象级 close 不再让位（R2-F3），不影响契约路径验收。"
+    }
+  ],
+  "findings": [
+    {
+      "id": "R2-F1",
+      "severity": "low",
+      "file": "openspec/changes/travel-runtime-budget/impl-reports/task1-fix-review-package.diff",
+      "line": 1,
+      "quote": "# Review package: 795f1de..WORKTREE (Task 1 fix round)",
+      "reason": "包自述范围为 795f1de..WORKTREE，但“Files changed”只列 7 个文件（第 6-13 行）；实际 `git diff --stat` 在该范围上是 9 个文件，另含 impl-reports/task1-http-admission.md（§4/§6.1/§7/§9 的改写与 §10 追加）和 review/task1-dispatch.json。报告正文的 diff 不在包内（只粘贴了 §10），只读包的人会低估本轮改动面，也无法核对报告数字修订是否只改了这几处。",
+      "recommendation": "重生成包时纳入全部 9 个跟踪文件（或显式列出排除项及理由，如 dispatch.json 属派发方改动）；保留 §10 粘贴但不要以它替代报告 diff。"
+    },
+    {
+      "id": "R2-F2",
+      "severity": "low",
+      "file": "openspec/changes/travel-runtime-budget/impl-reports/task1-http-admission.md",
+      "line": 72,
+      "quote": "并逐项核对 `sent` 标签",
+      "reason": "该分句把“逐项核对 sent 标签”归到 test_live_run_success 名下，但该测试只断言 len(adapter.sent) == 15（tests/test_live.py:152），不核对标签；标签序列断言在 test_live_budget_counts_internal_http_requests（tests/test_live.py:236-237）。§10.1 只写“新增 sent 标签序列断言”而未绑定测试，故这是证据归属失准（不是数字错误），会让验收读者以为 success 用例覆盖了顺序。",
+      "recommendation": "把这半句移到 limit=14 用例名下，或给 test_live_run_success 补上精确 sent 序列断言，使报告与测试一一对应。"
+    },
+    {
+      "id": "R2-F3",
+      "severity": "low",
+      "file": "app/amap_tools.py",
+      "line": 229,
+      "quote": "self.client.release(runtime, owns_client=self._owns_client)",
+      "reason": "修复把“失败 bind 后是否清理”整体搬到 create_live_run（app/live.py:291-296、315），AmapAdapter.close() 不再识别“本次 bind 未成功”，只按对象当前持有的 _runtime 清理。若同一 adapter 对象已属于 run1 又被 factory 交给 run2，run2 的 bind 在 208-211 失败后对象仍持有 run1 的 _runtime；任何绕过 create_live_run 对该对象调用 close() 的路径都会按 run1 身份解绑并物理关闭 run1 的 client（tests/test_live_admission.py:321-324 的 finally 即演示同一调用形状，只是那里是 owner 自己的清理）。契约路径已不调用它，Review Focus 仍满足；但 795f1de 中 _binding_failed 的“让位”保护已不存在，防护深度只剩单一调用点，报告 §10.4 #2/#3 已如实披露。",
+      "recommendation": "票3/后续给 close() 增加 runtime 身份参数或 bind 成功标记并在 close 时校验（拒绝非自身身份），或在协议文档把“失败 bind 的对象禁止 close”写成调用方硬约束并补一条防御性单测；本票不必改，但不要让该约束只存在于注释里。"
+    }
+  ],
+  "limits": [
+    "未重跑整套：按 docs/LIVE-AMAP.md:112-114 的三文件命令实跑 → 50 passed（14+13+23，与 docs:114 一致）；全量 111 passed 未独立复核。",
+    "未复现红证据与突变验证（STD-01 修复前 1 failed/35 passed、旧 fake 13 探针、F1 去锁 enters==0、owns_client=True→False 突变）：需要回退/改码，本轮只读当前树。",
+    "实跑 evidence/reproduce_budget.py（exit 0），输出与 docs 6.4“修后”列及报告 §7/§10.2 逐项一致；修前列以 evidence/baseline-overshoot.json 为准，未重跑基线。",
+    "票2/票3 未验证：LiveRuntime.check() 仍为 pass（app/runtime.py:24-26），90 秒单调 deadline、取消探针、elapsed_seconds、晚到结果拒绝、per-op timeout 裁剪、provider/constructor/deadline/cancel 清理矩阵、LRC-08 脱敏、真实 loopback 并发。",
+    "仅用 httpx.MockTransport + synthetic-example；未使用真实 Key/供应商，未验证计费或供应商侧语义。",
+    "并发互斥仍是白盒探针（CountingLock.enters==2）：不证明任意调度交错下互斥，也不覆盖“锁被换坏”的变异；R2-F1 的守卫是行为断言。",
+    "未核 review/task1-dispatch.json 的改动内容与作者（属派发方文件）；未核 795f1de..WORKTREE 的未提交原因，仅核内容。",
+    "未对“失败 bind 对象被第三方直接 close”做运行验证，只做静态追踪（tests/test_live_admission.py:321-324 可作调用形状参照）。"
+  ]
+}

@@ -1,6 +1,6 @@
-"""Offline reproduction of the pre-send budget gap; no real API key/network.
+"""Offline reproduction of the post-fix pre-send budget behavior; no real API key/network.
 Run at the local-life-travel root: python openspec/changes/travel-runtime-budget/evidence/reproduce_budget.py
-The JSON records observations, not a passing acceptance test for a fix.
+The JSON records the observations documented in docs/LIVE-AMAP.md 6.4 (post-fix column).
 """
 from pathlib import Path
 import json,sys,tempfile
@@ -35,9 +35,11 @@ try:
             run,created=live.create_live_run(store,LiveTravelRequest.model_validate(body),
                 lambda city,transport:AmapAdapter(client,city=city,transport=transport),'synthetic-budget-reproduction')
             saved=store.get_run(run['run_id'])
-            observation={'scope':'offline MockTransport; synthetic data; current baseline behavior, not a fix',
+            observation={'scope':'offline MockTransport; synthetic data; post-fix behavior',
                          'limit':2,'transport_attempts':len(paths),'client_calls':client.calls,
-                         'persisted_count':saved['budget']['tool_calls'],'run_status':saved['status'],
+                         'persisted_count':saved['budget']['tool_calls'],
+                         'exhaustion_reason':saved['budget'].get('exhaustion_reason'),
+                         'run_status':saved['status'],
                          'budget_status':saved['budget']['status'],'path_categories':paths,
                          'issue_codes':[i['code'] for i in saved['state']['issues']],
                          'oversent':len(paths)>2}

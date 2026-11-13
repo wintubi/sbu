@@ -67,10 +67,8 @@ class AmapClient:
             self._runtime = runtime
 
     def unbind_runtime(self, runtime: LiveRuntime) -> None:
-        with self._lock:
-            if self._runtime is not runtime:
-                raise RuntimeError("Amap runtime identity mismatch")
-            self._runtime = None
+        # 按身份解绑只有一处实现：借用路径复用 release(owns_client=False)。
+        self.release(runtime, owns_client=False)
 
     def close(self) -> None:
         self.release(None, owns_client=True)
@@ -200,9 +198,6 @@ class AmapAdapter:
         self._lifecycle_lock = Lock()
         self._runtime: LiveRuntime | None = None
         self._closed = False
-        # 最近一次bind未取得所有权：紧接着的那次close属于失败的绑定尝试，
-        # 必须让位给原owner（不触碰client、不改本对象绑定状态）。
-        self._binding_failed = False
         self._pois: dict[str, dict[str, Any]] = {}
         self._adcode: str | None = None
 
@@ -211,28 +206,21 @@ class AmapAdapter:
             if self._closed:
                 raise RuntimeError("Amap adapter is active or closed")
             if self._runtime is not None:
-                # 该adapter已属于另一个运行：本次调用没有取得它。标记后，紧接着
-                # 由本次运行发起的那次close只作废自己，不解绑/关闭原owner的client。
-                self._binding_failed = True
+                # 该adapter已属于另一个运行：本次调用没有取得它，保持其原绑定状态不变。
+                # 调用方（create_live_run）据此不调用本对象的 close，清理仍归原owner。
                 raise RuntimeError("Amap adapter is active or closed")
             try:
                 self.client.bind_runtime(runtime)
             except Exception:
                 # client已绑定别的run或已closing/closed：本adapter未取得控制权，
                 # 只把自己作废，绝不物理关闭共享client。
-                self._binding_failed = True
                 self._closed = True
                 raise
             self._runtime = runtime
-            self._binding_failed = False
 
     def close(self) -> None:
+        # 只按自身绑定身份清理自有/借用资源；没有 bind 成功就没有可清理的绑定。
         with self._lifecycle_lock:
-            if self._binding_failed:
-                # 对应的是一次失败的bind：对象未被本次运行取得，不触碰client，
-                # 也不把对象标记为closed（它仍归原owner，原owner的close照常生效）。
-                self._binding_failed = False
-                return
             if self._closed:
                 return
             self._closed = True
