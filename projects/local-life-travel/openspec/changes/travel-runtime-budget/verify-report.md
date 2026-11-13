@@ -1,4 +1,8 @@
 ---
+ship-gate:
+  verify: PASS
+  reviewed_sha: a75cf20b74ae6f1f910bf4fe16cd6028766a439b1071735c9f423b08a11535e8
+  reviewed_manifest: MTAwNjQ0IGJsb2IgYmYzNjg3ZWIwZGYzYjE1MjgzMDc5YWViOWE4ZWM2ZGY4NzE3MjEyYQkuZW52LmV4YW1wbGUAMTAwNjQ0IGJsb2IgYTc1YWMxOGQ5NzFjZjZkZDhjNzE5Y2NjOWY0MGJmYzMyNDg5N2RmMgkuZ2l0aWdub3JlADEwMDY0NCBibG9iIGE4ZWJkYTlhNjliMTkwMTJjZjU4ZDg5ZjVlMWQzM2U4MGViNTg2OTQJQUdFTlRTLm1kADEwMDY0NCBibG9iIGVlNzk2OWNiMmE2NTQ3OTE4ZDU4NTVhMTQzYzUyOWU2ZWU5N2E0MmQJQ0xBVURFLm1kADEwMDY0NCBibG9iIGVhYjNkYzg5OTM2M2EyMGQ0YjRhMGFhZTExY2U5ZTcwMzNkOTNiNTIJUkVBRE1FLm1kADA0MDAwMCB0cmVlIDRjNTQwNTg1NGFhZGVlZTFjNGIzZTE2NmJiMDI0M2E4ZjFiNzRkNWUJYXBwADA0MDAwMCB0cmVlIDEyNmYyNDkyMWVkYzJkYjRkOGZlMGU1Y2RjODlkN2FiODI0NWZjM2UJZG9jcwAwNDAwMDAgdHJlZSA4ZTQ3OWU2Yjc2NjA3M2MwNGQwYTA0ZDY0MGMxYjhkYzhjM2VkMzNhCWZpeHR1cmVzADEwMDY0NCBibG9iIDMzMjUzZTk3MTBkMTM0Y2M5OTE3MmE3YmU5MDAxNjE4YmFkYWVhNGYJcHl0ZXN0LmluaQAxMDA2NDQgYmxvYiA4MzRiZTY5YTUxMTExOTEyNTRjMDIxNzM1ZmZiZDkwMGRmNzQ4NWVjCXJlcXVpcmVtZW50cy1kZXYudHh0ADEwMDY0NCBibG9iIGM0M2Y3YzNjYWNlYjg4MjZjMzQ0NzM5NGJjZTA2YTk4NDVmN2M1ZDgJcmVxdWlyZW1lbnRzLnR4dAAxMDA2NDQgYmxvYiBiZTlmNWVmNmVkZmMxYWQwZDk3YTliNzMwNmQyODdjMjhhMTg0ZGYxCXJ1bi5weQAwNDAwMDAgdHJlZSA4YWQzNzNjNWExYzI1NjViNDJiZmZiMDQzYTdmNTk1MDhjZGJlM2YxCXNjcmlwdHMAMDQwMDAwIHRyZWUgNTQ1ZDYwMjI5MWExMmIzMTJkMDI4NTUyYjZlNjdjMjg0Y2IxN2IxYgl0YXNrcwAwNDAwMDAgdHJlZSAwNWY4NjRmMmEyNzM4N2U4ZWJkMWU5NGRlYzg1ZGEzYThiNDE5YWMzCXRlc3RzADA0MDAwMCB0cmVlIGRkNzRlMDg4ZTY0MzNiYjZkYTk4MDgzNDJjYTY5OTU2NDQ2ODNkN2QJd2Vi
 title: verify 报告 — travel-runtime-budget
 date: 2026-11-13
 ---
@@ -109,6 +113,8 @@ exit `0`，`head = 7e025afe502f36b5e8d5c40d34be55f5c2ea6bff`，`domains_configur
 **mapping 非空、`layers` 为空 ⇒ 命中域无自动测试层，未触发重跑（依派单口径，不判缺口）。** 根因同时复核：`openspec/config.yaml` 无活动的 `test-suites:` 键（`Select-String -Pattern '^test-suites:'` 无命中；`-SimpleMatch` 的 4 处命中全为注释 L100/106/113/127）；仅项目根 `pytest.ini`（`testpaths = tests`、`addopts = -p no:cacheprovider`），无 unit/integration/e2e 分层 runner。
 
 > 附加（合同外、非缺口判定依据）：修复面（`app/live.py`、`app/main.py`、`app/runtime.py`、两个测试文件）仍被本会话全量 pytest 覆盖，见 §4 —— exit 0 / 159 passed。
+>
+> 附：本报告写锚得到的 `reviewed_sha = a75cf20b74ae6f1f910bf4fe16cd6028766a439b1071735c9f423b08a11535e8`，与 `code-review-report.md` 头部 `reviewed_sha` **逐字相同** ⇒ 代码域（`openspec` 之外的顶层条目 manifest）自代码审以来**未漂移**，本次 verify 复用的正是被评审过的代码盘面。
 
 ### 3.3 报告 §2 证据行复核（只核**通过行** + SHA 一致性）
 
