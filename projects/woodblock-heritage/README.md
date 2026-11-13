@@ -75,6 +75,8 @@ python scripts/demo_e2e.py http://127.0.0.1:8770
 
 ## 目录
 
+- `docs/TECH-STACK.md`：技术栈总结（组件/技术/作用/状态）、现状与目标态、选型理由与代价。
+- `docs/ARCHITECTURE.md`：整体架构：分层、审核事务、发布门禁、目标态受控动态 DAG。
 - `app/models.py`：请求契约与冻结谓词；`app/images.py`：Pillow 完整解码与限额。
 - `app/service.py`：三状态轴、审核裁决、发布门禁；`app/store.py`：SQLite/WAL/事务/幂等。
 - `app/main.py`：FastAPI 边界、CSP、Origin 检查。

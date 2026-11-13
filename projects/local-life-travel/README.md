@@ -43,6 +43,8 @@ python -m pytest -q
 
 | 文档 | 内容 |
 |---|---|
+| `docs/TECH-STACK.md` | 技术栈总结（组件/技术/作用/状态）、现状与目标态、选型理由与代价 |
+| `docs/ARCHITECTURE.md` | 整体架构：分层、两条执行路径、模块职责、关键契约、目标态 Python Agent—Java—Vue |
 | `docs/IMPLEMENTATION.md` | 目录、启动、六阶段流水线、数据契约、API、fixture 格式、预算与并发、未运行项 |
 | `docs/ACCEPTANCE.md` | 精确测试命令与结果、首次失败与修复、真实 HTTP 验证、20 场景矩阵、覆盖与缺口 |
 | `docs/LIVE-AMAP.md` | 高德适配器、Key 现状、官方申请流程、限制与离线测试 |
