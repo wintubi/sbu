@@ -1,0 +1,71 @@
+{
+  "run_id": "20261110T182434Z-impl-N2Sw5e",
+  "task_id": "task4-standards-r1",
+  "prefix_receipt": "<!-- prefix-version: principles-b9a054bafa9c -->",
+  "verdict": "pass",
+  "checks": [
+    {
+      "item": "prefix 回执",
+      "status": "pass",
+      "evidence": "openspec/changes/travel-runtime-budget/.outside-voice/20261110T182434Z-impl-N2Sw5e/prefix-principles.md:1 为 `<!-- prefix-version: principles-b9a054bafa9c -->`；task4-aggregate.md:10 回显同一行；本 JSON 的 prefix_receipt 精确等于该行。"
+    },
+    {
+      "item": "suite-scope JSON 原样性与关键字段",
+      "status": "pass",
+      "evidence": "重跑同一命令（C:/Miniconda3/python.exe C:/Users/Lenovo/.agents/skills/sdflow-implement/scripts/impl_route.py suite-scope --root D:/workspace-dsh/tmp/sbu-travel-runtime-budget，exit 0）；把新输出中唯一新增的 mapping 项（本报告自身）剔除后，与 task4-aggregate.md:24 逐字节相等（reconstructed == pasted 为 True）。报告值：base=6a785607…（= git merge-base HEAD main）、head=1aee907…（= git rev-parse HEAD）、domains_configured=false、hit_domains=[]、layers={}、skipped_layers={}；mapping 90 项均含 path/domain/prefix 三键且 domain/prefix 恒 null。"
+    },
+    {
+      "item": "layers 为空的原因与依据（契约第 0 条）",
+      "status": "pass",
+      "evidence": "task4-aggregate.md:29 写 `head` 为运行 suite-scope 时的 HEAD、报告在其后提交；:30 写 `layers` 为空的唯一原因「openspec/config.yaml 未配置 test-suites」并明确注明依据「聚合套件发现契约」第 0 条（C:/Users/Lenovo/.agents/skills/sdflow-implement/SKILL.md:413-427）。独立复核：yaml.safe_load 顶层键为 context/metrics/operations/rules/schema，确无 test-suites 键。旁证句『Select-String 无命中』不实（实际 4 处注释命中，见 STD-01），不影响本结论。"
+    },
+    {
+      "item": "证据行 schema 与用例数真实性",
+      "status": "pass",
+      "evidence": "task4-aggregate.md:47-54 为五列表（层|命令原文|退出码|用例数|HEAD），三条运行行 HEAD 同为 1aee907…；全量 `--collect-only` 机械核得 154，且逐文件 24/7/13/17/13/14/23/23/19/1 与 §2.2 表逐项一致；重跑 `tests/test_live_loopback_e2e.py` 得 1 passed、exit 0；重跑 `scripts/live_loopback_e2e.py` 得 E2E_OK、exit 0，create 3 次发送/1 次关闭、revision 11+3 次发送/2 次关闭与报告一致。无 0 用例或未说明的『未知』；脚本行的『2 场景』已注明非 pytest runner 汇总。"
+    },
+    {
+      "item": "命令依据仓内可查",
+      "status": "pass",
+      "evidence": "逐条打开核对：README.md:18-25（跑测试）、README.md:41（loopback 命令）、docs/ACCEPTANCE.md §2（23-58）、§8（126-134）、§10.2（161-180）、docs/LIVE-AMAP.md §6.8（150-160）、§7（163-173）均含报告所引命令；pytest.ini 四行与报告一致。报告已披露未设 TRAVEL_REPLAY_NO_AUTOSTART 的差异，且 tests/conftest.py:14 对该变量强制置 1，故不影响命令语义。"
+    },
+    {
+      "item": "未改动产品代码",
+      "status": "pass",
+      "evidence": "核对时 `git status --porcelain` 只有 4 个未跟踪文件：task4-aggregate.md、task4-brief.md、review/task4-dispatch.json、review/task4-shared-context.md（随后并行评审另增 task4-spec-r1.json 与本 JSON 自身，均仍未跟踪）；`git diff` 与 `git diff --cached` 均为空；HEAD=1aee907de9f6245877fe03ce77fc24afb7e3f767（task3 checkpoint，2026-11-13 16:53:13），reflog 无本票新增 commit、git tag 为空。"
+    },
+    {
+      "item": "未夸大结论与未验范围",
+      "status": "pass",
+      "evidence": "报告 §4:124 与 §5:132 明确不宣称 T11 完成、已合并 main、真实高德供应商已验、生产并发/硬中断/灾备已验；docs/ACCEPTANCE.md:155 同口径。脚本只注入 synthetic-example 并忽略宿主真实 Key（tests/test_live_loopback_e2e.py:16 以哨兵键验证），tests 中无 restapi.amap.com 直连。"
+    }
+  ],
+  "findings": [
+    {
+      "id": "STD-01",
+      "severity": "Minor",
+      "file": "openspec/changes/travel-runtime-budget/impl-reports/task4-aggregate.md",
+      "line": 31,
+      "quote": "- 复核依据：`openspec/config.yaml` 不含 `test-suites` 键（`Select-String -SimpleMatch \"test-suites\"` 无命中）；本仓唯一测试配置是根级 `pytest.ini`（`testpaths = tests`、`python_files = test_*.py`、`addopts = -p no:cacheprovider`），无 unit/integration/e2e 分层 runner。",
+      "reason": "该句断言 `Select-String -SimpleMatch \"test-suites\"` 在 openspec/config.yaml 上『无命中』，实测同一命令命中 4 行（config.yaml:100/106/113/127，均为注释示例）。结论『不含 test-suites 键』本身正确（yaml.safe_load 顶层键仅 context/metrics/operations/rules/schema），但把未发生的机械检查写成已发生，属证据表述不实；suite-scope 的 layers={} 已独立证明该结论，故不影响核心证据可信度。",
+      "recommendation": "改成可复现的表述：『yaml 解析顶层键无 test-suites；文件内 4 处 test-suites 仅出现在注释示例（100/106/113/127 行）』，删除『Select-String 无命中』或改述为『仅注释命中』。"
+    },
+    {
+      "id": "STD-02",
+      "severity": "Minor",
+      "file": "openspec/changes/travel-runtime-budget/impl-reports/task4-aggregate.md",
+      "line": 49,
+      "quote": "| 聚合离线回归（全仓 pytest；`layers={}` 后按仓内既有约定回退） | `C:/Miniconda3/python.exe -m pytest -q -p no:cacheprovider` | 0 | 154 | `1aee907de9f6245877fe03ce77fc24afb7e3f767` |",
+      "reason": "「聚合套件发现契约」第 8 条要求层命令执行时以 `SDFLOW_DIFF_BASE=<第 0 条输出的 base>` 前缀注入；报告三条运行行的命令原文均无该前缀，也未声明执行时是否注入。仓内 `git grep SDFLOW_DIFF_BASE` 无消费者，故为 no-op、不影响 154/2/1 结果，仅为契约记录缺口。",
+      "recommendation": "在 §1/§2 注明『按契约第 8 条以 SDFLOW_DIFF_BASE=6a785607… 前缀执行；仓内无消费者，为 no-op』，或在命令原文补前缀；verify 重跑时同样注入。"
+    }
+  ],
+  "limits": [
+    "未重跑全量 pytest（纪律禁止整套重跑）：`154 passed` 由 collect-only 机械核得 154（逐文件计数与 §2.2 完全一致）、HEAD 未变且工作树无产品改动、README.md:23 与 docs/ACCEPTANCE.md:165 的既有 154 记录三方交叉印证；实际『通过』状态未独立复现。",
+    "重跑 suite-scope 时 mapping 必然多出报告落盘后才存在的未跟踪文件（本报告 task4-aggregate.md，以及并行评审的 task4-spec-r1.json、task4-standards-r1.json）：本次重跑（仅 task4-aggregate.md 已存在时）剔除该项后与报告 JSON 逐字节相等；sdflow-done verify 若做逐字比对，需排除这些本票产物路径或按等价性判断。",
+    "真实 loopback 已重跑（脚本 exit 0、E2E_OK、数值与报告一致），但只连 127.0.0.1 + MockTransport，不构成真实供应商、生产并发或硬中断验证。",
+    "未复核 ticket1-3 的历史证据本身与真实供应商（无 Key），本票只核本报告引用与聚合证据；不评判 TDD 顺序（本票范围外）。",
+    "无法证明 suite-scope 是该 implementer 的『起手』第一条命令：报告 mtime 16:58:25 晚于 HEAD commit 16:53:13，与声明相容但不可证时序；『未 git add/未 push』亦只能由 reflog 无相应记录与 index 干净间接支持。",
+    "docs/ACCEPTANCE.md:147 与 :200 仍写『ticket 4 聚合 suite-scope 未运行』，与本报告 §0 的已运行声明相反；本票按范围不改 docs，交接/verify 引用该文档时需注意它是 ticket 3 时点快照。"
+  ]
+}

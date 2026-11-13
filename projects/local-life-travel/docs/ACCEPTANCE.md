@@ -144,13 +144,13 @@ python run.py                # 打开 http://127.0.0.1:8765
 
 ## 10. 2026-11-13 增量：LIVE预算、deadline、取消、异常收尾与独立进程验收
 
-> 范围：OpenSpec change `travel-runtime-budget`（LRC-01..09）的 ticket 1–3 实现证据。ticket 4 的聚合 suite-scope 验证**尚未运行**；本节的 `pytest` 是 ticket 3 的自检，不替代 ticket 4 的命中域聚合。**真实高德 Key、费用、硬中断、断电恢复均未验证。**
+> 范围：OpenSpec change `travel-runtime-budget`（LRC-01..09）的 ticket 1–4 实现与聚合证据。ticket 4 的聚合 suite-scope 已运行（`layers={}`，config 未配置 test-suites；按仓内既有约定回退全量 pytest + 独立进程 loopback），证据见 `openspec/changes/travel-runtime-budget/impl-reports/task4-aggregate.md`：全量 **154 passed**、loopback **E2E_OK**。**真实高德 Key、费用、硬中断、断电恢复均未验证。**
 
 ### 10.1 分支与状态
 
 | 项 | 值 |
 |---|---|
-| 分支 | `feat/travel-runtime-budget`（起点 `03cb0d4`，ticket 3 改动未提交/未打 checkpoint 标签） |
+| 分支 | `feat/travel-runtime-budget`（ticket 1/2/3 已 checkpoint：`3bed847` / `03cb0d4` / `1aee907`；ticket 4 聚合证据已运行，未打标签） |
 | 与 main | **不是 main**；未 merge / 未 push / 未归档；不得把本分支结果写成 main 现状 |
 | 独立代码审 | **未做**；未独立审前不标 T11 完成 |
 | 私人面试稿 | **未更新**（`docs/interview-v0.1.md` 的 main 现状数字保持原样） |
@@ -191,11 +191,11 @@ C:/Miniconda3/python.exe scripts/live_loopback_e2e.py
 | LRC-06 适配器显式受控 | `test_live_admission.py::test_bind_race_serializes_on_client_lock_and_one_winner`、`test_owned_close_rejects_bind_while_physical_close_waits[False/True]`、`test_missing_binding_protocol_invokes_no_tool`、`test_borrowed_client_unbinds_for_sequential_runs_without_close`；`test_live_cleanup_redaction.py::test_constructor_validation_failure_closes_owned_client_and_is_idempotent` | 缺协议为已声明内部破坏性变更，无静默 fallback |
 | LRC-07 拥有权覆盖所有出口 | `test_live_cleanup_redaction.py` 的 success/provider_error/call_limit/deadline/cancel/constructor 六项、`test_factory_failure_before_return_owns_its_unreturned_resources`、`test_borrowed_client_is_not_closed_and_reused_sequentially`、`test_unbind_failure_still_attempts_physical_close_and_keeps_result`；`test_live_admission.py` 的 close 幂等/借入用例 | factory 返回前抛错时顶层无法关闭未知对象（由 factory 负责） |
 | LRC-08 清理失败不掩盖主结果/脱敏 | `test_live_cleanup_redaction.py::test_cleanup_failure_preserves_primary_provider_failure_and_budget`、`test_cleanup_failure_preserves_call_limit_category_and_exact_count`、`test_close_error_with_deadline_during_cleanup_keeps_earlier_failure`、`test_direct_create_live_run_saves_after_cleanup_failure`、`test_httpx_error_text_is_reduced_to_safe_category_and_type`、`test_provider_info_is_not_echoed_but_numeric_infocode_is_kept`、`test_top_level_execution_exception_text_is_not_persisted`、`test_cancel_probe_failure_does_not_leak_raw_exception`、`test_cleanup_exception_text_is_not_persisted`；`test_live_deadline_cancel.py::test_probe_failure_is_fixed_category_without_raw_exception_text` | 只覆盖本进程路径；外部日志采集/APM 不在本 change |
-| LRC-09 真实范围说明 | 本节 + [LIVE-AMAP.md](LIVE-AMAP.md) 6.1–6.8 + 各 ticket 报告；命令/exit/计数均为实跑，失败/未验项单列 | 真实高德、费用、计量、硬中断、断电恢复、main 合并与独立代码审均**未满足**；ticket 4 聚合验证未运行 |
+| LRC-09 真实范围说明 | 本节 + [LIVE-AMAP.md](LIVE-AMAP.md) 6.1–6.8 + 各 ticket 报告；命令/exit/计数均为实跑，失败/未验项单列 | ticket 4 聚合验证已运行（154 passed + loopback E2E_OK，见 task4-aggregate.md）；真实高德、费用、计量、硬中断、断电恢复、main 合并与独立代码审仍**未满足** |
 
 ### 10.4 失败 / 跳过 / 未运行（分开记录）
 
 - 失败：最终 0。
 - 跳过：0（未新增 skip/xfail；无测试被删除或放宽）。
-- 未运行：真实 Key/真实高德联调、供应商计费与效果、硬中断/90秒强制返回、断电恢复、独立代码审、T11 完成、ticket 4 聚合 suite-scope、push/merge。
+- 未运行：真实 Key/真实高德联调、供应商计费与效果、硬中断/90秒强制返回、断电恢复、独立代码审、T11 完成、push/merge。
 - 验收边界：以上全部为**本机离线软件契约**；`completed` 只表示本进程处理结束，不代表真实行程可行或供应商成功。
