@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import queue
 import sqlite3
 import subprocess
 import sys
@@ -25,7 +26,7 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
-from threading import Thread
+from threading import Lock, Thread
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -174,6 +175,8 @@ def _child_serve(args: argparse.Namespace) -> int:
 # 父进程：启动/停止自己创建的应用进程 + 真实 loopback HTTP 编排
 # --------------------------------------------------------------------------- #
 class ChildApp:
+    HANDSHAKE_TIMEOUT = 25.0
+
     def __init__(self, db: Path, log: Path, gate_dir: Path, gate_path: str, gate_param: str):
         self.db = db
         self.log = log
@@ -182,6 +185,42 @@ class ChildApp:
         self.gate_param = gate_param
         self.proc: subprocess.Popen | None = None
         self.base_url = ""
+        self._stdout: queue.Queue[str] = queue.Queue()
+        self._stderr: list[str] = []
+        self._stderr_lock = Lock()
+        self._readers: list[Thread] = []
+
+    def _pump_stdout(self) -> None:
+        """把子进程 stdout 搬到队列：主线程不再无超时阻塞在 readline。"""
+        assert self.proc is not None and self.proc.stdout is not None
+        try:
+            for line in self.proc.stdout:
+                self._stdout.put(line)
+        finally:
+            self._stdout.put("")  # EOF 哨兵；空串不会与 PORT= 行混淆
+
+    def _pump_stderr(self) -> None:
+        """持续 drain stderr，避免子进程写满管道缓冲后与父进程互等。"""
+        assert self.proc is not None and self.proc.stderr is not None
+        try:
+            while True:
+                chunk = self.proc.stderr.read(4096)
+                if not chunk:
+                    return
+                with self._stderr_lock:
+                    self._stderr.append(chunk)
+                    if len(self._stderr) > 32:  # 有界保留，避免异常输出刷爆内存
+                        del self._stderr[:-32]
+        except (ValueError, OSError):
+            return  # 进程被 kill 后管道关闭
+
+    def _join_readers(self, timeout: float = 2.0) -> None:
+        for reader in self._readers:
+            reader.join(timeout=timeout)
+
+    def stderr_text(self, limit: int = 2000) -> str:
+        with self._stderr_lock:
+            return "".join(self._stderr)[-limit:]
 
     def __enter__(self):
         self.gate_dir.mkdir(parents=True, exist_ok=True)
@@ -192,53 +231,74 @@ class ChildApp:
         self.proc = subprocess.Popen(
             cmd, cwd=str(PROJECT_ROOT), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.PIPE, text=True, bufsize=1)
+        self._readers = [
+            Thread(target=self._pump_stdout, daemon=True),
+            Thread(target=self._pump_stderr, daemon=True),
+        ]
+        for reader in self._readers:
+            reader.start()
         try:
-            deadline = time.monotonic() + 25
+            deadline = time.monotonic() + self.HANDSHAKE_TIMEOUT
             while True:
-                line = self.proc.stdout.readline()
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError("child app port handshake timed out")
+                try:
+                    line = self._stdout.get(timeout=remaining)
+                except queue.Empty:
+                    raise TimeoutError(
+                        "child app port handshake timed out") from None
                 if line.startswith("PORT="):
                     port = int(line.strip().split("=", 1)[1])
                     if port <= 0:
                         raise RuntimeError("child app did not bind a local port")
                     self.base_url = f"http://127.0.0.1:{port}"
                     break
-                if line == "" and self.proc.poll() is not None:
-                    stderr = self.proc.stderr.read()
-                    raise RuntimeError(f"child app exited before port handshake: {stderr}")
-                if time.monotonic() > deadline:
-                    raise TimeoutError("child app port handshake timed out")
+                if line == "":
+                    if self.proc.poll() is not None:
+                        raise RuntimeError(
+                            "child app exited before port handshake: "
+                            + self.stderr_text())
+                    raise RuntimeError("child app stdout closed before port handshake")
         except BaseException:
             # 握手失败也必须停止自己启动的子进程，避免残留服务。
             if self.proc.poll() is None:
                 self.proc.kill()
-                self.proc.wait(timeout=10)
+                try:
+                    self.proc.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    pass
+            self._join_readers()
             raise
         return self
 
     def stop(self) -> int:
         assert self.proc is not None
         if self.proc.poll() is not None:
+            self._join_readers()
             return self.proc.returncode if self.proc.returncode is not None else 1
-        try:
-            self.proc.stdin.write("shutdown\n")
-            self.proc.stdin.flush()
-            self.proc.stdin.close()
-        except (BrokenPipeError, OSError):
-            pass
+        if self.proc.stdin is not None and not self.proc.stdin.closed:
+            try:
+                self.proc.stdin.write("shutdown\n")
+                self.proc.stdin.flush()
+                self.proc.stdin.close()
+            except (BrokenPipeError, OSError, ValueError):
+                pass
         try:
             code = self.proc.wait(timeout=25)
         except subprocess.TimeoutExpired:
             # 只终止自己启动的子进程，避免残留服务。
             self.proc.kill()
             code = self.proc.wait(timeout=10)
+        self._join_readers()
         return code
 
     def __exit__(self, exc_type, exc, tb):
-        if self.proc is not None and self.proc.stdin is not None and not self.proc.stdin.closed:
-            code = self.stop()
-            if exc_type is None and code != 0:
-                stderr = self.proc.stderr.read() if self.proc.stderr else ""
-                raise AssertionError(f"child app exited {code}: {stderr[-2000:]}")
+        if self.proc is None:
+            return False
+        code = self.stop()
+        if exc_type is None and code != 0:
+            raise AssertionError(f"child app exited {code}: {self.stderr_text()}")
         return False
 
 
@@ -453,9 +513,12 @@ def main() -> int:
     if args.serve:
         return _child_serve(args)
 
-    work = Path(tempfile.mkdtemp(prefix="live-loopback-", dir=str(PROJECT_ROOT / "data")))
+    work = None
     exit_code = 1
     try:
+        data_dir = PROJECT_ROOT / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)  # 新 clone 没有 data/，不能假定存在
+        work = Path(tempfile.mkdtemp(prefix="live-loopback-", dir=str(data_dir)))
         summary = {
             "scope": "independent-process loopback; real AmapAdapter + MockTransport; "
                      "synthetic key; no real provider",
@@ -469,10 +532,13 @@ def main() -> int:
     except Exception:
         import traceback
         traceback.print_exc()
-        print(f"E2E_FAILED; artifacts kept at {work}")
+        if work is None:
+            print("E2E_FAILED; work directory could not be created")
+        else:
+            print(f"E2E_FAILED; artifacts kept at {work}")
         return 1
     finally:
-        if exit_code == 0:
+        if exit_code == 0 and work is not None:
             import shutil
             shutil.rmtree(work, ignore_errors=True)
         sys.stdout.flush()

@@ -379,6 +379,10 @@ def create_app(*, store: Store | None = None, worker: Worker | None = None,
         if run is None:
             raise ApiError(404, "RUN_NOT_FOUND", f"运行 {run_id} 不存在", run_id=run_id)
         outcome = store.cancel_run(run_id)
+        if outcome == "missing":
+            # get_run 与条件取消之间行被外部删除：按既有 RUN_NOT_FOUND 语义报 404，
+            # 不写 CANCELLED 事件（events 表没有外键，写事件会留下悬挂记录）。
+            raise ApiError(404, "RUN_NOT_FOUND", f"运行 {run_id} 不存在", run_id=run_id)
         if outcome == "terminal":
             current = store.get_run(run_id) or run
             raise ApiError(409, "RUN_NOT_CANCELLABLE",

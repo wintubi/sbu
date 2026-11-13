@@ -167,7 +167,7 @@ $env:TRAVEL_REPLAY_NO_AUTOSTART='1'
 python -m pytest -q -p no:cacheprovider tests/test_amap_tools.py tests/test_live.py tests/test_live_admission.py tests/test_live_deadline_cancel.py tests/test_live_cleanup_redaction.py tests/test_live_loopback_e2e.py
 # 2026-11-13 本分支实测：93 passed（高德离线 14 + live API 13 + 发送前准入/资源闭环 23 + deadline/取消/loopback 23 + 异常收尾/脱敏 19 + 独立进程包装 1）
 python -m pytest -q -p no:cacheprovider
-# 2026-11-13 本分支实测：154 passed（134 旧 + 19 异常收尾/脱敏 + 1 独立进程包装）
+# 2026-11-13 本分支实测：159 passed（134 旧 + 19 异常收尾/脱敏 + 1 独立进程包装 + 5 代码审修复回归）
 ```
 
 实际计数以本分支最后一次运行为准，不预写“计划通过数”；逐条命令、exit 与文件构成见[验收记录](ACCEPTANCE.md#10-2026-11-13-增量live预算deadline取消异常收尾与独立进程验收)。每个测试用 pytest fixture 在 `data/pytest/` 下建一次性 SQLite（或在进程内用 `httpx.MockTransport`），不共享库、不出网。离线测试覆盖：唯一匹配、同名歧义、空结果、Key 回收、超时、坏坐标、天气日期覆盖/不覆盖、路线时长距离、营业时间有/无；发送前准入（limit=0/1/2/40、第N+1次不命中handler、失败尝试计数、本地0消耗）、批次中断保留子证据、同键重放不重执行、自有/借入client清理、bind-v-bind / bind-v-close 并发，以及同一对象连续两次失败 bind 后两次清理均不触碰原 owner（client 仍 open、物理关闭 0 次、原 run 仍可发送）。deadline/取消新增：假时钟0/90边界与取消优先、剩余1秒与0.25秒配置下四类操作timeout、UTC墙钟跳变、探针缺失/异常不发送且不泄露原始异常串、factory前0预算、晚到响应/评估/收尾拒绝、普通timeout保持原分类、主失败不被时间检查覆盖、幂等重放不建runtime、已提交失败取消409；以及进程内真实loopback（127.0.0.1）并发创建与修订：等待期间同键重放取 run_id（factory/HTTP/完成事件增量0）、原cancel入口可达、检查后竞争下独立连接GET与重放始终读到归一快照、下一handler不命中，且取消响应/事件标LIVE。异常收尾/脱敏新增：六类出口清理尝试、构造校验失败/close幂等、factory未交出资源、借入close 0且顺序复用、解绑失败仍尝试物理close、cleanup失败保留主类别/准确预算/证据且不跳过保存、close敏感文本+清理期间deadline的Review Focus、HTTPError/provider info/顶层异常/探针/cleanup的合成Key/query/私人标记扫描（API/state/事件/SQLite均不含）。**没有真实网络请求**，全部用合成凭据 `synthetic-example`，不用真实sleep制造90秒；独立进程 loopback 见 6.8。

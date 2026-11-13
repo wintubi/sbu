@@ -1,0 +1,66 @@
+{
+  "run_id": "20261113T091208Z-cr-RW1pFk",
+  "task_id": "cr-domain-r2",
+  "prefix_receipt": "<!-- prefix-version: code-review-8b697f286cdb -->",
+  "verdict": "pass",
+  "resolution": [
+    {
+      "finding": "CRD-02 cancel 'missing' 落进成功路径（app/main.py:382）",
+      "status": "resolved",
+      "evidence": "修复 diff 仅在 app/main.py:382-385 插入 `if outcome == \"missing\": raise ApiError(404, \"RUN_NOT_FOUND\", ...)`，位于 terminal 判断与事件写入（393/408 的 CANCELLED add_event）之前，因此不写事件；main.py 无其它 hunk，replay/LIVE 成功与 409 分支未变。store.py:200-202 的 missing 分支先 rollback 再返回。测试 tests/test_api.py:188-211 用「先 DELETE runs 行再调用原 cancel_run」确定性命中缺行窗口；把 app/main.py 还原为 111f274 后在临时副本跑该用例得 `assert 200 == 404` FAILED（预修复确进成功路径，证明确实触发 missing 分支而非 route 首次 get_run 的 404）；当前工作树 `1 passed`，且断言事件前后一致、无 CANCELLED。"
+    },
+    {
+      "finding": "CRD-03 reserve_http 把非正 operation timeout 伪装成 deadline 耗尽（app/runtime.py:98）",
+      "status": "resolved",
+      "evidence": "app/runtime.py:97-100 改为 `raise RuntimeControlError(\"INVALID_OPERATION_TIMEOUT\")`，抛点在 `budget[\"tool_calls\"] += 1`（101）与 return 之前，with 锁自动释放，不再产生 BudgetExhausted。app/live.py:297-303 按 `exc.category` 分支，INVALID_OPERATION_TIMEOUT 走 `_mark_execution_failure`（failed/failed、result null、quality unverified、STAGE_EXECUTION_ERROR 固定文案），不写 exhaustion_reason，其它探针文案未变。测试 tests/test_live_deadline_cancel.py:374-385（0.0/-1.0：非 BudgetExhausted、category、无 exhaustion_reason、tool_calls==0）与 :387-412（真实 AmapAdapter+MockTransport 走 API：failed/failed、无 exhaustion_reason、tool_calls 0、sent==[]、STAGE_EXECUTION_ERROR 含 INVALID_OPERATION_TIMEOUT、result null/quality unverified）。临时副本还原 runtime.py/live.py 后 API 用例红：`assert 'exhausted' == 'failed'`；当前工作树该组 4 passed（含既有 probe 脱敏回归）。"
+    },
+    {
+      "finding": "CRD-04 端口握手无超时阻塞 / stderr 管道互锁 / 失败不收尾（scripts/live_loopback_e2e.py:198）",
+      "status": "resolved",
+      "evidence": "scripts/live_loopback_e2e.py:177-302 改为 stdout 读线程 + queue（193-200、243-250，HANDSHAKE_TIMEOUT=25 在 :178/:241），stderr 由 daemon 线程 `read(4096)` 持续 drain（202-215，32 chunk 上限），握手异常路径 kill+wait+join（263-272），stop() 兜底已关闭 stdin 的 ValueError 并 join 读线程（280-293），__exit__ 只要 proc 存在就 stop（296-301）。测试 tests/test_live_loopback_e2e.py:42-80 用 stdout 永不产出 PORT= 的假 Popen + HANDSHAKE_TIMEOUT=0.2，断言 5s 内抛 TimeoutError 且 kill 被调用，无真实长 sleep；`pytest tests/test_live_loopback_e2e.py` → 2 passed in 10.90s（含既有真实 loopback 冒烟）。"
+    },
+    {
+      "finding": "CRD-05 data/ 缺失时裸 FileNotFoundError、mkdtemp 在 try 外（scripts/live_loopback_e2e.py:456）",
+      "status": "resolved",
+      "evidence": "scripts/live_loopback_e2e.py:516-543：work=None，`data_dir.mkdir(parents=True, exist_ok=True)` 与 mkdtemp 均移入 try；失败分别打印 `E2E_FAILED; work directory could not be created` / `E2E_FAILED; artifacts kept at ...` 并 return 1；finally 只在 `exit_code==0 and work is not None` 时清理。实证：无 data/ 的最小副本（DATA_BEFORE=False）跑当前脚本 → E2E_OK、SCRIPT_EXIT=0、DATA_AFTER=True；同副本换回 111f274 脚本 → `FileNotFoundError: ...\\data\\live-loopback-...`、SCRIPT_EXIT=1、输出无 E2E_FAILED（原 finding 精确复现）。"
+    },
+    {
+      "finding": "CRD-01 finally 内 finalize_run 异常逸出（app/live.py:359）",
+      "status": "deferred (out of fix round)",
+      "evidence": "修复自述明确未修、归 T12；本轮 diff 在 live.py 只有 _classify_control 文案 hunk，未触及 finalize/finally，故未重审该 finding。"
+    },
+    {
+      "finding": "cr-scope medium：docs/TECH-STACK.md:5 与 docs/ARCHITECTURE.md:4 仍称 T11 在 git stash",
+      "status": "partial (residual wording, Minor)",
+      "evidence": "两条已改为「票 1–4 已验收（checkpoint 3bed847/03cb0d4/1aee907/111f274）；改动在本分支 feat/travel-runtime-budget、未合并 main；本地 git stash 已恢复（当前无暂存条目）」，与实测一致：`git stash list` 为空、分支 feat/travel-runtime-budget、HEAD 111f274。核心失实（「半成品未计入/stash 中」）已消除；但未写 scope 建议的「未独立代码审」，且仍保留 stash 叙事，见 findings CRF2-02。"
+    }
+  ],
+  "findings": [
+    {
+      "id": "CRF2-01",
+      "severity": "Minor",
+      "file": "docs/TECH-STACK.md",
+      "line": 20,
+      "quote": "| 测试 | pytest | 154 项离线回归（61 replay + 14 高德离线 + 13 LIVE 假适配器 + 23 发送前准入 + 23 deadline/取消 + 19 清理/脱敏 + 1 loopback） | 已实现 |",
+      "reason": "修复新增 5 个测试（cancel 缺行 1、非正 timeout 2、零 timeout API 1、握手超时 1），修复回执自报全量 159 passed；但 README.md:23、docs/LIVE-AMAP.md:170、docs/ACCEPTANCE.md:147/165/194 与本行仍写 154，未随新增测试更新。本 change 一直以「计数为实跑证据」为口径，修复提交后这些数字会与套件/代码不符（非行为问题，不阻塞）。",
+      "recommendation": "随修复提交把计数改为 159 并更新分解（replay 62 + 14 + 13 + 23 + deadline/取消 26 + 19 + 1），或在这些位置注明「154 为 111f274 checkpoint 计数，代码审修复轮 +5」。"
+    },
+    {
+      "id": "CRF2-02",
+      "severity": "Minor",
+      "file": "docs/TECH-STACK.md",
+      "line": 5,
+      "quote": "> T11（LIVE 发送前准入、预算、时限、取消与异常清理）票 1–4 已验收（checkpoint `3bed847`/`03cb0d4`/`1aee907`/`111f274`）；改动在本分支 `feat/travel-runtime-budget`、未合并 main；本地 `git stash` 已恢复（当前无暂存条目）。目标态不写成现状。",
+      "reason": "「票 1–4 已验收」未带「独立代码审未做、T11 未完成」限定，与 docs/ACCEPTANCE.md:155（独立代码审未做；未独立审前不标 T11 完成）与 :200（未运行：独立代码审、T11 完成）口径冲突；同文件第 3 行状态基线仍写 00c5502，落后于所述 checkpoint 111f274；stash 叙事虽「当前无暂存条目」属实，但「已恢复」是不可验证的历史陈述，scope 建议本就是删除 stash 表述。docs/ARCHITECTURE.md:4 同文。残留文档事实口径，非行为问题。",
+      "recommendation": "改为「票 1–4 已实现并通过票级双轴复审；独立代码审未做、T11 未完成、未合并 main」，删除 stash 句，并把状态基线更新为 111f274（或注明 00c5502 为旧基线）。"
+    }
+  ],
+  "limits": [
+    "范围仅 `git diff 111f274 -- projects/local-life-travel`（9 files：app/live.py、app/main.py、app/runtime.py、scripts/live_loopback_e2e.py、两份 docs、三份 tests）；未重跑整套，实际跑了 tests/test_api.py + test_live_deadline_cancel.py + test_live_cleanup_redaction.py + test_live.py（76 passed）、tests/test_live_loopback_e2e.py（2 passed, 10.90s）及新增用例子集；修复回执的 159 passed 未独立复现。",
+    "红/绿探针在仓库外临时副本完成：D:\\workspace-dsh\\tmp\\cr-domain-r2-probe-71817（app/main.py、app/runtime.py、app/live.py 还原为 111f274）与 cr-domain-r2-nodata2-42377 / nodata3-74906（无 data/）；仓库内文件未改、未 commit/push，临时目录保留。",
+    "CRD-04 的 pre-fix 红未执行：旧实现的无线程 readline 在假进程上会永久挂住，无法在有界时间内取红；结论基于静态阻塞点 + 修复后 0.2s 确定性测试。stderr drain 互锁只有结构/静态证据，没有专门用例覆盖（新增用例只覆盖握手超时+kill）。",
+    "文档「git stash 已恢复」不可验证：`git stash list` 为空已实测，但 refs/stash 的 reflog 随 drop 消失，无法证明历史上是否存在过 stash 或是否「恢复」。",
+    "未访问真实高德/真实 Key；未验证 Windows 下 kill/进程组清理时序、高负载时 0.2s 握手测试的稳定性、以及 work 目录保留策略在多个失败残留时的磁盘影响；未做覆盖率测量。",
+    "本轮不重审 CRD-01（明确 deferred）与 cr-scope 其余 low findings，也不重审 web/、docs 其它行与全量 change；仅核对修复 diff 的引入问题。"
+  ]
+}

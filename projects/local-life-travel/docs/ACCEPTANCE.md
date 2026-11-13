@@ -144,7 +144,7 @@ python run.py                # 打开 http://127.0.0.1:8765
 
 ## 10. 2026-11-13 增量：LIVE预算、deadline、取消、异常收尾与独立进程验收
 
-> 范围：OpenSpec change `travel-runtime-budget`（LRC-01..09）的 ticket 1–4 实现与聚合证据。ticket 4 的聚合 suite-scope 已运行（`layers={}`，config 未配置 test-suites；按仓内既有约定回退全量 pytest + 独立进程 loopback），证据见 `openspec/changes/travel-runtime-budget/impl-reports/task4-aggregate.md`：全量 **154 passed**、loopback **E2E_OK**。**真实高德 Key、费用、硬中断、断电恢复均未验证。**
+> 范围：OpenSpec change `travel-runtime-budget`（LRC-01..09）的 ticket 1–4 实现与聚合证据。ticket 4 的聚合 suite-scope 已运行（`layers={}`，config 未配置 test-suites；按仓内既有约定回退全量 pytest + 独立进程 loopback），证据见 `openspec/changes/travel-runtime-budget/impl-reports/task4-aggregate.md`：全量 **159 passed**、loopback **E2E_OK**。**真实高德 Key、费用、硬中断、断电恢复均未验证。**
 
 ### 10.1 分支与状态
 
@@ -162,7 +162,7 @@ python run.py                # 打开 http://127.0.0.1:8765
 
 ```text
 C:/Miniconda3/python.exe -m pytest -q -p no:cacheprovider
-→ 154 passed, 2 warnings in 35.81s        (exit 0)
+→ 159 passed, 2 warnings in 39.14s        (exit 0)
 
 C:/Miniconda3/python.exe -m pytest -q -p no:cacheprovider tests/test_amap_tools.py tests/test_live.py tests/test_live_admission.py tests/test_live_deadline_cancel.py tests/test_live_cleanup_redaction.py tests/test_live_loopback_e2e.py
 → 93 passed, 2 warnings in 27.59s       (exit 0；14+13+23+23+19+1)
@@ -191,7 +191,7 @@ C:/Miniconda3/python.exe scripts/live_loopback_e2e.py
 | LRC-06 适配器显式受控 | `test_live_admission.py::test_bind_race_serializes_on_client_lock_and_one_winner`、`test_owned_close_rejects_bind_while_physical_close_waits[False/True]`、`test_missing_binding_protocol_invokes_no_tool`、`test_borrowed_client_unbinds_for_sequential_runs_without_close`；`test_live_cleanup_redaction.py::test_constructor_validation_failure_closes_owned_client_and_is_idempotent` | 缺协议为已声明内部破坏性变更，无静默 fallback |
 | LRC-07 拥有权覆盖所有出口 | `test_live_cleanup_redaction.py` 的 success/provider_error/call_limit/deadline/cancel/constructor 六项、`test_factory_failure_before_return_owns_its_unreturned_resources`、`test_borrowed_client_is_not_closed_and_reused_sequentially`、`test_unbind_failure_still_attempts_physical_close_and_keeps_result`；`test_live_admission.py` 的 close 幂等/借入用例 | factory 返回前抛错时顶层无法关闭未知对象（由 factory 负责） |
 | LRC-08 清理失败不掩盖主结果/脱敏 | `test_live_cleanup_redaction.py::test_cleanup_failure_preserves_primary_provider_failure_and_budget`、`test_cleanup_failure_preserves_call_limit_category_and_exact_count`、`test_close_error_with_deadline_during_cleanup_keeps_earlier_failure`、`test_direct_create_live_run_saves_after_cleanup_failure`、`test_httpx_error_text_is_reduced_to_safe_category_and_type`、`test_provider_info_is_not_echoed_but_numeric_infocode_is_kept`、`test_top_level_execution_exception_text_is_not_persisted`、`test_cancel_probe_failure_does_not_leak_raw_exception`、`test_cleanup_exception_text_is_not_persisted`；`test_live_deadline_cancel.py::test_probe_failure_is_fixed_category_without_raw_exception_text` | 只覆盖本进程路径；外部日志采集/APM 不在本 change |
-| LRC-09 真实范围说明 | 本节 + [LIVE-AMAP.md](LIVE-AMAP.md) 6.1–6.8 + 各 ticket 报告；命令/exit/计数均为实跑，失败/未验项单列 | ticket 4 聚合验证已运行（154 passed + loopback E2E_OK，见 task4-aggregate.md）；真实高德、费用、计量、硬中断、断电恢复、main 合并与独立代码审仍**未满足** |
+| LRC-09 真实范围说明 | 本节 + [LIVE-AMAP.md](LIVE-AMAP.md) 6.1–6.8 + 各 ticket 报告；命令/exit/计数均为实跑，失败/未验项单列 | ticket 4 聚合验证已运行（159 passed + loopback E2E_OK，见 task4-aggregate.md）；真实高德、费用、计量、硬中断、断电恢复、main 合并与独立代码审仍**未满足** |
 
 ### 10.4 失败 / 跳过 / 未运行（分开记录）
 

@@ -371,6 +371,47 @@ def test_reserve_http_rejects_without_consuming_limit_or_deadline():
     assert expired.budget["tool_calls"] == 0
 
 
+@pytest.mark.parametrize("configured", [0.0, -1.0])
+def test_reserve_http_rejects_non_positive_configured_timeout(configured):
+    """非正 operation timeout 是配置错误，不得伪装成总 deadline 耗尽。"""
+    clock = FakeClock(0.0)
+    runtime = runtime_with(clock)
+    with pytest.raises(RuntimeControlError) as info:
+        runtime.reserve_http(configured)
+    assert not isinstance(info.value, BudgetExhausted)
+    assert info.value.category == "INVALID_OPERATION_TIMEOUT"
+    assert runtime.budget.get("exhaustion_reason") is None
+    assert runtime.budget["tool_calls"] == 0  # 未准入：调用方不得发送
+
+
+def test_configured_zero_timeout_is_not_reported_as_deadline(store, worker):
+    """API 全路径：timeout=0 落 failed/STAGE_EXECUTION_ERROR，不发 HTTP、不写耗尽原因。"""
+    sent: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(request.url.path)
+        return httpx.Response(200, json={"status": "1"})
+
+    def factory(city, transport):
+        return AmapAdapter(
+            AmapClient(key="synthetic-example", timeout=0.0,
+                       transport=httpx.MockTransport(handler)),
+            city=city, transport=transport, owns_client=True)
+
+    with TestClient(_api(store, worker, factory)) as api:
+        data = api.post("/api/v1/travel/live-runs", json=live_body(),
+                        headers={"Idempotency-Key": "zero-operation-timeout"}).json()
+    assert data["status"] == "failed"
+    assert data["budget"]["status"] == "failed"
+    assert "exhaustion_reason" not in data["budget"]
+    assert data["budget"]["tool_calls"] == 0
+    assert sent == []
+    issues = {issue["code"]: issue["message"] for issue in data["issues"]}
+    assert "STAGE_EXECUTION_ERROR" in issues
+    assert "INVALID_OPERATION_TIMEOUT" in issues["STAGE_EXECUTION_ERROR"]
+    assert data["result"] is None and data["quality_status"] == "unverified"
+
+
 def test_probe_failure_is_fixed_category_without_raw_exception_text():
     clock = FakeClock(0.0)
 

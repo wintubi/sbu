@@ -296,7 +296,11 @@ def _classify_control(run: dict[str, Any], exc: Exception) -> None:
         return
     elif isinstance(exc, RuntimeControlError):
         if run["status"] != "failed":
-            _mark_execution_failure(run, f"运行状态探针失败：{exc}")
+            if exc.category == "INVALID_OPERATION_TIMEOUT":
+                # 配置错误不是探针失败，也不是总deadline耗尽；固定安全文案，不带原始值。
+                _mark_execution_failure(run, "操作级 timeout 配置非法（INVALID_OPERATION_TIMEOUT）")
+            else:
+                _mark_execution_failure(run, f"运行状态探针失败：{exc}")
     elif run["status"] != "failed":
         _mark_execution_failure(run, f"真实渠道执行异常：{type(exc).__name__}")
 

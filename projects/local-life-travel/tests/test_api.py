@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 
 from app.replay_tools import resolve_all
 
@@ -182,6 +183,33 @@ def test_cancel_terminal_run_conflict(client, app, scenarios):
     c = client.post(f"{URL}/{rid}/cancel")
     assert c.status_code == 409
     assert c.json()["code"] == "RUN_NOT_CANCELLABLE"
+
+
+def test_cancel_missing_run_returns_404_without_event(client, app, scenarios, monkeypatch):
+    """get_run 与条件取消之间行被外部删除时，必须报 404 且不追加 CANCELLED 事件。"""
+    r = _post(client, scenarios["F01"]["request"])
+    rid = r.json()["run_id"]
+    store = app.state.store
+    before = store.get_events(rid)
+    original = store.cancel_run
+
+    def delete_then_cancel(run_id):
+        con = sqlite3.connect(store.db_path)
+        try:
+            con.execute("DELETE FROM runs WHERE run_id=?", (run_id,))
+            con.commit()
+        finally:
+            con.close()
+        return original(run_id)
+
+    monkeypatch.setattr(store, "cancel_run", delete_then_cancel)
+    c = client.post(f"{URL}/{rid}/cancel")
+    assert c.status_code == 404
+    assert c.json()["code"] == "RUN_NOT_FOUND"
+    assert c.json()["run_id"] == rid
+    after = store.get_events(rid)
+    assert after == before
+    assert all(event["action"] != "CANCELLED" for event in after)
 
 
 def test_every_response_carries_replay_declaration(client, app, scenarios):

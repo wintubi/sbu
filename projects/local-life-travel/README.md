@@ -20,11 +20,11 @@ Python 3.12；本次验证环境已具有所需依赖。新环境建议先建虚
 ```bash
 set TRAVEL_REPLAY_NO_AUTOSTART=1
 python -m pytest -q -p no:cacheprovider
-# 本分支 2026-11-13 实测：154 passed（含 LIVE 异常收尾/脱敏与独立进程 loopback 包装）
+# 本分支 2026-11-13 实测：159 passed（含 LIVE 异常收尾/脱敏、独立进程 loopback 包装与代码审修复回归）
 # 逐条命令、exit 与计数见 docs/ACCEPTANCE.md 第 10 节
 ```
 
-> 计数以实际运行输出为准；`154` 是 `feat/travel-runtime-budget` 分支的离线结果，不代表 main 已合并或真实供应商已验。
+> 计数以实际运行输出为准；`159` 是 `feat/travel-runtime-budget` 分支的离线结果，不代表 main 已合并或真实供应商已验。
 
 ## 这个切片验证什么
 

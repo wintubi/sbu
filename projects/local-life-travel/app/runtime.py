@@ -94,8 +94,10 @@ class LiveRuntime:
             if remaining <= 0:
                 raise BudgetExhausted("deadline")
             timeout = min(float(base_timeout), remaining)
-            if timeout <= 0:  # 配置本身非正时也不把非正timeout交给httpx
-                raise BudgetExhausted("deadline")
+            if timeout <= 0:
+                # 配置本身非正属于操作级配置错误，不是总deadline耗尽：不能把
+                # 诊断指向供应商延迟；固定分类由调用方归 STAGE_EXECUTION_ERROR。
+                raise RuntimeControlError("INVALID_OPERATION_TIMEOUT")
             self.budget["tool_calls"] += 1
         return timeout
 
