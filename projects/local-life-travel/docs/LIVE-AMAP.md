@@ -1,6 +1,6 @@
 # 高德真实数据适配器（LIVE / 未联调）
 
-状态：适配器、`POST /api/v1/travel/live-runs` 路径与离线/假适配器测试已完成；发送前的HTTP预算准入与资源闭环已实现并离线验证（见 6.1–6.4）；deadline/取消属于后续票，尚未交付（见 6.5）。**没有用真实 Key 成功调用过**，因此不能声称真实数据/真实行程验收通过。默认运行仍是 replay。
+状态：适配器、`POST /api/v1/travel/live-runs` 路径、发送前HTTP预算准入、单调deadline（默认90秒）、可达的API取消与原子终态已实现并离线验证（见 6.1–6.6）；真实 Key 未提供，异常资源矩阵与真实loopback独立进程验收属票3。**没有用真实 Key 成功调用过**，因此不能声称真实数据/真实行程验收通过。默认运行仍是 replay。
 
 ## 1. 为什么先做适配器而不是直接接页面
 
@@ -101,22 +101,56 @@ python openspec/changes/travel-runtime-budget/evidence/reproduce_budget.py
 
 修后一列可由该命令输出的 `limit` / `transport_attempts` / `client_calls` / `persisted_count` / `exhaustion_reason` / `run_status`+`budget_status` / `oversent` 逐项复现。修前按工具方法返回后的差额记账，超限的第3次已经发出、只是没入账；现在第3次在预占处被拒，传输层只有 2 次，持久化计数与实际准入一致。
 
-### 6.5 本票未交付
+### 6.5 运行deadline：默认90秒、单调elapsed、晚到拒绝（票2）
 
-默认 90 秒的单调 deadline、取消观察、晚到响应拒绝与终态一致化属于后续票（票2），本票**不声称**已交付，也不声称能强制中断挂起的同步调用或在90秒内返回。
+- 每个新run在落盘后、adapter factory之前取一次单调开始值（默认 `time.monotonic`，可注入）；`elapsed_seconds` 只用单调差，UTC墙钟跳变不改变预算。最终采样在收尾之后，**可能超过90秒**，不能据此声称发生过硬中断。
+- `LiveRuntime.check()` 顺序固定：先做一次单行DB短读观察持久取消状态，再判 `elapsed >= max_total_seconds`。检查点覆盖：factory前、绑定后、每次发送前（`reserve_http` 内）、`invoke` 返回后、阶段间、评估前后、接受 `completed/needs_input` 前，以及 `close` 之后的最后检查。run缺失或探针读取异常 → 运行以执行错误停止（只报固定类别/安全异常类型），不因读不到状态而绕过准入继续外呼。
+- `reserve_http(base_timeout)` 返回 `min(配置操作timeout, 剩余时间)` 且保证为正：默认操作配置5秒，不会把更短的配置放大，也不会关闭超时；HTTPX 的 connect/read/write/pool 四个操作都使用该值。已准入的尝试计数不退还。
+- 晚到分类：已准入的响应、评估或收尾在总deadline到达后返回，且没有更早主失败 → `failed` + `budget.status=exhausted` + `exhaustion_reason=deadline` + `BUDGET_EXHAUSTED`，`result=null`、`quality_status=unverified`，保留实际 `elapsed_seconds` 与已有证据；**不接受** `completed/needs_input/verified` 晚结果。普通单操作timeout但总deadline未到 → 仍保持原 timeout/provider/format 分类。已有主失败不被后续清理或时间检查覆盖（清理越过deadline也不改写原失败）。
+- 新耗尽LIVE必填 `exhaustion_reason`（`call_limit` 或 `deadline`）；历史run可缺该键，读取时按原JSON返回、不补造。取消胜出时删除该键。
+- 本契约不保证挂起的同步调用在90秒内强制返回；只保证在可观察边界后停止新请求并拒绝晚结果。清理（close/解绑）本身也可能越过deadline，此时过期终态同样被拒绝。
+
+```json
+{"mode":"live","status":"failed","quality_status":"unverified","result":null,
+ "budget":{"max_tool_calls":40,"tool_calls":4,"max_total_seconds":90,
+           "elapsed_seconds":90.2,"status":"exhausted","exhaustion_reason":"deadline"},
+ "issues":[{"code":"BUDGET_EXHAUSTED","severity":"blocker","message":"live runtime deadline exhausted"}]}
+```
+
+数字仅为示例，不是已测生产延迟；完整响应还含 `run_id/request/state/events` 等字段。
+
+### 6.6 LIVE取消契约、原子终态与检查后竞争（票2）
+
+- 取消入口仍是 `POST /api/v1/travel/runs/{run_id}/cancel`，运行中的LIVE run可取消。创建与LIVE修订的同步核心通过已安装 Starlette 的 `run_in_threadpool` 执行：原POST继续等待终态，但同一进程同一事件循环仍能受理**同键同载荷重放**（取得已创建 `run_id`）、取消与 GET；重放不新建 factory、不发HTTP、不新增完成事件。
+- 取消确认在**一个短事务**内同时归一 `status=cancelled`、`budget.status=cancelled`、`quality_status=unverified`、`result=null`，并删除 `exhaustion_reason`；保留已持久化的 `tool_calls`、`elapsed`、证据与原有 issues 诊断（不重置、不伪造）。最终保存用**另一个短事务**重新读取持久状态：若取消已在竞争中提交，则对含实际计数/elapsed/证据的快照做同样归一后一次提交，并返回 canonical 数据；GET 与同键重放不会看到 `cancelled` 与 `verified/ok` 混合的中间态，也不存在“先提交再修补”。取消确认时若本次run的最新计数尚未落盘，读出的是当时已持久化的值；本次run的实际计数/elapsed/证据由原等待POST的最终保存写入。
+- 已提交的业务失败先于取消时，取消API仍按 terminal 返回 409 `RUN_NOT_CANCELLABLE`。
+- LIVE 取消响应与 `CANCELLED` 事件按实际 `mode=live` 描述，不携带 `REPLAY_NOTICE`，不声称没有远端调用或已撤回在途请求；只说明取消已记录、将尽力停止后续发送、已发送尝试可能仍完成。响应片段示例（还含 `run_id/replay_notice/executed_stages/events`）：
+
+```json
+{"mode":"live","status":"cancelled",
+ "budget":{"max_tool_calls":40,"tool_calls":0,"max_total_seconds":90,
+           "elapsed_seconds":0.0,"status":"cancelled"},
+ "quality_status":"unverified","result":null,
+ "message":"已记录取消：将尽力停止后续发送；已发送的尝试可能仍完成或返回，不声称撤回在途请求，也不保证立即返回。"}
+```
+
+（片段；示例中的计数是取消确认时已持久化的值，最终快照以实际计数/elapsed/证据为准。）
+
+- 检查后竞争：取消确认与发送之间存在窗口，已提交的在途请求可能仍返回；系统只保证下一次边界检查停止新发送、最终终态一致，不承诺严格线性化或强制撤回。取消探针只持有单行DB短读，HTTP 与 `close` 都不在DB锁内。
+- replay 取消行为保持原样：`mode=replay` + `REPLAY_NOTICE` + 原回放说明与文案。
 
 
 ## 7. 测试
 
 ```powershell
 $env:TRAVEL_REPLAY_NO_AUTOSTART='1'
-python -m pytest -q -p no:cacheprovider tests/test_amap_tools.py tests/test_live.py tests/test_live_admission.py
-# 50 passed（高德离线 14 + live API 13 + 发送前准入/资源闭环 23）
+python -m pytest -q -p no:cacheprovider tests/test_amap_tools.py tests/test_live.py tests/test_live_admission.py tests/test_live_deadline_cancel.py
+# 73 passed（高德离线 14 + live API 13 + 发送前准入/资源闭环 23 + deadline/取消/loopback 23）
 python -m pytest -q -p no:cacheprovider
-# 111 passed（回放 61 + 高德离线 14 + live API 13 + 发送前准入/资源闭环 23）
+# 134 passed（回放 61 + 高德离线 14 + live API 13 + 发送前准入/资源闭环 23 + deadline/取消/loopback 23）
 ```
 
-每个测试用 pytest fixture 在 `data/pytest/` 下建一次性 SQLite（或在进程内用 `httpx.MockTransport`），不共享库、不出网。离线测试覆盖：唯一匹配、同名歧义、空结果、Key 回收、超时、坏坐标、天气日期覆盖/不覆盖、路线时长距离、营业时间有/无；以及发送前准入（limit=0/1/2/40、第N+1次不命中handler、失败尝试计数、本地0消耗）、批次中断保留子证据、同键重放不重执行、自有/借入client清理、bind-v-bind / bind-v-close 并发，以及同一对象连续两次失败 bind 后两次清理均不触碰原 owner（client 仍 open、物理关闭 0 次、原 run 仍可发送）。**没有真实网络请求**，全部用合成凭据 `synthetic-example`。
+每个测试用 pytest fixture 在 `data/pytest/` 下建一次性 SQLite（或在进程内用 `httpx.MockTransport`），不共享库、不出网。离线测试覆盖：唯一匹配、同名歧义、空结果、Key 回收、超时、坏坐标、天气日期覆盖/不覆盖、路线时长距离、营业时间有/无；发送前准入（limit=0/1/2/40、第N+1次不命中handler、失败尝试计数、本地0消耗）、批次中断保留子证据、同键重放不重执行、自有/借入client清理、bind-v-bind / bind-v-close 并发，以及同一对象连续两次失败 bind 后两次清理均不触碰原 owner（client 仍 open、物理关闭 0 次、原 run 仍可发送）。deadline/取消新增：假时钟0/90边界与取消优先、剩余1秒与0.25秒配置下四类操作timeout、UTC墙钟跳变、探针缺失/异常不发送且不泄露原始异常串、factory前0预算、晚到响应/评估/收尾拒绝、普通timeout保持原分类、主失败不被时间检查覆盖、幂等重放不建runtime、已提交失败取消409；以及进程内真实loopback（127.0.0.1）并发创建与修订：等待期间同键重放取 run_id（factory/HTTP/完成事件增量0）、原cancel入口可达、检查后竞争下独立连接GET与重放始终读到归一快照、下一handler不命中，且取消响应/事件标LIVE。**没有真实网络请求**，全部用合成凭据 `synthetic-example`，不用真实sleep制造90秒。
 
 
 ## 8. 下一步

@@ -1,0 +1,85 @@
+{
+  "run_id": "20261110T182434Z-impl-N2Sw5e",
+  "task_id": "task2-spec-r1",
+  "prefix_receipt": "<!-- prefix-version: principles-b9a054bafa9c -->",
+  "verdict": "pass",
+  "checks": [
+    {
+      "item": "2.1 单调开始/factory前、检查点、0/90与UTC跳变、timeout=min且为正不放大",
+      "status": "pass",
+      "evidence": "Idempotent hit returns before any runtime/factory/HTTP: app/live.py:313-319; tests/test_live_deadline_cancel.py:567-587 (CountingRuntime built 1 after first run and still 1 after same-key replay). Start value taken at construction (app/runtime.py:55) with the runtime built after the run row is persisted and before the factory call (app/live.py:322-325, 329-330); tests:456-478 (patched 0-second budget -> status failed / budget exhausted / reason deadline / tool_calls 0 and factory_calls == []). Check order cancel-then-deadline at app/runtime.py:77-81; tests:327-340 (probe wins at elapsed 91, order == [\"probe\"]), 314-324 (elapsed 0 and 89.999 pass, 90.0 raises reason deadline, tool_calls stays 0). Checkpoints: factory 329, bind 339, pre-send app/runtime.py:88, invoke post-tool app/live.py:97, pre-needs_input 171, pre/post evaluation 246/253, pre-terminal 263, post-cleanup 351-353. timeout: app/runtime.py:89-100 returns min(config, remaining) and raises instead of returning non-positive; app/amap_tools.py:105-110 passes that single value to the one httpx call; tests:343-355 (5.0 / remaining 1.0 / config 0.25 / remaining 0.25), 358-371 (limit 0 and expired reject without consuming), 418-445 (httpx request extensions connect/read/write/pool all equal the clipped value and none is unbounded). No real 90-second wait: the only sleep in the file is tests:283 (5ms uvicorn startup polling).",
+      "note": "The UTC-jump behaviour itself is read from app/runtime.py:51,61 (default time.monotonic); the dedicated test exercises only the injected fake clock (F2). Design item 6's 'get返回或网络异常后再次check' is realized at invoke/evidence boundaries (app/live.py:97; app/amap_tools.py:94-98 checks before recording) rather than inside AmapClient.get; I read every adapter path (origin/poi/weather/hours/matrix) and no late get result or error is recorded before a check."
+    },
+    {
+      "item": "2.2 晚到响应/评估/收尾→deadline耗尽且拒绝completed/needs_input/verified；普通timeout保持分类；主失败优先",
+      "status": "pass",
+      "evidence": "Classification keeps the earliest main failure: app/live.py:289-301 (BudgetExhausted only marks when status != failed; RunCancelled is a no-op; RuntimeControlError/other mark only when not already failed); app/live.py:270-278 sets failed/exhausted/reason/BUDGET_EXHAUSTED and clears result/quality only. Late response: app/live.py:97 then elapsed at 356; tests:481-499 (failed/exhausted/deadline, elapsed>=90, tool_calls 1, sent == [\"origin\"], tool_results == [], result null, unverified). Late evaluation and aged terminal: tests:502-517 and 520-531 (close pushes past 90 after completed was assigned; final still failed/exhausted/deadline, result null, unverified, len(tool_results)==tool_calls). Ordinary single-operation failures keep their class when the total deadline is not hit: tests:534-549 (timeout/provider/format -> budget failed, no exhaustion_reason, issue TOOL_TIMEOUT/TOOL_PROVIDER_ERROR/TOOL_FORMAT_ERROR, tool_calls 1). Main failure survives a later deadline check: tests:552-564 (close crosses 90, still failed/failed, elapsed>=90, TOOL_PROVIDER_ERROR present, no BUDGET_EXHAUSTED). New exhaustion always carries a reason (app/live.py:270-278; tests:472,494,515,528).",
+      "note": "The needs_input rejection test does not isolate the pre-needs_input checkpoint (F1): it advances the fake clock on the weather send, which happens after run['status']='needs_input', so the rejection is produced by invoke's post-tool check and the next pre-send check. The behaviour is still correct end to end; only that specific guard is not regression-protected."
+    },
+    {
+      "item": "2.3 取消探针短读/缺失或异常不放行；创建与修订走threadpool；原POST仍等待；等待期间重放取run_id并cancel",
+      "status": "pass",
+      "evidence": "Probe is a single-row short read with no explicit transaction and no HTTP: app/store.py:228-234; app/runtime.py:63-75 wraps any probe exception into RuntimeControlError('CANCEL_PROBE_READ_FAILED', type name), None into RUN_STATE_MISSING, 'cancelled' into RunCancelled; reserve_http checks before incrementing (app/runtime.py:88-99) so a failing probe cannot admit a send. Fail-closed assertions: tests:374-392 (probe raising a message containing 'secret /v3/geocode/geo?key=SECRET-TOKEN' yields RuntimeControlError with no secret text, safe_exception_type RuntimeError, tool_calls 0; None probe -> RUN_STATE_MISSING, tool_calls 0). Threadpool for create and LIVE revision: app/main.py:18, 240-241, 318-321; the handler awaits the returned terminal (no worker/202-early). Real loopback concurrency: tests:607-688 (original POST blocked before the second send; control connection replays the same key/payload and gets 202 with replayed=True and the created run_id, factory_calls stays 1, boundary.sent unchanged, events count unchanged, cancel returns 200, 3 GETs are normalized cancelled) and tests:691-757 (same for a LIVE revision: child id via replay, factory 2, child_adapter.sent == [], parent stays needs_input). Next handler not reached: tests:676 and 752.",
+      "note": "Concurrency is in-process (one uvicorn loop, 127.0.0.1, trust_env=False); the report's red evidence that reverting to a direct synchronous call causes a replay ReadTimeout was not reproduced here (limits). Probe and the live thread share one SQLite connection/RLock, so a probe can briefly delay a cancel but cannot bypass it."
+    },
+    {
+      "item": "2.4 API并发集成覆盖创建与修订、原键/原载荷、重放factory/HTTP/事件增量0、下一handler不命中；LIVE取消mode/文案/事件正确且不含replay声明",
+      "status": "pass",
+      "evidence": "Create integration: tests:607-688 (same key and payload while the original waits: replayed=True, same run_id, factory_calls 1, boundary.sent list unchanged, events count unchanged, cancel reachable, final original response 202 with live cancelled snapshot, tool_calls 1, tool_results ['origin'], boundary.sent == ['/v3/geocode/geo'], replay after completion adds no events). Revision integration: tests:691-757 (same key/payload, replayed=True, same child id, factory_calls 2, child_adapter.sent [] so the next handler is not hit, cancelled child keeps tool_calls 0, cancelled event reason contains LIVE). Wording contract: app/main.py:39-46 constants and 386-403 LIVE branch (mode live, replay_notice == LIVE_NOTICE, canonical budget/quality/result/executed_stages, LIVE_CANCEL_MESSAGE, CANCELLED event with LIVE_CANCEL_EVENT_REASON at 389-390); tests:302-308 (mode live, replay_notice == LIVE_NOTICE, REPLAY_NOTICE absent, message has no 回放/无远端, contains 尽力/可能仍完成) and 653-657/755-757 (event reason contains LIVE and no 回放). The replay cancel branch is unchanged (app/main.py:404-410).",
+      "note": "The LIVE cancel response intentionally returns a narrower body than run_view (no request/issues), which the ticket does not require; the replay branch is byte-identical to 3bed847. The port is proven only in-process; real multi-process/network reachability is ticket 3 per docs/LIVE-AMAP.md:3."
+    },
+    {
+      "item": "2.5 取消确认与最终保存各一次短事务归一四字段并删exhaustion_reason、保留计数/elapsed/证据/原诊断；barrier下GET/重放不见混合终态；已提交失败409",
+      "status": "pass",
+      "evidence": "Normalization helper: app/store.py:17-26 (status cancelled, budget.status cancelled, pop exhaustion_reason, quality unverified, result null; all other budget/state fields untouched). Cancel confirmation: app/store.py:194-226 (BEGIN IMMEDIATE, SELECT *, terminal check via TERMINAL_STATUSES, normalize, one UPDATE of status+budget+state, commit). Final save: app/store.py:244-274 (BEGIN IMMEDIATE, re-read status 247-249, normalize if persisted cancelled 252-253, one UPDATE of the whole row 255-266, read canonical 267-269, commit, return canonical). Barrier test: tests:760-823 (5 independent GETs plus same-key replay inside the blocked window each assert status/budget.status cancelled, quality unverified, result null, no exhaustion_reason; after release the original POST returns actual tool_calls 15, tool evidence covering origin/poi/weather/hours/routes, elapsed>0, LIVE_FINISHED reason status=cancelled, and a post-save GET still reads 15). Cancel wins over in-memory call_limit: tests:826-874 (final normalized cancelled, tool_calls 1, BUDGET_EXHAUSTED retained in issues, budget carries no exhaustion_reason). Committed failure rejects cancel: tests:590-601 (409 RUN_NOT_CANCELLABLE, reread failed/failed).",
+      "note": "In the cancel-confirmation snapshot only already-persisted counts exist (0), so 'preserve counts/elapsed/evidence' there is structural (store.py:17-26 leaves them untouched) and not observable through the API until the final save writes the real values; the two commits are the declared non-atomic boundary (design.md:83, docs/LIVE-AMAP.md:125,137)."
+    },
+    {
+      "item": "2.6 文档6.5/6.6与代码一致、不宣称90秒强制返回、不宣称真实供应商",
+      "status": "pass",
+      "evidence": "docs/LIVE-AMAP.md:3 separates offline verification from a real Key and defers the independent-process loopback matrix to ticket 3; 104-111 describe default 90s/5s, monotonic elapsed, the exact checkpoint list (matches app/live.py:95/97/171/246/253/263/351-353), min timeout (matches app/runtime.py:96), late classification and main-failure priority (matches app/live.py:289-301), mandatory new exhaustion_reason and its removal on cancel (matches app/live.py:270-278 and app/store.py:22), and explicitly say no forced return within 90s and that cleanup may exceed the deadline; 122-140 describe run_in_threadpool (matches app/main.py:18,240-241,318-321), one-short-transaction normalization for both commits (matches app/store.py:194-226,244-274), the 409 rule (matches app/main.py:382-385), the in-flight race and the unchanged replay branch; 143-153 give the 73/134 test counts.",
+      "note": "Documentation is consistent with the code on every checked point and makes no real-supplier or hard-interruption claim. The 73-test subset was independently reproduced; the 134 total was not re-run (limits)."
+    },
+    {
+      "item": "Review Focus：最后一次check之后、最终保存之前取消提交胜出；窗口内独立GET与同键重放始终读到归一快照",
+      "status": "pass",
+      "evidence": "tests:760-823: BlockingCloseAmapAdapter arms the clock block only after close (tests:160-162), so the final check's cancel probe (app/runtime.py:79) has already run when the separate control connection commits the cancel; while the final check is blocked, 5 independent GETs and a same-key replay all read the normalized snapshot (tests:799-805); the final save then re-reads status in its own transaction (app/store.py:247-253) and the original POST returns the actual 15-count cancelled snapshot (tests:810-820), with no mixed terminal visible before or after ('先提交后修补' is excluded by the single UPDATE at app/store.py:255-266).",
+      "note": "The complementary sub-window (cancel commits before the final check's probe) travels the same normalization path via RunCancelled (app/live.py:294-296) plus the finalize re-read; it is not separately tested but the code path is identical."
+    },
+    {
+      "item": "测试纪律：没有放宽断言、改期望、跳过换绿",
+      "status": "pass",
+      "evidence": "git diff HEAD --name-only lists only app/live.py, app/main.py, app/runtime.py, app/store.py and docs/LIVE-AMAP.md; every existing tests/ file is untouched and the only new test file is tests/test_live_deadline_cancel.py. grep over the new file finds no skip/xfail; the only real sleep is tests:283 (5ms startup polling); the only monkeypatches are test-local seams that auto-restore (tests:458 max_total_seconds 0, tests:828 LIVE_MAX_TOOL_CALLS 1). Assertions pin exact values: elapsed 0/89.999/90, timeouts 5.0/1.0/0.25, tool_calls 0/1/15, sent-path lists, event-count equality, and the four-field cancelled snapshot. Local rerun: 23 passed (new file) plus 50 passed (tests/test_live.py, test_live_admission.py, test_amap_tools.py) = 73, matching docs/LIVE-AMAP.md:148.",
+      "note": "No weakened assertion or changed expectation found. The two coverage gaps that remain are reported as F1/F2; they are insensitive-guard issues, not green-washing of failing behaviour."
+    }
+  ],
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "low",
+      "file": "tests/test_live_deadline_cancel.py",
+      "line": 506,
+      "quote": "        if label == \"weather\":",
+      "reason": "test_late_needs_input_after_deadline_is_rejected advances the fake clock on the weather send, which happens after run['status'] = 'needs_input' is already assigned (app/live.py:171-172). The observed rejection therefore comes from invoke's post-tool check (app/live.py:97) and the next pre-send check, not from the dedicated pre-needs_input checkpoint. Deleting the check at app/live.py:171 would leave this test green, so the ticket's '接受 needs_input 前必须仍在 deadline 内' checkpoint is not regression-protected; the suite would only notice if several redundant checks were removed together.",
+      "recommendation": "Isolate the checkpoint with a deterministic clock that crosses the deadline exactly at the pre-needs_input call (e.g. a counting clock that keeps returning < 90 through the last POI post-check and returns >= 90 from the next elapsed() call), then assert the response is failed/exhausted/deadline and that 'weather' never appears in adapter.sent."
+    },
+    {
+      "id": "F2",
+      "severity": "low",
+      "file": "tests/test_live_deadline_cancel.py",
+      "line": 409,
+      "quote": "    assert runtime.elapsed() == 0.0",
+      "reason": "test_utc_wall_clock_jump_does_not_change_monotonic_elapsed constructs the runtime with an explicit FakeClock (tests:407-408), so the time.time/datetime monkeypatches earlier in the test cannot reach the runtime and elapsed() == 0.0 is trivially true. The test does prove that elapsed()/check() are driven by the injected clock, but it never exercises the production default time.monotonic (app/runtime.py:51), while docs/LIVE-AMAP.md:106 and the ticket claim UTC wall-clock jumps do not change the budget.",
+      "recommendation": "Add a case that builds LiveRuntime({'max_tool_calls': 40, 'max_total_seconds': 90}) with no clock, monkeypatches time.time and app.domain.datetime to jump 3600s between two elapsed() samples, and asserts elapsed() grows by less than 1 second and the deadline is still enforced; keep the current fake-clock case for the deterministic boundary."
+    }
+  ],
+  "limits": [
+    "Did not rerun the whole suite. Ran only tests/test_live_deadline_cancel.py (23 passed, 9.37s) and the three LIVE-related existing files (tests/test_live.py, tests/test_live_admission.py, tests/test_amap_tools.py; 50 passed, 3.91s) = 73, matching docs/LIVE-AMAP.md:148. The 61 replay tests and the claimed 134 total were not independently reproduced.",
+    "No mutation testing: the write scope forbids touching code, so the red->green transcript in impl-reports/task2-deadline-cancel.md §6 (threadpool removal -> replay ReadTimeout; check() no-op -> 4 deadline failures; cancel confirm writing only status -> budget.status 'ok' vs 'cancelled') was not reproduced. Each guard was instead verified by reading the assertion together with the exact code path it exercises.",
+    "Concurrency evidence is in-process only (single uvicorn loop plus 127.0.0.1 loopback with trust_env=False); no independent OS process, real network, real supplier or real Key. docs/LIVE-AMAP.md:3 and ticket 3 correctly defer the independent-process matrix.",
+    "Because the design uses two separate short transactions, a GET during the cancel-confirmed window exposes only persisted counts (0) and empty evidence until the final save writes the real values (design.md:83, docs/LIVE-AMAP.md:125,137). This is a declared boundary rather than a spec violation here, but the LRC-03 scenario phrase '已有尝试数保留' is only observable after the final save.",
+    "Design item 6's 'get返回或网络异常后再次check' is implemented at the invoke/evidence boundaries, not inside AmapClient.get. Current adapter paths never persist a get result before a check (deliver_evidence checks before recording; every send re-checks in reserve), but a future adapter that records get results before returning would need its own boundary check.",
+    "Did not re-verify LRC-01/LRC-06/LRC-07/LRC-08 or ticket-1 behaviour beyond what the three existing LIVE test files assert; this review is scoped to ticket 2 and its Review Focus.",
+    "Spot-checks only for report claims: git status/diff confirm the changes are uncommitted, app/amap_tools.py and the existing tests are untouched, and the 875-line new test file matches the review package; the '134 passed' total and the red->green outputs remain the implementer's statements."
+  ]
+}

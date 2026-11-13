@@ -11,7 +11,18 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from .domain import DEFAULT_BUDGET, utc_now
+from .domain import DEFAULT_BUDGET, TERMINAL_STATUSES, utc_now
+
+
+def _normalize_cancelled(run: dict[str, Any]) -> None:
+    """取消胜出时的单次快照归一：保留计数/elapsed/证据/原诊断。"""
+    run["status"] = "cancelled"
+    budget = run.setdefault("budget", {})
+    budget["status"] = "cancelled"
+    budget.pop("exhaustion_reason", None)
+    state = run.setdefault("state", {})
+    state["quality_status"] = "unverified"
+    state["result"] = None
 
 
 def new_state() -> dict[str, Any]:
@@ -176,7 +187,7 @@ class Store:
                 raise
 
     def cancel_run(self, run_id: str) -> str:
-        """Conditionally cancel in one statement; never clobber other columns.
+        """条件取消；LIVE在同一短事务内一致归一整个终态快照。
 
         Returns 'ok' | 'missing' | 'terminal'.
         """
@@ -184,24 +195,83 @@ class Store:
             self._conn.execute("BEGIN IMMEDIATE")
             try:
                 row = self._conn.execute(
-                    "SELECT status FROM runs WHERE run_id=?", (run_id,)
+                    "SELECT * FROM runs WHERE run_id=?", (run_id,)
                 ).fetchone()
                 if row is None:
                     self._conn.rollback()
                     return "missing"
-                if row["status"] in ("completed", "failed", "cancelled", "needs_input"):
+                run = self._row_to_run(row)
+                if run["status"] in TERMINAL_STATUSES:
                     self._conn.rollback()
                     return "terminal"
-                cur = self._conn.execute(
-                    "UPDATE runs SET status='cancelled', updated_at=? "
-                    "WHERE run_id=? AND status IN ('queued','running')",
-                    (utc_now(), run_id),
-                )
+                if run["mode"] == "live":
+                    # 与状态同一事务写budget/state，禁止先写cancelled再修补混合终态。
+                    _normalize_cancelled(run)
+                    cur = self._conn.execute(
+                        "UPDATE runs SET status=?, budget=?, state=?, updated_at=? "
+                        "WHERE run_id=? AND status IN ('queued','running')",
+                        (run["status"], self._dumps(run["budget"]),
+                         self._dumps(run["state"]), utc_now(), run_id),
+                    )
+                else:
+                    cur = self._conn.execute(
+                        "UPDATE runs SET status='cancelled', updated_at=? "
+                        "WHERE run_id=? AND status IN ('queued','running')",
+                        (utc_now(), run_id),
+                    )
                 self._conn.commit()
                 return "ok" if cur.rowcount else "terminal"
             except Exception:
                 self._conn.rollback()
                 raise
+
+    def probe_run_status(self, run_id: str) -> str | None:
+        """取消探针：单行短读，不开显式事务、不包HTTP。"""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT status FROM runs WHERE run_id=?", (run_id,)
+            ).fetchone()
+        return row["status"] if row else None
+
+    def finalize_run(self, run: dict[str, Any]) -> dict[str, Any]:
+        """LIVE最终提交：单次短事务重新判定取消并返回canonical快照。
+
+        取消若已在并发中提交，则对包含实际计数/elapsed/证据的内存快照做同样归一，
+        与状态一起一次写入；否则按内存快照写入。读取发生在同一事务内，
+        GET/同键重放不可能看到cancelled与verified/ok混合的中间态。
+        """
+        run_id = run["run_id"]
+        with self._lock:
+            self._conn.execute("BEGIN IMMEDIATE")
+            try:
+                row = self._conn.execute(
+                    "SELECT status FROM runs WHERE run_id=?", (run_id,)
+                ).fetchone()
+                if row is None:
+                    raise RuntimeError("RUN_ROW_MISSING")
+                if row["status"] == "cancelled":
+                    _normalize_cancelled(run)
+                run["updated_at"] = utc_now()
+                self._conn.execute(
+                    """UPDATE runs SET
+                         status=?, current_stage=?, revision=?, versions=?, budget=?,
+                         request=?, state=?, updated_at=?, parent_run_id=?
+                       WHERE run_id=?""",
+                    (
+                        run["status"], run["current_stage"], run["revision"],
+                        self._dumps(run["versions"]), self._dumps(run["budget"]),
+                        self._dumps(run["request"]), self._dumps(run["state"]),
+                        run["updated_at"], run.get("parent_run_id"), run_id,
+                    ),
+                )
+                persisted = self._conn.execute(
+                    "SELECT * FROM runs WHERE run_id=?", (run_id,)
+                ).fetchone()
+                self._conn.commit()
+            except Exception:
+                self._conn.rollback()
+                raise
+        return self._row_to_run(persisted)
 
     def get_run(self, run_id: str) -> dict[str, Any] | None:
         with self._lock:
@@ -209,6 +279,7 @@ class Store:
         return self._row_to_run(row) if row else None
 
     def save_run(self, run: dict[str, Any]) -> None:
+        """replay/worker保存；LIVE必须走 ``finalize_run`` 以避免混合终态。"""
         run["updated_at"] = utc_now()
         with self._lock:
             self._conn.execute(
