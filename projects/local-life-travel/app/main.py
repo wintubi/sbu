@@ -158,7 +158,8 @@ def create_app(*, store: Store | None = None, worker: Worker | None = None,
             raise ApiError(503, "LIVE_NOT_CONFIGURED",
                            "真实渠道未配置 AMAP_API_KEY；请先创建高德 Web 服务 Key 并设置环境变量",
                            retryable=False)
-        return lambda city, transport: AmapAdapter(AmapClient(), city=city, transport=transport)
+        return lambda city, transport: AmapAdapter(AmapClient(), city=city, transport=transport,
+                                                   owns_client=True)
 
     @app.exception_handler(ApiError)
     async def _api_error(_: Request, exc: ApiError) -> JSONResponse:

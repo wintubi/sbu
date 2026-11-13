@@ -14,11 +14,38 @@ NAMES = ["故宫博物院", "景山公园", "天安门广场"]
 
 
 class FakeAdapter:
+    """假适配器：实现新的绑定/清理协议，并逐HTTP发送前走runtime准入。
+
+    模拟的发送次数与真实适配器同一口径（origin 1 / poi 1 / weather 1 /
+    hours 2 / matrix 每对 1），所以测试断言的是“获准的HTTP尝试数”，
+    而不是工具方法次数。
+    """
+
     def __init__(self, mode: str = "ok"):
         self.mode = mode
-        self.calls = 0
+        self.calls = 0  # POI 查询次数（原测试观察点）
+        self.client = types.SimpleNamespace(calls=0)  # 模拟HTTP发送次数
+        self._runtime = None
+        self._closed = False
+
+    def bind_runtime(self, runtime):
+        if self._closed or self._runtime is not None:
+            raise RuntimeError("fake adapter is active or closed")
+        self._runtime = runtime
+
+    def close(self):
+        self._closed = True
+        self._runtime = None
+
+    def _send(self, count: int = 1) -> None:
+        if self._runtime is None:
+            raise RuntimeError("fake adapter is not bound to a runtime")
+        for _ in range(count):
+            self._runtime.reserve_http(5.0)
+            self.client.calls += 1
 
     def resolve_origin(self, address: str):
+        self._send()
         city = "天津" if self.mode == "origin_cross_city" else "北京"
         return ToolResult(status=ToolStatus.VALID, source_ref="fake:origin", fetched_at=utc_now(),
                           payload={"poi": {"name": address, "city": city,
@@ -26,6 +53,7 @@ class FakeAdapter:
 
     def poi_lookup(self, key: str, selected_poi_id: str | None = None):
         self.calls += 1
+        self._send()
         if self.mode == "ambiguous" and key == "景山公园":
             if selected_poi_id:
                 return ToolResult(status=ToolStatus.VALID, source_ref=f"fake:poi:{key}",
@@ -49,10 +77,12 @@ class FakeAdapter:
                                            "coordinates": {"lon": 116.4, "lat": 39.9}}})
 
     def weather(self, date: str):
+        self._send()
         return ToolResult(status=ToolStatus.VALID, source_ref="fake:weather", fetched_at=utc_now(),
                           payload={"date": date, "summary": "晴"})
 
     def hours(self):
+        self._send(2)
         if self.mode == "hours_empty":
             return ToolResult(status=ToolStatus.EMPTY, source_ref="fake:hours",
                               fetched_at=utc_now(), message="no hours")
@@ -60,40 +90,14 @@ class FakeAdapter:
                           payload={"windows": {name: ["09:00", "17:00"] for name in NAMES}})
 
     def matrix(self, pairs):
+        pairs = list(pairs)
+        self._send(len(pairs))
         matrix = {}
         for a, b in pairs:
             matrix[leg_key(a, b)] = {"duration_seconds": 600, "distance_meters": 1000,
                                      "source_ref": "fake:route", "fetched_at": utc_now()}
         return ToolResult(status=ToolStatus.VALID, source_ref="fake:routes", fetched_at=utc_now(),
                           payload={"matrix": matrix})
-
-
-class CountingAdapter(FakeAdapter):
-    """Fake adapter whose client reports several HTTP calls per method."""
-
-    def __init__(self, mode: str = "ok"):
-        super().__init__(mode)
-        self.client = types.SimpleNamespace(calls=0)
-
-    def resolve_origin(self, address):
-        self.client.calls += 1
-        return super().resolve_origin(address)
-
-    def poi_lookup(self, key, selected_poi_id=None):
-        self.client.calls += 1
-        return super().poi_lookup(key, selected_poi_id)
-
-    def weather(self, date):
-        self.client.calls += 1
-        return super().weather(date)
-
-    def hours(self):
-        self.client.calls += 2
-        return super().hours()
-
-    def matrix(self, pairs):
-        self.client.calls += len(pairs)
-        return super().matrix(pairs)
 
 
 def live_body() -> dict:
@@ -132,7 +136,8 @@ def test_live_run_success(live_client):
     assert data["status"] == "completed"
     assert data["quality_status"] == "verified_feasible"
     assert len(data["result"]["visits"]) == 3
-    assert data["budget"]["tool_calls"] == 7
+    assert data["budget"]["tool_calls"] == 13  # origin1 + poi3 + weather1 + hours2 + matrix6
+    assert adapter.client.calls == data["budget"]["tool_calls"]
     assert adapter.calls == 3
 
 
@@ -201,7 +206,7 @@ def test_live_budget_counts_internal_http_requests(live_client, monkeypatch):
     import app.live as live_module
     monkeypatch.setattr(live_module, "LIVE_MAX_TOOL_CALLS", 20)
     client, _ = live_client
-    client.app.state.live_adapter_factory = lambda city, transport: CountingAdapter()
+    client.app.state.live_adapter_factory = lambda city, transport: FakeAdapter()
     response = client.post("/api/v1/travel/live-runs", json=live_body(),
                            headers={"Idempotency-Key": "live-http-count"})
     data = response.json()

@@ -1,0 +1,99 @@
+{
+  "phase": "sdflow-implement mode=tickets-exec change=travel-runtime-budget done_tasks=none",
+  "run_id": "20261110T182434Z-impl-N2Sw5e",
+  "native_host": "unknown",
+  "runtime": "DSH with actual human-approved T11-only adapter",
+  "gate_done_tasks": [],
+  "helper_done_argument": "none (serialization of empty gate list; not recomputed)",
+  "frontier": [
+    1
+  ],
+  "before_sha": "00c55028803103185b8a572863682294d4809b4a",
+  "prefix": ".outside-voice/20261110T182434Z-impl-N2Sw5e/prefix-principles.md",
+  "shared_context_sha256": "f84bed735ce5f4652951ffb2976706b17dfa5350506c3beb46ebf3a4e2779e9e",
+  "dispatch_recorded_before_call": true,
+  "recorded_at": "2026-11-11T02:27:43+08:00",
+  "tasks": [
+    {
+      "run_id": "20261110T182434Z-impl-N2Sw5e",
+      "task_id": "task1-implementer",
+      "role": "implementer",
+      "context_mode": "fresh, no conversation inheritance",
+      "provider": "magpie-responses",
+      "model": "codex/gpt-6.1-sol",
+      "requested_reasoning_effort": "high",
+      "effective_effort": "not measured",
+      "cost_usage": "not collected",
+      "result_ref": "impl-reports/task1-http-admission.md",
+      "status": "dispatched",
+      "runtime_agent_id": "6fcb9ccb-a5ad-4d02-ab42-ad5fbb7a419f",
+      "runtime_agent_id_recorded_after_call": true,
+      "attribution_recorded_at": "2026-11-11T02:33:40+08:00",
+      "time_limit_minutes": 180,
+      "conservative_supervision_deadline": "2026-11-11T05:24:34+08:00"
+    },
+    {
+      "run_id": "20261110T182434Z-impl-N2Sw5e",
+      "task_id": "task1-standards",
+      "role": "standards",
+      "context_mode": "fresh, no conversation inheritance",
+      "provider": "magpie-responses",
+      "model": "codex/gpt-6.1-sol",
+      "requested_reasoning_effort": "high",
+      "effective_effort": "not measured",
+      "cost_usage": "not collected",
+      "result_ref": "impl-reports/task1-standards-r1.json",
+      "status": "pending"
+    },
+    {
+      "run_id": "20261110T182434Z-impl-N2Sw5e",
+      "task_id": "task1-spec",
+      "role": "spec",
+      "context_mode": "fresh, no conversation inheritance",
+      "provider": "magpie-responses",
+      "model": "codex/gpt-6.1-sol",
+      "requested_reasoning_effort": "high",
+      "effective_effort": "not measured",
+      "cost_usage": "not collected",
+      "result_ref": "impl-reports/task1-spec-r1.json",
+      "status": "pending"
+    }
+  ],
+  "review_order": "implementer then Standards then Spec, serial; fixes declared before their dispatch",
+  "attempts": [
+    {
+      "attempt": 2,
+      "task_id": "task1-implementer-attempt2",
+      "runtime_agent_id": "f05bb704-be99-452c-a7b5-e080a334d76d",
+      "route": "parent session default (deepseek-official/deepseek-flash); explicit child provider/model rejected by session policy, so no model selection was made",
+      "reasoning_effort": "not separately set (parent route default)",
+      "status": "dispatched",
+      "context_mode": "fresh, no conversation inheritance",
+      "result_ref": "impl-reports/task1-http-admission.md",
+      "recorded_at": "2026-11-13T15:00:47+08:00",
+      "preceded_by": "attempt 1 (agent 6fcb9ccb-a5ad-4d02-ab42-ad5fbb7a419f) failed by quota with 10 failing tests; WIP restored from stash"
+    }
+  ],
+  "attempt_count": 2,
+  "note": "Attempt 1 used magpie-responses/codex/gpt-6.1-sol. This session later changed model; explicit child route is not allowed, so attempt 2 runs on the parent default route. Do not describe attempt 2 as cross-model or magpie.",
+  "review_package": "impl-reports/task1-review-package.diff",
+  "review_package_range": "5886487..WORKTREE (uncommitted implementation)",
+  "reviews": [
+    {
+      "axis": "standards",
+      "runtime_agent_id": "c47d457b-c1f7-4df0-aa93-5635b539d907",
+      "result_ref": "impl-reports/task1-standards-r1.json",
+      "status": "dispatched",
+      "route": "parent default",
+      "recorded_at": "2026-11-13T15:14:15+08:00"
+    },
+    {
+      "axis": "spec",
+      "runtime_agent_id": "f7c35696-8eec-4a45-8157-35e7b182b656",
+      "result_ref": "impl-reports/task1-spec-r1.json",
+      "status": "dispatched",
+      "route": "parent default",
+      "recorded_at": "2026-11-13T15:14:15+08:00"
+    }
+  ]
+}

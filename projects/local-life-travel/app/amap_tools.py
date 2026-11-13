@@ -13,7 +13,10 @@ from __future__ import annotations
 
 import os
 import re
+from threading import Lock
 from typing import Any, Iterable
+
+from .runtime import LiveRuntime
 
 import httpx
 
@@ -48,16 +51,65 @@ class AmapClient:
         if not self.key:
             raise ValueError("AMAP_API_KEY is required for live Amap calls")
         self.calls = 0
-        self._client = httpx.Client(base_url=base_url, timeout=timeout, transport=transport)
+        self._lock = Lock()
+        self._runtime: LiveRuntime | None = None
+        self._state = "open"
+        self._timeout = timeout
+        self._client = httpx.Client(base_url=base_url, timeout=timeout, transport=transport,
+                                    follow_redirects=False)
+
+    def bind_runtime(self, runtime: LiveRuntime) -> None:
+        if runtime is None:
+            raise ValueError("runtime is required")
+        with self._lock:
+            if self._state != "open" or self._runtime is not None:
+                raise RuntimeError("Amap client is active, closing or closed")
+            self._runtime = runtime
+
+    def unbind_runtime(self, runtime: LiveRuntime) -> None:
+        with self._lock:
+            if self._runtime is not runtime:
+                raise RuntimeError("Amap runtime identity mismatch")
+            self._runtime = None
 
     def close(self) -> None:
-        self._client.close()
+        self.release(None, owns_client=True)
+
+    def release(self, runtime: LiveRuntime | None, *, owns_client: bool) -> None:
+        # 身份核对、解绑和closing转换在同一短锁内，HTTP/close在锁外。
+        with self._lock:
+            if self._runtime is not runtime:
+                raise RuntimeError("Amap runtime identity mismatch")
+            if self._state != "open":
+                return
+            self._runtime = None
+            if not owns_client:
+                return
+            self._state = "closing"
+        try:
+            self._client.close()
+        finally:
+            # 关闭失败也不能恢复open；不宣称物理释放成功。
+            with self._lock:
+                self._state = "closed"
+
+    def deliver_evidence(self, tool: str, result: ToolResult) -> None:
+        with self._lock:
+            runtime = self._runtime
+        if runtime is not None:
+            runtime.deliver_evidence(tool, result)
 
     def get(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
-        self.calls += 1
+        with self._lock:
+            if self._state != "open":
+                raise RuntimeError("Amap client is closing or closed")
+            runtime = self._runtime
+        timeout = runtime.reserve_http(self._timeout) if runtime is not None else self._timeout
+        with self._lock:
+            self.calls += 1
         query = {**params, "key": self.key}
         try:
-            response = self._client.get(path, params=query)
+            response = self._client.get(path, params=query, timeout=timeout)
         except httpx.TimeoutException:
             return {"_error": "timeout", "message": "Amap request timed out"}
         except httpx.HTTPError as exc:
@@ -135,14 +187,58 @@ class AmapAdapter:
     per request and the engine budget must stay observable.
     """
 
-    def __init__(self, client: AmapClient, *, city: str, transport: str = "walking"):
+    def __init__(self, client: AmapClient, *, city: str, transport: str = "walking",
+                 owns_client: bool = False):
         if transport not in ("walking", "driving"):
+            if owns_client:
+                client.close()
             raise ValueError("live adapter supports walking or driving only")
         self.client = client
         self.city = city
         self.transport = transport
+        self._owns_client = owns_client
+        self._lifecycle_lock = Lock()
+        self._runtime: LiveRuntime | None = None
+        self._closed = False
+        # 最近一次bind未取得所有权：紧接着的那次close属于失败的绑定尝试，
+        # 必须让位给原owner（不触碰client、不改本对象绑定状态）。
+        self._binding_failed = False
         self._pois: dict[str, dict[str, Any]] = {}
         self._adcode: str | None = None
+
+    def bind_runtime(self, runtime: LiveRuntime) -> None:
+        with self._lifecycle_lock:
+            if self._closed:
+                raise RuntimeError("Amap adapter is active or closed")
+            if self._runtime is not None:
+                # 该adapter已属于另一个运行：本次调用没有取得它。标记后，紧接着
+                # 由本次运行发起的那次close只作废自己，不解绑/关闭原owner的client。
+                self._binding_failed = True
+                raise RuntimeError("Amap adapter is active or closed")
+            try:
+                self.client.bind_runtime(runtime)
+            except Exception:
+                # client已绑定别的run或已closing/closed：本adapter未取得控制权，
+                # 只把自己作废，绝不物理关闭共享client。
+                self._binding_failed = True
+                self._closed = True
+                raise
+            self._runtime = runtime
+            self._binding_failed = False
+
+    def close(self) -> None:
+        with self._lifecycle_lock:
+            if self._binding_failed:
+                # 对应的是一次失败的bind：对象未被本次运行取得，不触碰client，
+                # 也不把对象标记为closed（它仍归原owner，原owner的close照常生效）。
+                self._binding_failed = False
+                return
+            if self._closed:
+                return
+            self._closed = True
+            runtime = self._runtime
+            self._runtime = None
+        self.client.release(runtime, owns_client=self._owns_client)
 
     # -- POI --------------------------------------------------------------- #
     def _search(self, keywords: str) -> dict[str, Any]:
@@ -292,6 +388,10 @@ class AmapAdapter:
             biz = detail.get("biz_ext") or {}
             parsed = _parse_open_window(biz.get("open_time")) or _parse_open_window(biz.get("opentime2"))
             if parsed:
+                self.client.deliver_evidence("hours_detail", ToolResult(
+                    status=ToolStatus.VALID, source_ref=f"amap:hours:{poi['provider_poi_id']}",
+                    fetched_at=utc_now(), payload={"windows": {key: parsed}},
+                ))
                 windows[key] = parsed
         if not windows:
             status = ToolStatus.EMPTY if errors == 0 else ToolStatus.PROVIDER_ERROR
@@ -336,6 +436,7 @@ class AmapAdapter:
             result = self.leg(from_key, to_key)
             if result.status != ToolStatus.VALID:
                 return result
+            self.client.deliver_evidence("route_leg", result)
             payload = result.payload or {}
             fetched_at = result.fetched_at
             matrix[leg_key(from_key, to_key)] = {

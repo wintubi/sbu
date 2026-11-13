@@ -24,13 +24,10 @@ from .domain import (
     utc_now,
 )
 from .store import Store, new_state
+from .runtime import BudgetExhausted, LiveRuntime
 
 
 LIVE_MAX_TOOL_CALLS = 40  # live counts real HTTP requests, including matrix/hours details
-
-
-class BudgetExhausted(RuntimeError):
-    pass
 
 
 def _new_id(prefix: str) -> str:
@@ -70,14 +67,11 @@ def build_live_run(request: LiveTravelRequest, *, idempotency_key: str | None = 
     }
 
 
-def _record(run: dict[str, Any], tool: str, result: ToolResult, calls: int = 1) -> None:
-    calls = max(1, int(calls))
-    if run["budget"]["tool_calls"] + calls > run["budget"]["max_tool_calls"]:
-        raise BudgetExhausted("live HTTP 调用达到预算上限")
+def _record(run: dict[str, Any], tool: str, result: ToolResult) -> None:
+    # 工具/子证据交付不消费预算；只有发送前reserve成功才记HTTP尝试。
     data = result.model_dump(mode="json")
     data["tool"] = tool
     run["state"]["tool_results"].append(data)
-    run["budget"]["tool_calls"] += calls
 
 
 def _record_issue(run: dict[str, Any], result: ToolResult, subject: str) -> None:
@@ -90,7 +84,7 @@ def _record_issue(run: dict[str, Any], result: ToolResult, subject: str) -> None
     run["state"]["degraded"] = True
 
 
-def execute_live(run: dict[str, Any], adapter: Any) -> dict[str, Any]:
+def execute_live(run: dict[str, Any], adapter: Any, runtime: LiveRuntime) -> dict[str, Any]:
     request = run["request"]
     state = run["state"]
     order = state["order"]
@@ -98,11 +92,10 @@ def execute_live(run: dict[str, Any], adapter: Any) -> dict[str, Any]:
     run["budget"]["status"] = "running"
 
     def invoke(tool: str, function, *args):
-        client = getattr(adapter, "client", None)
-        before = getattr(client, "calls", 0)
+        runtime.check()
         result = function(*args)
-        after = getattr(client, "calls", before)
-        _record(run, tool, result, calls=max(1, after - before))
+        runtime.check()
+        _record(run, tool, result)
         return result
 
     origin = invoke("origin", adapter.resolve_origin, request["origin"])
@@ -287,23 +280,38 @@ def create_live_run(store: Store, request: LiveTravelRequest,
             return existing, False
     else:
         store.create_run(run)
+    runtime = LiveRuntime(run["budget"], on_evidence=lambda tool, result: _record(run, tool, result))
     adapter = None
     try:
+        runtime.check()
         adapter = adapter_factory(request.city, request.transport)
-        execute_live(run, adapter)
+        if not callable(getattr(adapter, "bind_runtime", None)) or not callable(getattr(adapter, "close", None)):
+            raise TypeError("LIVE adapter requires bind_runtime and close")
+        adapter.bind_runtime(runtime)
+        runtime.check()
+        execute_live(run, adapter, runtime)
     except BudgetExhausted as exc:
         run["status"] = "failed"
         run["budget"]["status"] = "exhausted"
+        run["budget"]["exhaustion_reason"] = exc.reason
+        run["state"]["result"] = None
+        run["state"]["quality_status"] = "unverified"
         add_issue(run["state"]["issues"], "BUDGET_EXHAUSTED", "blocker", str(exc))
     except Exception as exc:  # noqa: BLE001 - a live failure must be persisted
         run["status"] = "failed"
         run["budget"]["status"] = "failed"
+        run["state"]["result"] = None
+        run["state"]["quality_status"] = "unverified"
         add_issue(run["state"]["issues"], "STAGE_EXECUTION_ERROR", "blocker",
-                  f"真实渠道执行异常：{type(exc).__name__}: {exc}")
+                  f"真实渠道执行异常：{type(exc).__name__}")
     finally:
         close = getattr(adapter, "close", None)
         if callable(close):
-            close()
+            try:
+                close()
+            except Exception as exc:
+                add_issue(run["state"]["issues"], "RESOURCE_CLEANUP_FAILED", "warning",
+                          f"资源清理尝试失败：{type(exc).__name__}")
     store.save_run(run)
     store.add_event(run["run_id"], "live", "LIVE_FINISHED",
                     f"真实渠道执行结束；status={run['status']}；quality={run['state']['quality_status']}")
