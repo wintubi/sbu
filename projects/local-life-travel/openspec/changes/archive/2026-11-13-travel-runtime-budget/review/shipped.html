@@ -1,0 +1,1827 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-uCuTNEBti90WtiNsCN4ctlsqhZhzypUD2cwLKSyjwSo=' 'sha256-FSABriFXkgtWqYjdaUCLMt+1JjS0f6DiLHtsLshWzS8=' https://cdn.jsdelivr.net/npm/mermaid@12.2.0/dist/mermaid.min.js; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>收尾评审 · 2026-11-13-travel-runtime-budget</title>
+<style>
+:root {
+  --fg: #1f2328;
+  --muted: #59636e;
+  --line: #d8dee4;
+  --bg: #ffffff;
+  --bg-soft: #f6f8fa;
+  --accent: #0b5c63;
+  --warn-bg: #fff4d6;
+  --warn-fg: #6b4e00;
+  --err-bg: #fde8e8;
+  --err-fg: #8a1c1c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  color: var(--fg);
+  background: var(--bg);
+  font: 16px/1.7 system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  display: grid;
+  grid-template-columns: 18rem minmax(0, 1fr);
+  align-items: start;
+}
+body.has-notes { grid-template-columns: 18rem minmax(0, 1fr) 20rem; }
+.skip-link {
+  position: absolute; left: -999px; top: 0;
+  background: var(--accent); color: #fff; padding: .5rem 1rem; z-index: 10;
+}
+.skip-link:focus { left: 0; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+#toc-wrap {
+  position: sticky; top: 0; height: 100vh; overflow: auto;
+  padding: 1rem; border-right: 1px solid var(--line); background: var(--bg-soft);
+  font-size: .9rem; line-height: 1.5;
+}
+#toc-wrap summary { display: none; font-weight: 600; cursor: pointer; }
+#toc-title { margin: 0 0 .5rem; font-size: 1rem; }
+#toc ul { list-style: none; margin: 0; padding: 0; }
+#toc > ul > li { margin: .6rem 0; }
+#toc a { text-decoration: none; display: block; padding: .1rem 0; overflow-wrap: anywhere; }
+#toc a:hover { text-decoration: underline; }
+#toc .doc-link { font-weight: 600; }
+#toc .lvl-2 { padding-left: .8rem; }
+#toc .lvl-3 { padding-left: 1.6rem; color: var(--muted); }
+
+main { padding: 1.5rem 2rem 4rem; max-width: 56rem; min-width: 0; }
+.page-title { margin: 0 0 .4rem; font-size: 1.6rem; line-height: 1.3; }
+.page-meta { margin: 0 0 1.5rem; color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
+.page-meta:empty { display: none; }
+.doc { margin: 0 0 3rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
+.doc-head {
+  display: flex; flex-wrap: wrap; gap: .25rem .75rem; align-items: baseline;
+  margin-bottom: 1rem; color: var(--muted); font-size: .85rem;
+}
+.doc-label { color: var(--fg); font-weight: 700; font-size: .95rem; }
+.doc-path { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+.doc-body h1, .doc-body h2, .doc-body h3, .doc-body h4 { line-height: 1.3; scroll-margin-top: 1rem; }
+.doc-body h1 { font-size: 1.5rem; margin-top: 1.5rem; }
+.doc-body h2 { font-size: 1.25rem; margin-top: 2rem; padding-bottom: .25rem; border-bottom: 1px solid var(--line); }
+.doc-body h3 { font-size: 1.08rem; margin-top: 1.5rem; }
+.doc-body p, .doc-body li { overflow-wrap: anywhere; }
+.doc-body blockquote { margin: 1rem 0; padding: .1rem 1rem; border-left: 3px solid var(--line); color: var(--muted); }
+.doc-body code {
+  font: .88em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--bg-soft); padding: .1em .35em; border-radius: 3px;
+}
+.doc-body pre {
+  background: var(--bg-soft); border: 1px solid var(--line); border-radius: 4px;
+  padding: .8rem 1rem; overflow-x: auto; line-height: 1.5;
+}
+.doc-body pre code { background: none; padding: 0; font-size: .85rem; }
+.doc-body pre.raw-html { white-space: pre-wrap; overflow-wrap: anywhere; }
+.table-wrap { overflow-x: auto; margin: 1rem 0; }
+.doc-body table { border-collapse: collapse; font-size: .92rem; }
+.doc-body th, .doc-body td { border: 1px solid var(--line); padding: .35rem .7rem; text-align: left; vertical-align: top; }
+.doc-body th { background: var(--bg-soft); }
+.doc-body img { max-width: 100%; }
+.doc-body hr { border: 0; border-top: 1px solid var(--line); margin: 2rem 0; }
+.doc-meta { margin: 0 0 1rem; font-size: .85rem; color: var(--muted); }
+.doc-meta summary { cursor: pointer; }
+.doc-meta pre {
+  margin: .4rem 0 0; padding: .5rem .8rem; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 4px;
+  overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--fg);
+}
+.doc-error {
+  background: var(--err-bg); color: var(--err-fg); padding: .6rem 1rem; border-radius: 4px; margin-bottom: .75rem;
+}
+.mermaid-note {
+  background: var(--warn-bg); color: var(--warn-fg); padding: .35rem .8rem; border-radius: 4px;
+  margin: 1rem 0 .25rem; font-size: .85rem;
+}
+.mermaid-fig { overflow-x: auto; margin: 1rem 0; }
+.mermaid-fig svg { max-width: 100%; height: auto; }
+
+#sdflow-notes {
+  position: sticky; top: 0; height: 100vh; overflow: auto;
+  padding: 1rem; border-left: 1px solid var(--line); background: var(--bg-soft);
+}
+#sdflow-notes[hidden] { display: none; }
+
+.notice {
+  grid-column: 1 / -1;
+  background: var(--warn-bg); color: var(--warn-fg); padding: .5rem 1rem; border-bottom: 1px solid var(--line);
+}
+main:focus { outline: none; }
+mark.sdflow-hl {
+  background: #ffe58a; color: inherit;
+  text-decoration: underline; text-decoration-color: #9a3412; text-decoration-thickness: 2px; text-underline-offset: 2px;
+}
+mark.sdflow-hl.flash { background: #ffc94d; }
+mark.sdflow-saved-hl {
+  background: #e6f4f1; color: inherit; border: 2px dashed var(--accent); border-radius: 2px; padding: 0 1px;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+/* 跨节点意见按段绘制：左边框只在首段、右边框只在末段，段间不出现竖线。 */
+mark.sdflow-saved-hl[data-seg="first"] { border-right-width: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; padding-right: 0; }
+mark.sdflow-saved-hl[data-seg="mid"] { border-left-width: 0; border-right-width: 0; border-radius: 0; padding-left: 0; padding-right: 0; }
+mark.sdflow-saved-hl[data-seg="last"] { border-left-width: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; padding-left: 0; }
+mark.sdflow-saved-hl.flash { background: #b8e0d8; }
+#sdflow-annotate {
+  position: fixed; z-index: 15; font: inherit; font-size: .9rem;
+  background: var(--accent); color: #fff; border: 0; border-radius: 4px; padding: .35rem .8rem; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
+}
+#sdflow-annotate[hidden] { display: none; }
+.sdflow-btn {
+  font: inherit; font-size: .85rem; padding: .3rem .7rem; cursor: pointer;
+  background: #fff; color: var(--fg); border: 1px solid var(--line); border-radius: 4px;
+}
+.sdflow-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.sdflow-btn:disabled { color: #8c959f; background: var(--bg-soft); border-color: var(--line); cursor: not-allowed; }
+.overlay {
+  position: fixed; inset: 0; z-index: 20; background: rgba(31, 35, 40, .4);
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+}
+.overlay[hidden] { display: none; }
+.dlg-panel {
+  background: #fff; border-radius: 6px; padding: 1rem 1.25rem; width: min(40rem, 100%);
+  max-height: 90vh; overflow: auto; box-shadow: 0 8px 32px rgba(0, 0, 0, .3);
+}
+.dlg-panel h2 { margin: 0 0 .5rem; font-size: 1.1rem; }
+.dlg-quote {
+  margin: 0 0 .75rem; padding: .3rem .8rem; border-left: 3px solid var(--line); color: var(--muted);
+  max-height: 7rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem;
+}
+.dlg-panel textarea {
+  width: 100%; font: inherit; font-size: .95rem; padding: .5rem; border: 1px solid var(--line); border-radius: 4px; resize: vertical;
+}
+.dlg-hint { margin: .4rem 0 .75rem; color: var(--muted); font-size: .8rem; }
+.dlg-error { margin: .4rem 0 0; color: var(--warn-fg); font-size: .85rem; }
+.dlg-error:empty { margin: 0; }
+.dlg-panel textarea[aria-invalid="true"] { border-color: var(--warn-fg); }
+.notes-hint { margin: 0 0 .5rem; color: var(--muted); font-size: .85rem; }
+.notes-hint:empty { margin: 0; }
+.dlg-actions { display: flex; gap: .5rem; justify-content: flex-end; }
+#sdflow-notes h2 { margin: 0 0 .5rem; font-size: 1rem; }
+.notes-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .75rem; }
+.notes-empty { color: var(--muted); font-size: .85rem; margin: 0 0 .75rem; }
+.notes-list { list-style: none; margin: 0; padding: 0; }
+.note-item { border: 1px solid var(--line); background: #fff; border-radius: 4px; padding: .5rem .7rem; margin-bottom: .6rem; font-size: .85rem; line-height: 1.5; }
+.note-head { color: var(--muted); font-size: .8rem; overflow-wrap: anywhere; }
+.saved-group { margin-top: 1rem; }
+.saved-group h3 { margin: 0 0 .5rem; font-size: .95rem; }
+.note-item.saved-item { border-style: dashed; border-color: var(--accent); }
+.note-badge { display: inline-block; margin-left: .4rem; padding: 0 .4rem; border-radius: 3px; background: var(--bg-soft); border: 1px solid var(--line); color: var(--muted); font-size: .75rem; }
+.note-quote { margin: .3rem 0; padding-left: .6rem; border-left: 3px solid #ffe58a; color: var(--muted); overflow-wrap: anywhere; white-space: pre-wrap; max-height: 5rem; overflow: auto; }
+.note-comment { white-space: pre-wrap; overflow-wrap: anywhere; }
+.note-disposition { margin-top: .3rem; color: var(--muted); font-size: .8rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.note-actions { display: flex; gap: .4rem; margin-top: .4rem; }
+.review-section { margin: 0 0 3rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
+.review-section h2 { margin: 0 0 .75rem; font-size: 1.25rem; line-height: 1.3; scroll-margin-top: 1rem; }
+.review-section h3 { margin: 1.25rem 0 .5rem; font-size: 1.05rem; }
+.review-section .notes-list .note-item { font-size: .9rem; }
+.rev-item div { overflow-wrap: anywhere; }
+.rev-item div:first-child { font-weight: 600; }
+.sdflow-empty { color: var(--muted); margin: 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 899px) {
+  body, body.has-notes { display: block; }
+  #toc-wrap {
+    position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line);
+  }
+  #toc-wrap summary { display: block; }
+  #toc-title { display: none; }
+  main { padding: 1rem 1rem 3rem; }
+  #sdflow-notes { position: static; height: auto; border-left: 0; border-top: 1px solid var(--line); }
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">跳到正文</a>
+<nav id="toc-wrap" aria-label="目录">
+<details id="toc-details" open>
+<summary>目录</summary>
+<h2 id="toc-title">目录</h2>
+<div id="toc"></div>
+</details>
+</nav>
+<main id="main">
+<h1 class="page-title">收尾评审 · 2026-11-13-travel-runtime-budget</h1>
+<p class="page-meta" id="sdflow-gen-meta"></p>
+<div id="docs"></div>
+</main>
+<aside id="sdflow-notes" aria-label="意见" hidden></aside>
+<script type="application/json" id="sdflow-docs">[{"label":"hand-off","path":"../hand-off.md","text":"# hand-off — travel-runtime-budget\n\n\u003e 生成于 2026-11-13。依据 `verify-report.md`（PASS）、`code-review-report.md`（pass）与各 ticket 报告；每条“完成”都复核过锚点存在性。\n\n## ✅ 完成了什么\n\n- **LRC-01 发送前准入**：`app/runtime.py` 的 `reserve_http` 在唯一 HTTP 发送点 `AmapClient.get` 前预占；`limit=0/1/2/40` 与“第 N+1 次不进传输层”有测试（`tests/test_live_admission.py`），`_record` 的 `max(1,差额)` 已移除。\n- **LRC-02 单调 deadline**：可注入 clock、默认 90 秒，检查点覆盖发送前/返回后/阶段间/评估前后/终态与收尾；四类 HTTP timeout 取 `min(配置, 剩余)`；`tests/test_live_deadline_cancel.py` 用假时钟验证 0/90、UTC 跳变、0.25 秒配置。\n- **LRC-03 可达取消与原子终态**：创建/修订走 `run_in_threadpool`，等待期间同键重放可拿 run_id 并调用原 cancel；取消确认与最终保存各一次短事务归一 `cancelled/cancelled/unverified/null` 并删除 `exhaustion_reason`；barrier 下独立 GET/重放无混合终态。\n- **LRC-04 可解释耗尽**：耗尽保存 `failed/exhausted` + `exhaustion_reason=deadline|call_limit`，保留实际计数、elapsed 与已有证据；晚到结果不接受为 completed/verified。\n- **LRC-05 幂等**：同键同载荷返回原 run、不建 runtime/factory、不新增 HTTP/事件；同键异载荷 409、缺 Key 503 保留。\n- **LRC-06/07 运行控制与拥有权**：adapter 必须有 `bind_runtime`+`close`，activ​e 互斥；六类出口各 close 一次、借入只解绑、失败绑定不碰原 owner；默认 factory 显式 `owns_client`。\n- **LRC-08 脱敏与清理失败**：HTTPError 只留类型、provider 只留数字 infocode；清理异常记固定 `RESOURCE_CLEANUP_FAILED`、不覆盖主失败、不宣称已释放；合成 Key/query/私人标记扫描覆盖 API/state/events/SQLite。\n- **LRC-09 真实范围材料**：README/LIVE-AMAP/ACCEPTANCE/任务报告互链；明确未联调真实高德、未验硬中断/灾备/生产并发。\n- **验证**：`159 passed`（39.14s）、独立进程 loopback `E2E_OK`；code-review 5 镜 + 6 项修复 + 复审 pass；`anchor_lint` CLEAN。\n- **验收证据锚**：`verify-report.md` 的逐需求表；`code-review-report.md`；`impl-reports/task4-aggregate.md`；commit `74ab503`（代码审修复）、`e8aaf25`（verify 锚）。\n\n## ⏳ 未完成 / 延后\n\n按 summary 前缀「既有问题：」分组（本 change 的 issue 池扫描工具按 git 根解析，产品根下的 B1–B3 未被扫到，以下按文件实核列出）：\n\n**本 change 延后项**\n\n- `B3` LIVE finalize 失败时 run 可能停留 `queued`，幂等重放只回 queued；需 T12 原子保存处理。`app/live.py` 的 finalize 仍在 finally 内，属已知边界。\n- `B1` 既有（base 6a78560）provider 列表元素非 dict 时 `AttributeError` 逸出，未归 `TOOL_FORMAT_ERROR`；`B2` 既有 adcode 失败统一报 `provider_error`、timeout 分类丢失。两条非本 change 引入，已入 bug 池。\n\n**发现的既有问题（非本 change 引入）**\n\n- 同 `B1`、`B2`（按 issue id 去重）。\n- verify 的 Minor：`docs/ACCEPTANCE.md`/`LIVE-AMAP.md` 仍写旧分项（93/134+19+1），与 159 不一致；`docs/ACCEPTANCE.md`/`LIVE-AMAP.md`/`TECH-STACK.md`/`ARCHITECTURE.md` 仍有“未做独立代码审”的旧表述（保守低报，review 已 pass）。属文档一致性，未在 verify 后改（改产品文档会使审查锚失鲜），留给下一轮文档同步。\n- 跨模型 code voice 未运行：本会话子代理限制在父级路由，`host-unknown` 如实记录，未用同族冒充。\n- `ADR 同步：跳过（adr: openspec/adr 不存在或不是目录，refs 退出 2）`。\n- `roadmap 回填草稿未生成：NO_ASSOCIATION（未声明关联且名前缀不符）`；若本 change 属某 roadmap，请手动回填。\n- proposal 无「来源 issue：」行，未自动关单。\n\n## ▶ 下一阶段建议\n\n1. **T12**：阶段与事件原子保存；顺带处理 `B3`（finalize 失败留 queued）与 LIVE 两次提交非原子。\n2. **T13/H11**：readiness 语义（worker 停止→degraded）。\n3. **P17**：结构化脱敏日志（replay worker 的 `str(exc)` 也在范围内另评）。\n4. **文档一致性清理**：把 `docs/` 里旧分项 93/134+19+1 与“未做独立代码审”统一到 159 + 已审，避免与 verify/code-review 报告矛盾。\n5. **B1/B2 清理**：provider 非 dict 元素归 `TOOL_FORMAT_ERROR`；adcode 失败保留 timeout 分类。\n6. 新方向（Python Agent—Java—Vue、动态 DAG）仍按独立 spec/评审推进，不在本 change 内。\n\n`ADR 同步：跳过（adr: openspec/adr 不存在或不是目录，refs 退出 2）`\n"},{"label":"verify-report","path":"../verify-report.md","text":"---\r\nship-gate:\r\n  verify: PASS\r\n  reviewed_sha: a75cf20b74ae6f1f910bf4fe16cd6028766a439b1071735c9f423b08a11535e8\r\n  reviewed_manifest: MTAwNjQ0IGJsb2IgYmYzNjg3ZWIwZGYzYjE1MjgzMDc5YWViOWE4ZWM2ZGY4NzE3MjEyYQkuZW52LmV4YW1wbGUAMTAwNjQ0IGJsb2IgYTc1YWMxOGQ5NzFjZjZkZDhjNzE5Y2NjOWY0MGJmYzMyNDg5N2RmMgkuZ2l0aWdub3JlADEwMDY0NCBibG9iIGE4ZWJkYTlhNjliMTkwMTJjZjU4ZDg5ZjVlMWQzM2U4MGViNTg2OTQJQUdFTlRTLm1kADEwMDY0NCBibG9iIGVlNzk2OWNiMmE2NTQ3OTE4ZDU4NTVhMTQzYzUyOWU2ZWU5N2E0MmQJQ0xBVURFLm1kADEwMDY0NCBibG9iIGVhYjNkYzg5OTM2M2EyMGQ0YjRhMGFhZTExY2U5ZTcwMzNkOTNiNTIJUkVBRE1FLm1kADA0MDAwMCB0cmVlIDRjNTQwNTg1NGFhZGVlZTFjNGIzZTE2NmJiMDI0M2E4ZjFiNzRkNWUJYXBwADA0MDAwMCB0cmVlIDEyNmYyNDkyMWVkYzJkYjRkOGZlMGU1Y2RjODlkN2FiODI0NWZjM2UJZG9jcwAwNDAwMDAgdHJlZSA4ZTQ3OWU2Yjc2NjA3M2MwNGQwYTA0ZDY0MGMxYjhkYzhjM2VkMzNhCWZpeHR1cmVzADEwMDY0NCBibG9iIDMzMjUzZTk3MTBkMTM0Y2M5OTE3MmE3YmU5MDAxNjE4YmFkYWVhNGYJcHl0ZXN0LmluaQAxMDA2NDQgYmxvYiA4MzRiZTY5YTUxMTExOTEyNTRjMDIxNzM1ZmZiZDkwMGRmNzQ4NWVjCXJlcXVpcmVtZW50cy1kZXYudHh0ADEwMDY0NCBibG9iIGM0M2Y3YzNjYWNlYjg4MjZjMzQ0NzM5NGJjZTA2YTk4NDVmN2M1ZDgJcmVxdWlyZW1lbnRzLnR4dAAxMDA2NDQgYmxvYiBiZTlmNWVmNmVkZmMxYWQwZDk3YTliNzMwNmQyODdjMjhhMTg0ZGYxCXJ1bi5weQAwNDAwMDAgdHJlZSA4YWQzNzNjNWExYzI1NjViNDJiZmZiMDQzYTdmNTk1MDhjZGJlM2YxCXNjcmlwdHMAMDQwMDAwIHRyZWUgNTQ1ZDYwMjI5MWExMmIzMTJkMDI4NTUyYjZlNjdjMjg0Y2IxN2IxYgl0YXNrcwAwNDAwMDAgdHJlZSAwNWY4NjRmMmEyNzM4N2U4ZWJkMWU5NGRlYzg1ZGEzYThiNDE5YWMzCXRlc3RzADA0MDAwMCB0cmVlIGRkNzRlMDg4ZTY0MzNiYjZkYTk4MDgzNDJjYTY5OTU2NDQ2ODNkN2QJd2Vi\r\ntitle: verify 报告 — travel-runtime-budget\r\ndate: 2026-11-13\r\n---\r\n\r\n# verify 报告 — `travel-runtime-budget`\r\n\r\n\u003e 验证者：fresh verify 子代理（**不信任**既有报告措辞与 `tasks.md` 复选框；逐条读码、重跑命令、以可机验锚点为唯一判据）。\r\n\u003e 日期：2026-11-13（Asia/Shanghai）。\r\n\u003e 基线：分支 `feat/travel-runtime-budget`；本次验证时 **HEAD `7e025afe502f36b5e8d5c40d34be55f5c2ea6bff`**，base `6a785607e4bdb52e6c1af95e7b7b585d1b5d035b`（= `main`）。\r\n\u003e **结论：PASS** —— LRC-01..09 九条需求全部有可跑通的可机验锚点（测试名 / 命令 / 文件:行），无核心功能缺口；3 项 Minor（文档计数自相矛盾、代码审状态陈旧、既有分类缺陷已入池）如实列于 §6，不构成 FAIL。\r\n\r\n## 回执：`prefix-principles.md` 首行原样回显\r\n\r\n```text\r\n\u003c!-- prefix-version: principles-b9a054bafa9c --\u003e\r\n```\r\n\r\n（正文未内联；本报告只按该文件要求做回执。）\r\n\r\n## 0. 本次验证的证据纪律\r\n\r\n- 每条 ✅ 都附**可机验锚点**：pytest 用例名（含文件:行）、真实命令 + exit + 计数、或产品代码 `文件:行`。**无锚点即判 gap**，不凭 `tasks.md` 复选框。\r\n- `tasks.md` 的勾选在本会话开始时是**工作树未提交改动**（`git status` 唯一 `M` 项），本报告不把它当证据；勾选状态随本报告一并提交，便于后续门禁读取干净树。\r\n- 未修改任何产品代码 / 测试 / design / specs；未 push / merge；未访问真实供应商（全部 `httpx.MockTransport` + 合成 Key `synthetic-example`）。\r\n- 报告自有的 `verify=PASS` 结论锚由 `anchor_writeback.py` 权威写入 frontmatter，正文不手写该字段。\r\n\r\n## 1. 逐需求核对表（需求 | 代码出处 | 状态）\r\n\r\n| 需求 | 代码出处（含测试/命令锚点） | 状态 |\r\n|---|---|---|\r\n| **LRC-01** 每次 HTTP 尝试发送前受预算准入（默认 40；工具内部批次同受限；被拒不到传输层；本地工具 0；已准入失败不退） | `app/runtime.py:83-102` `reserve_http`（`check()` → 锁内比 `tool_calls \u003e= max_tool_calls` → `min(base, remaining)` → 计数 +1）；`app/amap_tools.py:139-149`（`get` 在 `httpx.Client.get` **之前** reserve，`calls += 1` 在 reserve 之后）；默认 40：`app/live.py:30`、`:48-49`；工具/子证据记录不消费预算：`app/live.py:70-74`；POI/adcode/weather/hours/matrix 全走 `AmapClient.get`（`amap_tools.py:275-289, 291-311, 365-383, 407-432, 435-480`） | ✅ `tests/test_live_admission.py:139`（limit 0/1/2/40：第 N+1 次 transport 命中 0）、`:431`（预占先于 transport，`sent == [\"/first\",\"/second\"]`）、`:159`（connect/timeout/provider/format 四类失败仍计 1）、`:183`（本地空 matrix/hours 计 0）、`:198`（adcode 缓存、预报不缓存）；`tests/test_live.py:217`（limit=14 时第 15 次被拒且 `tool_calls == sent == 14`，工具方法数≠HTTP 数）、`:243`（limit=2 耗尽）；`tests/test_live_admission.py:58`（15/15 恰好用完仍 `completed`） |\r\n| **LRC-02** 新建 run、factory 之前的单调 90s 预算；发送/返回/阶段间/终态/收尾检查；`min(config,remaining)` 四类 timeout；不保证硬中断 | `app/runtime.py:14`（90.0）、`:44-57`（`started_at` 在构造时取一次单调值）、`:59-61`（`elapsed` 只用单调差）、`:77-81`（先取消后 deadline）、`:83-102`（`timeout=min(config, remaining)`，非正配置不当成 deadline）；`app/live.py:326-329`（落盘后、factory 前建 runtime）、`:94-99`（`invoke` 前后各 check）、`:171`、`:246`、`:253`、`:263`、`:356-360`（终态/收尾再 check） | ✅ `tests/test_live_deadline_cancel.py:314`（0/89.999/90 边界，check 不消费次数）、`:327`（时间已到仍先观察取消）、`:343`（5→1/1→0.25 不放大）、`:374`（0/-1 配置 → `INVALID_OPERATION_TIMEOUT`，不写耗尽）、`:464`（httpx `connect/read/write/pool` 四键 timeout = min 值）、`:436`（UTC 墙钟跳变不影响单调 elapsed）、`:497`（factory 前 0 预算：`factory_calls == []`、`tool_calls == 0`）、`:522`/`:543`（晚到响应/评估拒绝为 completed/needs_input）、`:561`（收尾越过 deadline 拒绝过期 completed）、`:593`（更早主失败不被时间检查覆盖）、`:580`（普通 timeout 保持原分类） |\r\n| **LRC-03** 工作边界与每次发送前观察持久取消；取消确认与最终提交各自**一个短事务**归一 `cancelled/cancelled/unverified/null`、删耗尽键、留诊断；返回/GET/重放无混合终态；同进程 API 可取消 + 同键重放取 run_id | `app/runtime.py:63-81`（短探针 `probe`，取消优先于 deadline，失败给固定分类）、`:88`（每次 reserve 前 check）；`app/store.py:17-26`（`_normalize_cancelled`：status/budget/quality/result，pop `exhaustion_reason`，不动计数/elapsed/issues）、`:189-226`（取消：`BEGIN IMMEDIATE` 内读+归一+UPDATE，LIVE 同事务写 budget/state）、`:228-234`（探针单行短读、不开显式事务、不包 HTTP）、`:236-274`（最终提交：事务内重读 status，若已 cancelled 则对含实际计数/elapsed/证据的内存快照同归一后一次写入）；`app/main.py:40-45`（LIVE 取消文案/事件理由，无“回放/无远端”）、`:240-241`（同步核心进 threadpool，原 POST 仍等待）、`:375-407`（cancel：404/409、LIVE 分支回 canonical 快照） | ✅ `tests/test_live_deadline_cancel.py:648`（真实 loopback：等待期间同键重放取 run_id、factory/发送/事件增量 0；cancel 可达；下一 handler 未命中 `sent == [\"/v3/geocode/geo\"]`；最终返回 cancelled 且计数保留）、`:732`（修订同路径）、`:801`（收尾 check 被 barrier 挡住时取消：独立连接多次 GET/重放都是归一快照，`tool_calls == 15` 保留）、`:867`（取消胜过内存耗尽、删原因、保留 BUDGET_EXHAUSTED 诊断）、`:415`（探针异常 → 固定分类 + 安全异常类型）、`:327`（探针先于 deadline）；`tests/test_live_cleanup_redaction.py:246`（首发送返回后取消 → 下一次不发送） |\r\n| **LRC-04** 保存准入数与单调 elapsed；耗尽 → `failed/exhausted` + `BUDGET_EXHAUSTED` + 新 run 必填 `exhaustion_reason`（历史可缺）；`result=null`、`quality=unverified`、保留工具证据 | `app/live.py:270-278`（`_mark_exhausted`：failed/exhausted/reason/result=null/unverified+BUDGET_EXHAUSTED）、`:281-286`（执行失败分类）、`:347-361`（finally 里 cleanup→末次 check→`elapsed_seconds` 必写）、`:363`（`finalize_run` 一次提交）；`app/store.py:104-107,120`（旧 budget JSON 原样 `json.loads` 返回，无补写/无补造） | ✅ `tests/test_live_admission.py:98`（limit 7/10 中途断批：`failed/exhausted/call_limit`、`tool_calls == sent == limit`、`result is None`、已规范化的 `hours_detail`/`route_leg` 子证据含 `source_ref`/`fetched_at`/payload，完整工具未入账，重放不变）、`tests/test_live.py:217`（14 次发送后 `result=None`、`quality=unverified`、证据保留）；`tests/test_live_deadline_cancel.py:522`/`:561`（deadline 耗尽 + 已得证据数 = `tool_calls`）；另以**本次临时探针**（不入仓，见 §5 第 6 行）实测：全本地零 HTTP run → `completed / budget.status=ok / tool_calls=0 / 无 exhaustion_reason / result 存在`；手工插入的旧形态 budget `{\"max_tool_calls\":40,\"tool_calls\":7}` 经 GET **原样返回**（无 `elapsed_seconds`、无 `exhaustion_reason`）——覆盖 spec「无HTTP及历史run」两个分支 |\r\n| **LRC-05** 幂等重放不重执行（同键同请求返回已保存 run，不建 runtime/factory、不重发、不重算 elapsed）；同键异请求 409；缺 Key 默认入口 503 | `app/live.py:313-325`（`create_run_atomic` 命中即 `return existing, False`，**在** runtime/factory 之前；冲突抛 `IDEMPOTENCY_CONFLICT`）、`:48-49`（每 run 独立 budget 深拷贝，计数不串 run）；`app/main.py:243-245`（409 映射）、`:166-169`（无 `AMAP_API_KEY` → 503 `LIVE_NOT_CONFIGURED`）、`:327-334`（修订重放校验父/修订号） | ✅ `tests/test_live_admission.py:58`（同键重放：同 run_id、`factory` 一次、`sent == 15` 不变、`close_attempts == 1`、事件相等）、`:98`（耗尽 run 重放同 run_id 且事件/证据不变）；`tests/test_live_deadline_cancel.py:608`（monkeypatch 计数 `LiveRuntime`：重放不建 runtime）；`tests/test_live.py:305`（重放）、`:292`（同键改载荷 409）、`:285`（无 Key 503）；`tests/test_live_admission.py:327`（借入 client 两个顺序 run 各自独立计数 1/2） |\r\n| **LRC-06** LIVE 工具调用前必须有显式运行绑定/清理协议；缺失或绑定失败即停、0 调用；同 client 第二个 active run 被拒且不覆盖前者；非 LIVE 调用者不被误称拥有保证 | `app/amap_tools.py:70-76`（`bind_runtime`：非 open 或已绑定 → `RuntimeError`）、`:117-131`（`_detach_locked` 按身份匹配，不符即抛且不转 closing）、`:247-262`（adapter bind：client 已被别的 run 占用时只作废自身、**不关闭**共享 client）、`:139-142`（closing/closed 拒发）；`app/live.py:331-342`（缺协议 `TypeError` → 执行错误；bind 失败 `cleanup_acquired=False`，不 close 属他人的对象）；默认 factory 显式拥有 client：`app/main.py:170-171`；脚本独立调用不自动拥有 run 预算：`docs/LIVE-AMAP.md:32,82` | ✅ `tests/test_live_admission.py:417`（缺 `bind_runtime`/缺 `close`：`bind/tools` 均 0，close 0/1 符合预期）、`:234`（双线程 bind 至多一赢，`probe.enters == 2`，输家预算 0）、`:270`（已绑定 owner 时新 run 失败且不动原 run：`sent == close_attempts == 0`，原 run 仍可发送）、`:291`（同对象两次失败 bind 后两次清理都不 close，client 仍 open）、`:345`（物理 close 阻塞时新 bind 必须失败；close 失败也不恢复可借用）、`:381`（默认 factory `owns_client=True`，结束物理关闭 1 次）、`:327`（借入 client 顺序复用不 close） |\r\n| **LRC-07** 区分自有/借入；拥有权转移后成功/供应商失败/耗尽/deadline/取消/构造失败 6 类出口均有关闭尝试；重复清理不重复关闭；借入只解绑；factory 返回前失败由 factory 负责 | `app/amap_tools.py:231-236`（构造校验失败且自有 → 先 `client.close()`）、`:264-272`（adapter `close` 幂等：`_closed` 短路，再按 `owns_client` 交 `release`）、`:82-115`（`release`：短锁内标记 closing、锁外物理 close、失败也落 `closed`）、`:78-80`（`unbind_runtime` = `release(owns_client=False)`）；`app/live.py:347-355`（finally 一次 close、失败仅记警告） | ✅ `tests/test_live_cleanup_redaction.py:191`（成功）、`:201`（provider 失败）、`:219`（call_limit）、`:232`（deadline）、`:246`（cancel）、`:265`（constructor 校验失败 + close 幂等：`close_attempts == 1`）、`:286`（factory 返回前失败：factory 自己关 1 次、顶层无二次关闭）、`:311`（借入：`close_attempts == 0`、仍 open、可顺序复用）、`:599`（不依赖 HTTP 层的直接创建路径也保存成功） |\r\n| **LRC-08** 解绑/关闭抛错后继续其余清理；保存主结果 + 脱敏 `RESOURCE_CLEANUP_FAILED`；不覆盖更早主失败；close 尝试≠释放成功；无更早失败时收尾仍拒绝过期终态；诊断不含 Key/带 query URL/私人请求 | `app/amap_tools.py:85-115`（解绑失败仍尝试物理 close；只留固定类别与异常类型名）、`:150-155`（HTTPError → `type(exc).__name__`，不回显 str/URL）、`:162-170`（provider `info` 一律不回显，仅保留通过数字校验的 `infocode`；`_safe_infocode` L40-45）；`app/live.py:345-360`（分类不覆盖已 failed；cleanup 失败只记类型名 + “资源是否释放未知”）、`:289-305`（顶层异常只留类型名，探针失败只留固定类别）；`app/runtime.py:31-41`（`RuntimeControlError` 只携 category + 安全类型名） | ✅ `tests/test_live_cleanup_redaction.py:332`（解绑失败仍物理 close 1 次、主结果 completed 保留、警告只含 `RuntimeError`）、`:350`（provider 失败 + close 失败：原 `failed`/无 exhaustion 键/计数 1 保留，警告 `OSError`+“未知”，且 finally 未跳过保存——DB 重读与 LIVE_FINISHED 事件一致）、`:383`（call_limit 类别 + 精确计数）、`:399`（close 期间越过 deadline：更早失败保留、无 BUDGET_EXHAUSTED、`elapsed_seconds ≥ 90`）、`:435`（无更早失败但收尾越界 → 拒绝过期 completed）、`:478`/`:500`/`:537`/`:552`/`:574`（HTTPError / provider info \u0026 非法 infocode / 顶层异常 / 探针异常 / cleanup 异常五路合成 Key+query+私人标记扫描 API、持久 state、`events` 表、SQLite 全文）；`tests/test_live_deadline_cancel.py:415`（探针异常文本不含 secret） |\r\n| **LRC-09** 交付材料区分 HTTP 尝试 vs 收费、deadline vs 硬中断、离线契约 vs 真实渠道；默认 40/90/5 来源、内部协议变化、耗尽原因必填/历史可缺可查；验收须观察发送点/持久终态/资源动作 | 默认值与边界：`docs/LIVE-AMAP.md:63-102`（6.1-6.4，含修前/修后复现表与 `exhaustion_reason` 行）、`:104-131`（6.5-6.7：单调 90s、四类 timeout、晚到拒绝、取消原子终态、JSON 示例）、`:140-173`（6.8 独立进程 loopback + 覆盖清单）、`:32,82`（`amap_probe.py` 独立调用不享 run 预算）、`:3`（分支≠main、真实 Key 未验）；交叉链：`README.md:23,27,41`、`docs/ACCEPTANCE.md:145-201`（§10 分支状态、实测命令、LRC-01..09 逐条证据/未满足、§10.4 未运行清单）、`docs/TECH-STACK.md:20`（159 分项）；离线复现脚本：`openspec/changes/travel-runtime-budget/evidence/reproduce_budget.py` + `evidence/baseline-overshoot.json` | ✅ 本次实跑 `reproduce_budget.py`：exit 0，隔离临时 SQLite，输出 `transport_attempts=2 / client_calls=2 / persisted_count=2 / exhaustion_reason=call_limit / failed+exhausted / oversent=false`，与 `docs/LIVE-AMAP.md:102` 的修后列一致（修前 3 次已发出、仅入账 2 次 = `baseline-overshoot.json`）；`docs/ACCEPTANCE.md:184-194` 九行均给到具体测试名；文档明确 MockTransport/假时钟为离线、不声称真实高德/费用/硬中断/断电恢复/已合并 main。**2 项文档 Minor 见 §6（计数残行、代码审状态陈旧），不改判** |\r\n\r\n## 2. 场景级复核（spec 全部 Scenario → 锚点）\r\n\r\n| Requirement / Scenario | 锚点 |\r\n|---|---|\r\n| LRC-01 第N+1次被拒绝 | `test_live_admission.py:139`、`:431`、`test_live.py:243` |\r\n| LRC-01 批次中途耗尽 | `test_live_admission.py:98[7-hours_detail]`、`[10-route_leg]` |\r\n| LRC-01 失败尝试与无HTTP工具 | `test_live_admission.py:159`、`:183` |\r\n| LRC-01 零额度和恰好用完 | `test_live_admission.py:139[0]`、`:58`（15/15） |\r\n| LRC-02 开始前和批内达到deadline | `test_live_deadline_cancel.py:497`、`:522`（`sent == [\"origin\"]`） |\r\n| LRC-02 响应或评估迟到 | `:522`、`:543`、`:561` |\r\n| LRC-02 剩余时间与短配置 | `:343`、`:464`（三组参数） |\r\n| LRC-02 普通工具timeout和系统时钟跳变 | `:580`（timeout 参数）、`:436` |\r\n| LRC-03 两次发送之间被取消 | `test_live_cleanup_redaction.py:246`、`test_live_deadline_cancel.py:648`（下一 handler 未命中） |\r\n| LRC-03 保存竞争中取消被保护 | `test_live_deadline_cancel.py:801` |\r\n| LRC-03 取消探针读取失败 | `:415`、`test_live_cleanup_redaction.py:552` |\r\n| LRC-03 运行中从实际API取得标识并取消 | `test_live_deadline_cancel.py:648`、`:732`；`scripts/live_loopback_e2e.py` 两场景（独立进程） |\r\n| LRC-04 耗尽前已有有效证据 | `test_live_admission.py:98`、`test_live_deadline_cancel.py:561` |\r\n| LRC-04 无HTTP及历史run | 本次临时探针实测（§5 第 6 行）+ `app/store.py:104-107,120` + `test_live_admission.py:183`（本地工具 0 消耗） |\r\n| LRC-04 批内成功子证据不随中断丢失 | `test_live_admission.py:98`（子证据 payload/source_ref/fetched_at） |\r\n| LRC-05 已成功或耗尽run的同键重放 | `test_live_admission.py:58`、`:98` |\r\n| LRC-05 改请求和缺Key | `test_live.py:292`、`:285` |\r\n| LRC-06 缺少协议 | `test_live_admission.py:417` |\r\n| LRC-06 重叠绑定及顺序借用 | `:234`、`:327`、`:291` |\r\n| LRC-06 自有client关闭与新绑定竞争 | `:345[False]`、`:345[True]` |\r\n| LRC-07 已取得自有资源后的多种终态 | `test_live_cleanup_redaction.py:191/201/219/232/246/265` |\r\n| LRC-07 构造失败和借入资源 | `:265`、`:286`、`:311` |\r\n| LRC-08 原失败与关闭失败同时出现 | `:350`、`:383` |\r\n| LRC-08 解绑失败不跳过自有client关闭 | `:332` |\r\n| LRC-08 普通网络及执行异常中的敏感文本 | `:478`、`:500`、`:537`、`:552`、`:574` |\r\n| LRC-09 开发者验收材料 | `docs/LIVE-AMAP.md:63-173`、`docs/ACCEPTANCE.md:145-201`、`README.md:23-41`、`evidence/reproduce_budget.py` 实跑 |\r\n\r\n## 3. 聚合覆盖复核（收尾票，独立重跑，不采信报告措辞）\r\n\r\n### 3.1 报告 §0 的 suite-scope JSON vs 本会话重跑（逐字比对）\r\n\r\n重跑命令（逐字）：\r\n\r\n```text\r\nC:/Miniconda3/python.exe C:/Users/Lenovo/.agents/skills/sdflow-implement/scripts/impl_route.py suite-scope --root D:/workspace-dsh/tmp/sbu-travel-runtime-budget --base 6a785607e4bdb52e6c1af95e7b7b585d1b5d035b --head 1aee907de9f6245877fe03ce77fc24afb7e3f767\r\n```\r\n\r\nexit `0`。输出（本次规范化后逐字）：\r\n\r\n```json\r\n{\"base\": \"6a785607e4bdb52e6c1af95e7b7b585d1b5d035b\", \"domains_configured\": false, \"head\": \"1aee907de9f6245877fe03ce77fc24afb7e3f767\", \"hit_domains\": [], \"layers\": {}, \"mapping\": [ ...87 项... ], \"skipped_layers\": {}}\r\n```\r\n\r\n报告 §0（工作树模式，同一 base/head）头字段完全一致，`mapping` 90 项。规范化（`json.dumps(..., sort_keys=True)`）逐字比对结果：\r\n\r\n- **头字段 `base/head/domains_configured/hit_domains/layers/skipped_layers`：逐字相等。**\r\n- `mapping` 差集**恰为 3 项**，全部是**报告那次运行时刻已存在、尚未提交**的未跟踪输入文件（工作树模式 `git ls-files --others` 收录，提交范围模式不收录；它们在 `111f274` 才入库，晚于 `head=1aee907`）：\r\n  - `projects/local-life-travel/openspec/changes/travel-runtime-budget/impl-reports/task4-brief.md`\r\n  - `projects/local-life-travel/openspec/changes/travel-runtime-budget/review/task4-dispatch.json`\r\n  - `projects/local-life-travel/openspec/changes/travel-runtime-budget/review/task4-shared-context.md`\r\n- 排除上述 3 项后，`mapping` 的 `(path, domain, prefix)` 三元组集合与顺序**完全相等**（87 == 87），规范化 JSON 整体逐字相等。\r\n- **关于「报告自身可能多一项」**：实测报告 `task4-aggregate.md` **不在**其自身 §0 的 `mapping` 里——报告正文的落盘晚于该次 suite-scope 运行（§0 的 JSON 由管道先写入，报告随后成型），故该文件未进工作树模式的 `ls-files --others`。多出的 3 项属同一「落盘时序」理由，方向一致。\r\n\r\n**判定：报告 §0 是真实工具输出，非手写伪造。** 差异可被「工作树模式 vs 提交范围模式」+「落盘时序」完全解释，且修正后逐字相等。\r\n\r\n### 3.2 修复后重跑（step 4）\r\n\r\n```text\r\nC:/Miniconda3/python.exe C:/Users/Lenovo/.agents/skills/sdflow-implement/scripts/impl_route.py suite-scope --root D:/workspace-dsh/tmp/sbu-travel-runtime-budget --base 1aee907de9f6245877fe03ce77fc24afb7e3f767 --head HEAD\r\n```\r\n\r\nexit `0`，`head = 7e025afe502f36b5e8d5c40d34be55f5c2ea6bff`，`domains_configured=false`、`hit_domains=[]`、`layers={}`、`skipped_layers={}`，`mapping` **31 项（非空）**：`README.md`、`app/live.py`、`app/main.py`、`app/runtime.py`、`scripts/live_loopback_e2e.py`、`tests/test_api.py`、`tests/test_live_deadline_cancel.py`、`tests/test_live_loopback_e2e.py`、`docs/{ACCEPTANCE,ARCHITECTURE,LIVE-AMAP,TECH-STACK}.md`、`openspec/changes/travel-runtime-budget/**`（含 `code-review-report.md`、`impl-reports/cr-*.json`、`impl-reports/task4-*`、`tickets.md`）、`openspec/issues/open/bug/B1..B3.md`。\r\n\r\n**mapping 非空、`layers` 为空 ⇒ 命中域无自动测试层，未触发重跑（依派单口径，不判缺口）。** 根因同时复核：`openspec/config.yaml` 无活动的 `test-suites:` 键（`Select-String -Pattern '^test-suites:'` 无命中；`-SimpleMatch` 的 4 处命中全为注释 L100/106/113/127）；仅项目根 `pytest.ini`（`testpaths = tests`、`addopts = -p no:cacheprovider`），无 unit/integration/e2e 分层 runner。\r\n\r\n\u003e 附加（合同外、非缺口判定依据）：修复面（`app/live.py`、`app/main.py`、`app/runtime.py`、两个测试文件）仍被本会话全量 pytest 覆盖，见 §4 —— exit 0 / 159 passed。\r\n\u003e\r\n\u003e 附：本报告写锚得到的 `reviewed_sha = a75cf20b74ae6f1f910bf4fe16cd6028766a439b1071735c9f423b08a11535e8`，与 `code-review-report.md` 头部 `reviewed_sha` **逐字相同** ⇒ 代码域（`openspec` 之外的顶层条目 manifest）自代码审以来**未漂移**，本次 verify 复用的正是被评审过的代码盘面。\r\n\r\n### 3.3 报告 §2 证据行复核（只核**通过行** + SHA 一致性）\r\n\r\n| 行 | 报告值 | 本次复核 |\r\n|---|---|---|\r\n| 聚合离线回归（全仓 pytest） | exit 0 / **154** / HEAD `1aee907` | 在 `1aee907` 的**干净 git worktree** 重跑：`154 passed, 2 warnings in 18.90s`，exit 0 —— 计数与 SHA 均一致，非预写 |\r\n| 独立进程 loopback（脚本） | exit 0 / **2 场景** / HEAD `1aee907` / `E2E_OK` | HEAD（`7e025af`）重跑：`E2E_OK`，exit 0；`create`、`revision` 两场景字段结构一致（`transport_sends` 3 与 [11,3]、`close_attempts` 1 与 2、`tool_calls` 3/3、`parent_status=needs_input`）；`run_id` 为本次新建值（非预写常量） |\r\n| 独立进程 loopback（pytest 包装） | exit 0 / **1** / HEAD `1aee907` | `1aee907` 的 154 中包含该文件当时唯一的用例（收集数 1，随全量通过）；HEAD 该文件已增至 2 个用例（修复期新增握手超时用例），实跑 `2 passed` —— 与 SHA 时点自洽 |\r\n| unit/integration/e2e 三行「未覆盖」 | — | 与 `layers={}`、config 无 `test-suites` 一致，理由成立 |\r\n\r\n`--collect-only` 交叉核（HEAD）：`24+7+13+18+13+14+23+26+19+2 = 159`；报告时点（`1aee907`）为 `24+7+13+17+13+14+23+23+19+1 = 154`。差额 +1（`test_api`）、+3（`test_live_deadline_cancel`）、+1（`test_live_loopback_e2e`）恰等于代码审修复期新增用例数，与 `cr-fix-r1.md`/`code-review-report.md` 一致。\r\n\r\n## 4. 本会话真实重跑记录（命令 / exit / 计数 / HEAD）\r\n\r\n| # | 命令（逐字） | exit | 结果 | 运行 HEAD |\r\n|---|---|---|---|---|\r\n| 1 | `C:/Miniconda3/python.exe -m pytest -q -p no:cacheprovider`（项目根，`TRAVEL_REPLAY_NO_AUTOSTART=1`，`SDFLOW_DIFF_BASE=6a78560…`） | 0 | **159 passed**, 2 warnings in 26.15s | `7e025af` |\r\n| 2 | 同 #1，在 `git worktree`（`1aee907`，干净树） | 0 | **154 passed**, 2 warnings in 18.90s | `1aee907` |\r\n| 3 | `python -m pytest -q -p no:cacheprovider tests/test_amap_tools.py tests/test_live.py tests/test_live_admission.py tests/test_live_deadline_cancel.py tests/test_live_cleanup_redaction.py tests/test_live_loopback_e2e.py`（文档 §10.2 记录的 6 文件命令） | 0 | **97 passed**（14+13+23+**26**+19+**2**）；文档仍写 93 → 见 §6 M1 | `7e025af` |\r\n| 4 | `C:/Miniconda3/python.exe scripts/live_loopback_e2e.py` | 0 | `E2E_OK`；`{\"create\":{...tool_calls:3, transport_sends:3, close_attempts:1, status:\"cancelled\"}, \"revision\":{...transport_sends:[11,3], close_attempts:2, parent_status:\"needs_input\"}}` | `7e025af` |\r\n| 5 | `python -m pytest -q -p no:cacheprovider tests/test_live_loopback_e2e.py` | 0 | **2 passed** in 7.52s | `7e025af` |\r\n| 6 | `python openspec/changes/travel-runtime-budget/evidence/reproduce_budget.py`（隔离临时 SQLite） | 0 | `transport_attempts=2, client_calls=2, persisted_count=2, exhaustion_reason=call_limit, failed/exhausted, oversent=false` —— 与 `docs/LIVE-AMAP.md:102` 修后列一致 | `7e025af` |\r\n| 7 | 临时探针（`%TEMP%\\verify-ttrb\\lrc04_zero_http_legacy.py`，**不入仓**，只读调用 app） | 0 | 零 HTTP LIVE run：`completed / budget.status=ok / tool_calls=0 / 无 exhaustion_reason / result 存在 / close 1`；旧形态 budget 经 GET 原样返回（无 el/无 reason，无补造） | `7e025af` |\r\n| 8 | `impl_route.py suite-scope --base 6a78560… --head 1aee907…` / `--base 1aee907… --head HEAD` | 0 / 0 | 见 §3.1 / §3.2 | — |\r\n\r\n## 5. `tasks.md` 逐条锚点核对（复选框不作为证据，逐条给锚点）\r\n\r\n| 任务 | 锚点 | 判定 |\r\n|---|---|---|\r\n| 1.1 预占与真实计数、移除事后差额记账 | `app/runtime.py:83-102`；`test_live_admission.py:139/431`、`test_live.py:217` | ✅ |\r\n| 1.2 POI/adcode/weather/hours/matrix 同准入 + 子证据回调 + 断批可定位 | `app/amap_tools.py:139-149,422-425,470`；`app/live.py:70-74,104-107`；`test_live_admission.py:98,159,183,198` | ✅ |\r\n| 1.3 adapter 运行绑定/正常 close、client 互斥与身份解绑、默认 factory 拥有 client | `app/amap_tools.py:70-131,247-272`；`app/main.py:170-171`；`test_live_admission.py:234,270,291,327,345,381,417` | ✅ |\r\n| 1.4 真 AmapAdapter+MockTransport 经 TestClient 覆盖创建/重放/耗尽 | `test_live_admission.py:58`、`test_live_cleanup_redaction.py:219`；`test_live.py:305` | ✅ |\r\n| 1.5 LIVE-AMAP 默认40/内部协议/复现数据 + 脚本不享 run 预算 | `docs/LIVE-AMAP.md:63-102,32,82`；`evidence/reproduce_budget.py` 实跑（§4 #6） | ✅ |\r\n| 2.1 factory 前单调起点 + 四类 timeout 取 min + 假时钟 | `app/runtime.py:44-57,83-102`；`test_live_deadline_cancel.py:314,343,436,464,497` | ✅ |\r\n| 2.2 晚到分类/保留计数与证据/不 str(exc)/新耗尽必填 | `app/live.py:270-305,347-361`；`test_live_deadline_cancel.py:522,543,561,580,593`；`test_live_cleanup_redaction.py:537,552` | ✅ |\r\n| 2.3 短探针、HTTP 不持 DB 事务、同步核心搬 threadpool、API 取消可达 | `app/store.py:228-234`；`app/main.py:240-241,318-321,375-407`；`test_live_deadline_cancel.py:648,732` | ✅ |\r\n| 2.4 取消确认/最终保存各自短事务归一 + barrier 并发 GET/重放 | `app/store.py:17-26,189-226,236-274`；`test_live_deadline_cancel.py:801,867` | ✅ |\r\n| 2.5 LIVE 时限/取消契约与 JSON 示例 | `docs/LIVE-AMAP.md:104-131` | ✅ |\r\n| 3.1 六类出口 + 借入 0 关闭 + close 幂等 | `test_live_cleanup_redaction.py:191,201,219,232,246,265,286,311`；`app/amap_tools.py:264-272` | ✅ |\r\n| 3.2 解绑/关闭异常继续其余清理 + 第7类 cleanup_failure + 敏感文本扫描 | `app/amap_tools.py:85-115,150-170`；`test_live_cleanup_redaction.py:332,350,383,399,435,478,500,537,552,574,599` | ✅ |\r\n| 3.3 跨切片全量回归真实命令/exit/count | §4 #1、#2（159 / 154，均 exit 0） | ✅ |\r\n| 3.4 隔离进程 loopback 烟测（真实适配器+MockTransport、不直写 DB、只连本地） | `scripts/live_loopback_e2e.py`；§4 #4、#5；`tests/test_live_loopback_e2e.py:18,69` | ✅ |\r\n| 3.5 README/LIVE-AMAP/验收记录互链 + 9 条需求证据/未满足 | `README.md:23-41`；`docs/LIVE-AMAP.md:3`；`docs/ACCEPTANCE.md:145-201`；`docs/TECH-STACK.md:20` | ✅（文档计数残行见 M1） |\r\n\r\n## 6. 缺口清单\r\n\r\n**核心功能缺口：无。** 以下 3 项如实登记；按派单口径均为 Minor（文档 / 可观测），不构成 FAIL。\r\n\r\n- **M1（Minor，文档计数自相矛盾）** `docs/ACCEPTANCE.md:168` 仍写「`93 passed … (14+13+23+23+19+1)`」、`:180` 仍写「计数构成：134 + 19 + 1」（=154），与同文件 `:147`/`:165` 已更新的 **159** 互斥；`docs/LIVE-AMAP.md:168` 同写 93（23/1 旧分项）。实测该 6 文件命令在 HEAD 为 **97 passed**（14+13+23+**26**+19+**2**，§4 #3），159 的正确分项见 `docs/TECH-STACK.md:20` 与 `docs/LIVE-AMAP.md:170`（134+19+1+5）。属代码审修复期只改了总数、漏改两处分项行。\r\n- **M2（Minor，文档状态陈旧，方向为保守低报）** `docs/ACCEPTANCE.md:155`（「独立代码审 **未做**」）、`:200`（未运行清单含「独立代码审」）、`docs/LIVE-AMAP.md:3`、`docs/TECH-STACK.md:5`、`docs/ARCHITECTURE.md:4` 均写「未做独立代码审」，但 `openspec/changes/travel-runtime-budget/code-review-report.md` 已落盘并通过（frontmatter `code_review: pass`，评审范围 `6a78560..74ab503`；对应提交 `74ab503`/`8ea871d`/`0b5ce45`/`2c1367b`）。未验证范围里的「真实高德/硬中断/断电恢复/未合并 main」仍为真，故只是状态字段过时，不构成虚假高报。\r\n- **M3（Minor，既有分类缺陷，已入 bug 池，非本 change 引入）**\r\n  - `B2`（OPEN/P2，`openspec/issues/open/bug/B2.md`）：`app/amap_tools.py:365-375` 的 `_city_adcode()` 把网络失败（含 timeout）折叠为 `None`，`weather()` `:379-381` 统一报 `provider_error`，该子请求的 timeout 分类丢失——与 LRC-02「普通单操作 timeout 仍保持原分类」在该子路径上不完全一致（尝试数仍正确计 1、不外呼）。属可观测分类精度，不阻塞 PASS。\r\n  - `B1`（provider 列表元素非 dict 时 `AttributeError` 逸出、未归 `TOOL_FORMAT_ERROR`）与 `B3`（`finalize` 写库异常时 run 可能停留 `queued`，幂等重放只回 queued）：均在代码审中判定为**既有/递延**（`code-review-report.md:54-56`），且 LRC-04 明文把保证限定在「正常可写数据库」、不扩展到崩溃/断电逐 HTTP 账本，故不计本 change 缺口。\r\n\r\n\u003e 说明：`tasks.md` 在本会话开始时是工作树未提交改动（16 处复选框 + 1 行状态）。本报告不以它作证据；随本报告提交，使锚写入时监视域无脏树。\r\n\r\n## 7. 未验证范围（如实保留，不因全绿外推）\r\n\r\n- **真实高德供应商**：未提供 Key、未联调；全部为 `httpx.MockTransport` + 合成 Key。真实 POI/天气/路线数据、配额/QPS、计费与效果未验证。\r\n- **硬中断 / 90 秒强制返回**：未验证。deadline 是协作式的（只在可观察边界停止新请求并拒绝晚结果），不撤回挂起的同步调用。\r\n- **断电 / 崩溃恢复 / 逐 HTTP 账本**：未验证（`B3` 另跟踪）。\r\n- **生产并发**：仅单进程 + Starlette 线程池 + 独立进程 loopback（`127.0.0.1`），不构成容量承诺。\r\n- **跨模型 outside-voice**：`code-review-report.md:65-71` 如实记为 `host-unknown`、未运行；本 verify 亦未运行跨模型复核（宿主限制）。\r\n- **分支状态**：`feat/travel-runtime-budget`，未 push、未 merge、未 archive；`main` 仍为 `6a78560`。\r\n\r\n## 8. 结论\r\n\r\n- LRC-01..09 九条需求全部有**可机验锚点**（pytest 用例名 + 实跑命令 exit/计数 + 代码 `文件:行`），覆盖 spec 全部 Scenario；核心功能无缺口。\r\n- 聚合收尾票复核：报告 §0 的 suite-scope JSON 与本次重跑规范化后**逐字相等**（差异仅为 3 项运行时刻未跟踪输入文件，属工作树/提交范围模式 + 落盘时序）；§2 通过行（154 / 2 场景 / 1 包装）与 SHA 一致，重跑可复现；修复后 `--base 1aee907 --head HEAD` 为 `mapping=31` 非空、`layers={}` ⇒ **命中域无自动测试层，未触发重跑**（不判缺口）。\r\n- 全量回归在当前 HEAD **159 passed / exit 0**；`1aee907` 干净 worktree **154 passed / exit 0**；独立进程 loopback `E2E_OK`。\r\n- 3 项 Minor（M1 文档计数残行、M2 代码审状态陈旧、M3 既有分类缺陷已入池）已列明，均不阻塞归档。\r\n- **判定：PASS。**\r\n"},{"label":"code-review-report","path":"../code-review-report.md","text":"---\r\nship-gate:\r\n  code_review: pass\r\n  reviewed_sha: a75cf20b74ae6f1f910bf4fe16cd6028766a439b1071735c9f423b08a11535e8\r\n  reviewed_manifest: MTAwNjQ0IGJsb2IgYmYzNjg3ZWIwZGYzYjE1MjgzMDc5YWViOWE4ZWM2ZGY4NzE3MjEyYQkuZW52LmV4YW1wbGUAMTAwNjQ0IGJsb2IgYTc1YWMxOGQ5NzFjZjZkZDhjNzE5Y2NjOWY0MGJmYzMyNDg5N2RmMgkuZ2l0aWdub3JlADEwMDY0NCBibG9iIGE4ZWJkYTlhNjliMTkwMTJjZjU4ZDg5ZjVlMWQzM2U4MGViNTg2OTQJQUdFTlRTLm1kADEwMDY0NCBibG9iIGVlNzk2OWNiMmE2NTQ3OTE4ZDU4NTVhMTQzYzUyOWU2ZWU5N2E0MmQJQ0xBVURFLm1kADEwMDY0NCBibG9iIGVhYjNkYzg5OTM2M2EyMGQ0YjRhMGFhZTExY2U5ZTcwMzNkOTNiNTIJUkVBRE1FLm1kADA0MDAwMCB0cmVlIDRjNTQwNTg1NGFhZGVlZTFjNGIzZTE2NmJiMDI0M2E4ZjFiNzRkNWUJYXBwADA0MDAwMCB0cmVlIDEyNmYyNDkyMWVkYzJkYjRkOGZlMGU1Y2RjODlkN2FiODI0NWZjM2UJZG9jcwAwNDAwMDAgdHJlZSA4ZTQ3OWU2Yjc2NjA3M2MwNGQwYTA0ZDY0MGMxYjhkYzhjM2VkMzNhCWZpeHR1cmVzADEwMDY0NCBibG9iIDMzMjUzZTk3MTBkMTM0Y2M5OTE3MmE3YmU5MDAxNjE4YmFkYWVhNGYJcHl0ZXN0LmluaQAxMDA2NDQgYmxvYiA4MzRiZTY5YTUxMTExOTEyNTRjMDIxNzM1ZmZiZDkwMGRmNzQ4NWVjCXJlcXVpcmVtZW50cy1kZXYudHh0ADEwMDY0NCBibG9iIGM0M2Y3YzNjYWNlYjg4MjZjMzQ0NzM5NGJjZTA2YTk4NDVmN2M1ZDgJcmVxdWlyZW1lbnRzLnR4dAAxMDA2NDQgYmxvYiBiZTlmNWVmNmVkZmMxYWQwZDk3YTliNzMwNmQyODdjMjhhMTg0ZGYxCXJ1bi5weQAwNDAwMDAgdHJlZSA4YWQzNzNjNWExYzI1NjViNDJiZmZiMDQzYTdmNTk1MDhjZGJlM2YxCXNjcmlwdHMAMDQwMDAwIHRyZWUgNTQ1ZDYwMjI5MWExMmIzMTJkMDI4NTUyYjZlNjdjMjg0Y2IxN2IxYgl0YXNrcwAwNDAwMDAgdHJlZSAwNWY4NjRmMmEyNzM4N2U4ZWJkMWU5NGRlYzg1ZGEzYThiNDE5YWMzCXRlc3RzADA0MDAwMCB0cmVlIGRkNzRlMDg4ZTY0MzNiYjZkYTk4MDgzNDJjYTY5OTU2NDQ2ODNkN2QJd2Vi\r\n---\r\n# code-review 报告 — travel-runtime-budget\r\n\r\n\u003e 调用方：ship（gate RUN_CODE_REVIEW）。评审范围 `6a785607e4bdb52e6c1af95e7b7b585d1b5d035b..74ab503`（含代码审自动修复）。\r\n\u003e 本报告正文手写；头部 frontmatter 由 `anchor_writeback.py` 权威写入。\r\n\r\n## 命中范围\r\n\r\n- 栈：Python 3.12 / FastAPI / SQLite；清单：`code-review-base.md` 全部 CR-01..CR-12 + backend delta。\r\n- Step1 自持 scope 审计（`impl-reports/cr-scope.json`）：15 项任务 **14 DONE / 1 CHANGED**（1.3 的 CountingAdapter 被删除、fake 改为逐 HTTP reserve，契约意图满足），无 NOT DONE、无 UNVERIFIABLE 阻塞项；切片偏离与 `planning-decisions.md` 一致，无静默偏离。\r\n\r\n\u003c!-- sdflow:step1-broad-review v1 mode=\"subagent\" --\u003e\r\n- 镜集合：领域镜 1、对抗镜 3（并发/资源/错误路径）、历史镜按条件跳过（无 rename、无 ≥200 行既有文件改动）、Step1 scope 审计 1。\r\n- `trivial_shape`：NOT_EXEMPT（有逻辑面），故全量 fan-out。\r\n\r\n### 子代理能力锚\r\n\r\n\u003c!-- sdflow:fanout-capability v1 host=\"unknown\" subagents=\"available\" mirrors=\"domain,adversarial,broad\" --\u003e\r\n\r\nhost 仍为 `unknown`（resolver 判不出原生宿主）；本轮按**真人已批准的 T11-only DSH 阶段三适配**用 DSH 子代理完成上述镜，未伪造原生 claude/codex 信号。`mirrors` 只列实际独立完成的镜；历史镜未派（条件未命中）。\r\n\r\n## Findings（已采纳）\r\n\r\n- [已修] SCOPE-DOC-01 文档事实 | `docs/TECH-STACK.md:5`、`docs/ARCHITECTURE.md:4` | 仍写“T11 半成品在 git stash”，与已提交的 T11 票 1–4 矛盾 | 置信 95 | 已改为票级双轴通过、未独立代码审、未合并。\r\n- [已修] CRD-02 CR-01/CR-02 | `app/main.py:382` | `Store.cancel_run` 的 `missing` 未处理，会 200 + 旧快照 + 写 CANCELLED 事件 | 置信 90 | 改为 404 `RUN_NOT_FOUND`，写事件前抛出；补测试。\r\n- [已修] CRD-03 CR-11/CR-01 | `app/runtime.py:98` | 配置 operation timeout ≤0 被持久化成 deadline 耗尽 | 置信 72 | 改抛 `RuntimeControlError(\"INVALID_OPERATION_TIMEOUT\")`，不计数、不发送、不写 exhaustion_reason；补 0/-1 与 API 测试。\r\n- [已修] CRD-04 CR-04/CR-09 | `scripts/live_loopback_e2e.py:198` | 握手 deadline 只在阻塞 `readline` 之后判断，子进程卡住会永久挂起；stderr 管道未 drain | 置信 88 | 改读线程 + queue 超时、stderr daemon drain、失败 kill；补确定性测试。\r\n- [已修] CRD-05 CR-09/CR-04 | `scripts/live_loopback_e2e.py:456` | `data/` 不存在时 `mkdtemp` 抛裸 `FileNotFoundError`，绕过 `E2E_FAILED` | 置信 92 | 先 `mkdir`，失败统一 `E2E_FAILED` + exit 1；新副本实测 E2E_OK。\r\n- [已修] CRF2-01 文档计数 | 项目 README/TECH-STACK/LIVE-AMAP/ACCEPTANCE | 修复后实际 159，文档仍写 154 | 置信 95 | 已同步为 159（62 replay + 14 + 13 + 23 + 26 + 19 + 2 loopback）。\r\n- [递延] CRD-01 CR-01/CR-02 | `app/live.py:359` | finalize 写在 finally 内，存储异常时 run 可能停留 `queued`，幂等重放只回 queued | 置信 90 | 归 T12 原子保存；入池 B3，不在本 change 临时改事务边界。\r\n\r\n## 已裁掉\r\n\r\n- X1 资源镜 5 条 dismissed：基类不可达的 owned_binding 分支、绑定态 `AmapClient.close()` 无仓内调用、失败 bind 不 close 属 adapter 语义、close 抛 BaseException 与 lifespan 未关 store 均超本 change 范围；主审同意不构成本 change 缺陷。\r\n- X2 并发镜 5 条 dismissed：threadpool 40 容量已声明不承诺、cancel/finalize 串行化、bind/close/dispatch、探针与写事务、两次短读偏斜；主审同意均已在设计/文档声明或不可证伪。\r\n- X3 领域镜 5 条 dismissed：未绑定 runtime 的脚本回退、test_live 预算口径重写非削弱、`_record` 不计预算、取消响应字段、残留 BUDGET_EXHAUSTED issue；主审同意。\r\n- X4 错误路径镜 5 条 dismissed：探针异常、HTTPError 脱敏、provider.info、finalize 写库失败、取消确认快照；主审同意。\r\n\r\n## 需人工复核\r\n\r\n无（未出现无法接地的拒判项）。\r\n\r\n## 修复 / defer 台账\r\n\r\n自动修 6 项（SCOPE-DOC-01、CRD-02..05、CRF2-01）[impl-review-fix]；自动选推荐 0 项；本轮新增待处理 3 项（B1/B2 既有、B3 递延），均已由 recorder 确认 `source_change=travel-runtime-budget`。\r\n\r\n| id | 池 | 摘要 | critique（裁决理由） |\r\n|---|---|---|---|\r\n| B1 | bug | 既有问题：provider 列表元素非 dict 时 AttributeError 逸出，未归 TOOL_FORMAT_ERROR | base 6a78560 已存在，不在本 change diff；入池不在本票扩修 |\r\n| B2 | bug | 既有问题：adcode 查询失败统一报 provider_error，timeout 分类丢失 | 同上；poi_lookup 已保留 TOOL_TIMEOUT，本 change 未改该路径 |\r\n| B3 | bug | LIVE finalize 失败时 run 可能停留 queued，需 T12 原子保存处理 | 修复需改事务边界，超出本 change；如实递延不在本票硬塞 |\r\n\r\n## 既有问题\r\n\r\n| id | 池 | 摘要 | 说明 |\r\n|---|---|---|---|\r\n| B1 | bug | 既有问题：provider 列表元素非 dict 时 AttributeError 逸出，未归 TOOL_FORMAT_ERROR | 所在行不在本 change 改动行内；错误路径镜以 TEMP 副本复现 |\r\n| B2 | bug | 既有问题：adcode 查询失败统一报 provider_error，timeout 分类丢失 | 同上；本 change 脱敏只改文案，不改分类 |\r\n\r\n## outside-voice\r\n\r\n\u003c!-- sdflow:hr-tg v1 hit=\"none\" declared=\"\" --\u003e\r\n\u003c!-- sdflow:declared-sites v1 declared=\"code-voice\" --\u003e\r\n\u003c!-- sdflow:outside-voice v1 site=\"code-voice\" guard=\"none\" host=\"unknown\" runner=\"none\" reason_code=\"host-unknown\" findings=\"0\" truncated=\"false\" --\u003e\r\n\r\n跨模型第二意见未运行：本会话的子代理被限制在父级路由，无法显式选择独立模型；同族子代理不构成跨模型 voice，故如实记 `host-unknown`，不以同族冒充。该缺口由领域镜 + 3 个对抗镜 + Step1 覆盖；不代表已获得跨模型复核。\r\n\r\n## 结论\r\n\r\n☑ 建议进 `/sdflow-done`（代码审通过；B1/B2 既有、B3 递延已入池；真实高德/生产并发/硬中断/灾备仍未验）。\r\n"}]</script>
+<script type="application/json" id="sdflow-saved-notes">[]</script>
+<script type="application/json" id="sdflow-dispositions">{}</script>
+<script type="application/json" id="sdflow-revisions">{"v":1,"page":"shipped.html","revisions":[{"n":1,"at":"2026-11-13T18:36:29+08:00","event":"首次生成","docs":{"hand-off":{"path":null,"sha256":"bf6712db82ed22d701029765523b7a4c386d24e2b80728c45d7f5d598d1d942e"},"verify-report":{"path":null,"sha256":"6b870acc45d13bbcee9feaade83f04d9f90128090c666dbd41bad4b79a33cede"},"code-review-report":{"path":null,"sha256":"278be36e1a067a79f9abe71e66acf99f91d94ead58d6a0f0cccee28dceb7f983"}},"notes":0,"dispositions":0,"changed":[],"fp":"abb3da3460e081791ed8b2f4a3a6f747214202a1fe2bc3020083a53c9ab16f2e"}]}</script>
+<script id="sdflow-marked">/**
+ * marked v18.1.1 - a markdown parser
+ * Copyright (c) 2018-2026, MarkedJS. (MIT License)
+ * Copyright (c) 2011-2018, Christopher Jeffrey. (MIT License)
+ * https://github.com/markedjs/marked
+ */
+
+/**
+ * DO NOT EDIT THIS FILE
+ * The code in this file is generated from files in ./src/
+ */
+(function(g,f){if(typeof exports=="object"&&typeof module<"u"){module.exports=f()}else if("function"==typeof define && define.amd){define("marked",f)}else {g["marked"]=f()}}(typeof globalThis < "u" ? globalThis : typeof self < "u" ? self : this,function(){var exports={};var __exports=exports;var module={exports};
+"use strict";var V=Object.defineProperty;var Me=Object.getOwnPropertyDescriptor;var Ce=Object.getOwnPropertyNames;var Ie=Object.prototype.hasOwnProperty;var Be=(a,e)=>{for(var t in e)V(a,t,{get:e[t],enumerable:!0})},De=(a,e,t,n)=>{if(e&&typeof e=="object"||typeof e=="function")for(let i of Ce(e))!Ie.call(a,i)&&i!==t&&V(a,i,{get:()=>e[i],enumerable:!(n=Me(e,i))||n.enumerable});return a};var qe=a=>De(V({},"__esModule",{value:!0}),a);var jt={};Be(jt,{Hooks:()=>$,Lexer:()=>T,Marked:()=>H,Parser:()=>O,Renderer:()=>_,TextRenderer:()=>A,Tokenizer:()=>S,defaults:()=>w,getDefaults:()=>M,lexer:()=>Qt,marked:()=>g,options:()=>qt,parse:()=>Gt,parseInline:()=>Ht,parser:()=>Nt,setOptions:()=>Zt,use:()=>Le,walkTokens:()=>vt});module.exports=qe(jt);function M(){return{async:!1,breaks:!1,extensions:null,gfm:!0,hooks:null,pedantic:!1,renderer:null,silent:!1,tokenizer:null,walkTokens:null}}var w=M();function J(a){w=a}var C={exec:()=>null};function D(a){let e=[];return t=>{let n=Math.max(0,Math.min(3,t-1)),i=e[n];return i||(i=a(n),e[n]=i),i}}function h(a,e=""){let t=typeof a=="string"?a:a.source,n={replace:(i,r)=>{let o=typeof r=="string"?r:r.source;return o=o.replace(x.caret,"$1"),t=t.replace(i,o),n},getRegex:()=>new RegExp(t,e)};return n}var Ze=((a="")=>{try{return!!new RegExp("(?<=1)(?<!1)"+a)}catch{return!1}})(),x={codeRemoveIndent:/^(?: {0,3}\t| {1,4})/gm,outputLinkReplace:/\\([\[\]])/g,indentCodeCompensation:/^(\s+)(?:```)/,beginningSpace:/^\s+/,endingHash:/#$/,startingSpaceChar:/^ /,endingSpaceChar:/ $/,endingSpaceTabChar:/[ \t]$/,nonSpaceChar:/[^ ]/,newLineCharGlobal:/\n/g,tabCharGlobal:/\t/g,leadingSpaceTab:/^[ \t]+/,multipleSpaceGlobal:/\s+/g,blankLine:/^[ \t]*$/,doubleBlankLine:/\n[ \t]*\n[ \t]*$/,blockquoteStart:/^ {0,3}>/,blockquoteSetextReplace:/\n {0,3}((?:=+|-+) *)(?=\n|$)/g,blockquoteSetextReplace2:/^ {0,3}>[ \t]?/gm,listReplaceNesting:/^ {1,4}(?=( {4})*[^ ])/g,listIsTask:/^\[[ xX]\] +\S/,listReplaceTask:/^\[[ xX]\] +/,listTaskCheckbox:/\[[ xX]\]/,anyLine:/\n.*\n/,hrefBrackets:/^<(.*)>$/,tableDelimiter:/[:|]/,tableAlignChars:/^\||\| *$/g,tableRowBlankLine:/\n[ \t]*$/,tableAlignRight:/^ *-+: *$/,tableAlignCenter:/^ *:-+: *$/,tableAlignLeft:/^ *:-+ *$/,startATag:/^<a /i,endATag:/^<\/a>/i,startPreScriptTag:/^<(pre|code|kbd|script)(\s|>)/i,endPreScriptTag:/^<\/(pre|code|kbd|script)(\s|>)/i,startAngleBracket:/^</,endAngleBracket:/>$/,pedanticHrefTitle:/^([^'"]*[^\s])\s+(['"])(.*)\2/,unicodeAlphaNumeric:/[\p{L}\p{N}]/u,numericCharacterReference:/&#(?:(\d{1,7})|[Xx]([A-Fa-f0-9]{1,6}));/,numericCharacterReferenceOrAmpersand:/&#(?:(\d{1,7})|[Xx]([A-Fa-f0-9]{1,6}));|&(?!(#\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\w+);)/g,escapeTest:/[&<>"']/,escapeReplace:/[&<>"']/g,escapeTestNoEncode:/[<>"']|&(?!(#\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\w+);)/,escapeReplaceNoEncode:/[<>"']|&(?!(#\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\w+);)/g,caret:/(^|[^\[])\^/g,percentDecode:/%25/g,findPipe:/\|/g,splitPipe:/ \|/,slashPipe:/\\\|/g,carriageReturn:/\r\n|\r/g,spaceLine:/^ +$/gm,notSpaceStart:/^\S*/,endingNewline:/\n$/,listItemRegex:a=>new RegExp(`^( {0,3}${a})((?:[	 ][^\\n]*)?(?:\\n|$))`),nextBulletRegex:D(a=>new RegExp(`^ {0,${a}}(?:[*+-]|\\d{1,9}[.)])((?:[ 	][^\\n]*)?(?:\\n|$))`)),hrRegex:D(a=>new RegExp(`^ {0,${a}}((?:-[ 	]*){3,}|(?:_[ 	]*){3,}|(?:\\*[ 	]*){3,})(?:\\n+|$)`)),fencesBeginRegex:D(a=>new RegExp(`^ {0,${a}}(?:\`\`\`|~~~)`)),headingBeginRegex:D(a=>new RegExp(`^ {0,${a}}#`)),htmlBeginRegex:D(a=>new RegExp(`^ {0,${a}}(?:</?(?:${j})(?: +|$|/?>)|<(?:(?:script|pre|style|textarea)(?:[\\s>]|$)|!--)|<\\?|<![A-Za-z]|<!\\[CDATA\\[)`,"i")),blockquoteBeginRegex:D(a=>new RegExp(`^ {0,${a}}>`))},ve=/^(?:[ \t]*(?:\n|$))+/,He=/^((?: {4}| {0,3}\t)[^\n]+(?:\n(?:[ \t]*(?:\n|$))*)?)+/,Ge=/^ {0,3}(`{3,}(?=[^`\n]*(?:\n|$))|~{3,})([^\n]*)(?:\n|$)(?:|([\s\S]*?)(?:\n|$))(?: {0,3}\1[~`]* *(?=\n|$)|$)/,Q=/^ {0,3}((?:-[\t ]*){3,}|(?:_[ \t]*){3,}|(?:\*[ \t]*){3,})(?:\n+|$)/,Ne=/^ {0,3}(#{1,6})(?=\s|$)(.*)(?:\n+|$)/,ee=/ {0,3}(?:[*+-]|\d{1,9}[.)])/,me=/^(?!bull |blockCode|fences|blockquote|heading|html|table)((?:.|\n(?!\s*?\n|bull |fences|blockquote|heading|hr|html|table))+?)\n {0,3}(=+|-+) *(?:\n+|$)/,xe=h(me).replace(/bull/g,ee).replace(/blockCode/g,/(?: {4}| {0,3}\t)/).replace(/fences/g,/ {0,3}(?:`{3,}|~{3,})/).replace(/blockquote/g,/ {0,3}>/).replace(/heading/g,/ {0,3}#{1,6}(?:\s|$)/).replace(/hr/g,/ {0,3}(?:(?:-[\t ]*){3,}|(?:_[ \t]*){3,}|(?:\*[ \t]*){3,})(?:\n+|$)/).replace(/html/g,/ {0,3}<[^\n>]+>\n/).replace(/\|table/g,"").getRegex(),Qe=h(me).replace(/bull/g,ee).replace(/blockCode/g,/(?: {4}| {0,3}\t)/).replace(/fences/g,/ {0,3}(?:`{3,}|~{3,})/).replace(/blockquote/g,/ {0,3}>/).replace(/heading/g,/ {0,3}#{1,6}(?:\s|$)/).replace(/hr/g,/ {0,3}(?:(?:-[\t ]*){3,}|(?:_[ \t]*){3,}|(?:\*[ \t]*){3,})(?:\n+|$)/).replace(/html/g,/ {0,3}<[^\n>]+>\n/).replace(/table/g,/ {0,3}\|?(?:[:\- ]*\|)+[\:\- ]*\n/).getRegex(),te=/^([^\n]+(?:\n(?!hr|heading|lheading|blockquote|fences|list|html|table|[ \t]+\n)[^\n]+)*)/,je=/^[^\n]+/,ne=/(?!\s*\])(?:\\[\s\S]|[^\[\]\\])+/,Fe=h(/^ {0,3}\[(label)\]: *(?:\n[ \t]*)?([^<\s][^\s]*|<.*?>)(?:(?: +(?:\n[ \t]*)?| *\n[ \t]*)(title))? *(?:\n+|$)/).replace("label",ne).replace("title",/(?:"(?:\\"?|[^"\\])*"|'[^'\n]*(?:\n[^'\n]+)*\n?'|\([^()]*\))/).getRegex(),Ue=h(/^(bull)([ \t][^\n]*?)?(?:\n|$)/).replace(/bull/g,ee).getRegex(),j="address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul",re=/<!--(?:-?>|[\s\S]*?(?:-->|$))/,Ke=h("^ {0,3}(?:<(script|pre|style|textarea)[\\s>][\\s\\S]*?(?:</\\1>[^\\n]*\\n*|$)|comment[^\\n]*(\\n+|$)|<\\?[\\s\\S]*?(?:\\?>[^\\n]*\\n*|$)|<![A-Z][\\s\\S]*?(?:>[^\\n]*\\n*|$)|<!\\[CDATA\\[[\\s\\S]*?(?:\\]\\]>[^\\n]*\\n*|$)|</?(tag)(?: +|\\n|/?>)[\\s\\S]*?(?:(?:\\n[ 	]*)+\\n|$)|<(?!(?:script|pre|style|textarea)(?![a-z0-9-]))([a-z][a-z0-9-]*)(?:attribute)*? */?>(?=[ \\t]*(?:\\n|$))[\\s\\S]*?(?:(?:\\n[ 	]*)+\\n|$)|</[a-z][a-z0-9-]*\\s*>(?=[ \\t]*(?:\\n|$))[\\s\\S]*?(?:(?:\\n[ 	]*)+\\n|$))","i").replace("comment",re).replace("tag",j).replace("attribute",/ +[a-zA-Z:_][\w.:-]*(?: *= *"[^"\n]*"| *= *'[^'\n]*'| *= *[^\s"'=<>`]+)?/).getRegex(),be=a=>h(te).replace("hr",Q).replace("heading"," {0,3}#{1,6}(?:\\s|$)").replace("|lheading","").replace("|table","").replace("blockquote"," {0,3}>").replace("fences"," {0,3}(?:`{3,}(?=[^`\\n]*(?:\\n|$))|~~~)[^\\n]*(?:\\n|$)").replace("list",a).replace("html"," {0,3}(?:</?(?:tag)(?: +|\\n|/?>)|<(?:(?:script|pre|style|textarea)(?:[\\s>]|$)|!--)|<\\?|<![A-Za-z]|<!\\[CDATA\\[)").replace("tag",j).getRegex(),Xe=be(/ {0,3}(?:[*+-]|1[.)])[ \t]+[^ \t\n]/),We=be(/ {0,3}(?:[*+-]|\d{1,9}[.)])(?:[ \t]|\n|$)/),Ve=h(/^( {0,3}> ?(paragraph|[^\n]*)(?:\n|$))+/).replace("paragraph",We).getRegex(),se={blockquote:Ve,code:He,def:Fe,fences:Ge,heading:Ne,hr:Q,html:Ke,lheading:xe,list:Ue,newline:ve,paragraph:Xe,table:C,text:je},ke=h("^ *([^\\n ].*)\\n {0,3}((?:\\| *)?:?-+:? *(?:\\| *:?-+:? *)*(?:\\| *)?)(?:\\n((?:(?! *\\n|hr|heading|blockquote|code|fences|list|html).*(?:\\n|$))*)\\n*|$)").replace("hr",Q).replace("heading"," {0,3}#{1,6}(?:\\s|$)").replace("blockquote"," {0,3}>").replace("code","(?: {4}| {0,3}	)[^\\n]").replace("fences"," {0,3}(?:`{3,}(?=[^`\\n]*(?:\\n|$))|~~~)[^\\n]*(?:\\n|$)").replace("list"," {0,3}(?:[*+-]|1[.)])[ \\t]").replace("html"," {0,3}(?:</?(?:tag)(?: +|\\n|/?>)|<(?:(?:script|pre|style|textarea)(?:[\\s>]|$)|!--)|<\\?|<![A-Za-z]|<!\\[CDATA\\[)").replace("tag",j).getRegex(),Je={...se,lheading:Qe,table:ke,paragraph:h(te).replace("hr",Q).replace("heading"," {0,3}#{1,6}(?:\\s|$)").replace("|lheading","").replace("table",ke).replace("blockquote"," {0,3}>").replace("fences"," {0,3}(?:`{3,}(?=[^`\\n]*(?:\\n|$))|~~~)[^\\n]*(?:\\n|$)").replace("list"," {0,3}(?:[*+-]|1[.)])[ \\t]+[^ \\t\\n]").replace("html"," {0,3}(?:</?(?:tag)(?: +|\\n|/?>)|<(?:(?:script|pre|style|textarea)(?:[\\s>]|$)|!--)|<\\?|<![A-Za-z]|<!\\[CDATA\\[)").replace("tag",j).getRegex()},Ye={...se,html:h(`^ *(?:comment *(?:\\n|\\s*$)|<(tag)[\\s\\S]+?</\\1> *(?:\\n{2,}|\\s*$)|<tag(?:"[^"]*"|'[^']*'|\\s[^'"/>\\s]*)*?/?> *(?:\\n{2,}|\\s*$))`).replace("comment",re).replace(/tag/g,"(?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\b)\\w+(?!:|[^\\w\\s@]*@)\\b").getRegex(),def:/^ *\[([^\]]+)\]: *<?([^\s>]+)>?(?: +(["(][^\n]+[")]))? *(?:\n+|$)/,heading:/^(#{1,6})(.*)(?:\n+|$)/,fences:C,lheading:/^(.+?)\n {0,3}(=+|-+) *(?:\n+|$)/,paragraph:h(te).replace("hr",Q).replace("heading",` *#{1,6} *[^
+]`).replace("lheading",xe).replace("|table","").replace("blockquote"," {0,3}>").replace("|fences","").replace("|list","").replace("|html","").replace("|tag","").getRegex()},et=/^\\([!"#$%&'()*+,\-./:;<=>?@\[\]\\^_`{|}~])/,tt=/^(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)/,Re=/^( {2,}|\\)\n(?!\s*$)[ \t]*/,nt=/^(`+|[^`])(?:(?= {2,}\n)|[\s\S]*?(?:(?=[\\<!\[`*_]|\b_|$)|[^ ](?= {2,}\n)))/,L=/[\p{P}\p{S}]/u,q=/[\s\p{P}\p{S}]/u,F=/[^\s\p{P}\p{S}]/u,rt=h(/^((?![*_])punctSpace)/,"u").replace(/punctSpace/g,q).getRegex(),st=/[\p{Pi}\p{Ps}"']/u,Te=/(?!~)[\p{P}\p{S}]/u,it=/(?!~)[\s\p{P}\p{S}]/u,ot=/(?:[^\s\p{P}\p{S}]|~)/u,at=h(/link|precode-code|html/,"g").replace("link",/\[(?:[^\[\]`]|(?<a>`+)[^`]+\k<a>(?!`))*?\]\((?:\\[\s\S]|[^\\\(\)]|\((?:\\[\s\S]|[^\\\(\)])*\))*\)/).replace("precode-",Ze?"(?<!`)()":"(^^|[^`])").replace("code",/(?<b>`+)[^`]+\k<b>(?!`)/).replace("html",/<(?! )[^<>]*?>/).getRegex(),Oe=/^(?:\*+(?:((?!\*)punct)|([^\s*]))?)|^_+(?:((?!_)punct)|([^\s_]))?/,lt=h(Oe,"u").replace(/punct/g,L).getRegex(),ut=h(Oe,"u").replace(/punct/g,Te).getRegex(),pt=/^(?:\*+(?:((?!\*)(?!openQuote)punct)|([^\s*]))?)|^_+(?:((?!_)(?!openQuote)punct)|([^\s_]))?/,ct=h(pt,"u").replace(/openQuote/g,st).replace(/punct/g,L).getRegex(),we="^[^_*]*?__[^_*]*?\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\*)punct(\\*+)(?=[\\s]|$)|notPunctSpace(\\*+)(?!\\*)(?=punctSpace|$)|(?!\\*)punctSpace(\\*+)(?=notPunctSpace)|[\\s](\\*+)(?!\\*)(?=punct)|(?!\\*)punct(\\*+)(?!\\*)(?=punct)|notPunctSpace(\\*+)(?=notPunctSpace)",ht=h(we,"gu").replace(/notPunctSpace/g,F).replace(/punctSpace/g,q).replace(/punct/g,L).getRegex(),dt=h(we,"gu").replace(/notPunctSpace/g,ot).replace(/punctSpace/g,it).replace(/punct/g,Te).getRegex(),kt="^[^_*]*?__[^_*]*?\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\*)punct(\\*+)(?=[\\s]|$)|notPunctSpace(\\*+)(?!\\*)(?=punctSpace|$)|(?!\\*)[\\s](\\*+)(?=notPunctSpace)|[\\s](\\*+)(?!\\*)(?=punct)|(?!\\*)punct(\\*+)(?!\\*)(?=punct)|(?:(?!\\*)punct|notPunctSpace)(\\*+)(?!\\*)(?=notPunctSpace)",gt=h(kt,"gu").replace(/notPunctSpace/g,F).replace(/punctSpace/g,q).replace(/punct/g,L).getRegex(),ft=h("^[^_*]*?\\*\\*[^_*]*?_[^_*]*?(?=\\*\\*)|[^_]+(?=[^_])|(?!_)punct(_+)(?=[\\s]|$)|notPunctSpace(_+)(?!_)(?=punctSpace|$)|(?!_)punctSpace(_+)(?=notPunctSpace)|[\\s](_+)(?!_)(?=punct)|(?!_)punct(_+)(?!_)(?=punct)","gu").replace(/notPunctSpace/g,F).replace(/punctSpace/g,q).replace(/punct/g,L).getRegex(),mt="^[^_*]*?\\*\\*[^_*]*?_[^_*]*?(?=\\*\\*)|[^_]+(?=[^_])|(?!_)punct(_+)(?=[\\s]|$)|notPunctSpace(_+)(?!_)(?=punctSpace|$)|(?!_)[\\s](_+)(?=notPunctSpace)|[\\s](_+)(?!_)(?=punct)|(?!_)punct(_+)(?!_)(?=punct)|(?:(?!_)punct|notPunctSpace)(_+)(?!_)(?=notPunctSpace)",xt=h(mt,"gu").replace(/notPunctSpace/g,F).replace(/punctSpace/g,q).replace(/punct/g,L).getRegex(),bt=h(/^~~?(?:((?!~)punct)|[^\s~])/,"u").replace(/punct/g,L).getRegex(),Rt="^[^~]+(?=[^~])|(?!~)punct(~~?)(?=[\\s]|$)|notPunctSpace(~~?)(?!~)(?=punctSpace|$)|(?!~)punctSpace(~~?)(?=notPunctSpace)|[\\s](~~?)(?!~)(?=punct)|(?!~)punct(~~?)(?!~)(?=punct)|notPunctSpace(~~?)(?=notPunctSpace)",Tt=h(Rt,"gu").replace(/notPunctSpace/g,F).replace(/punctSpace/g,q).replace(/punct/g,L).getRegex(),Ot=h(/\\(punct)/,"gu").replace(/punct/g,L).getRegex(),wt=h(/(`+)(?:[^`]|[^`][\s\S]*?[^`])\1(?!`)|`+|\\(punct)/,"gu").replace(/punct/g,L).getRegex(),Pt=h(/^<(scheme:[^\s\x00-\x1f<>]*|email)>/).replace("scheme",/[a-zA-Z][a-zA-Z0-9+.-]{1,31}/).replace("email",/[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+(@)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(?![-_])/).getRegex(),yt=h(re).replace("(?:-->|$)","-->").getRegex(),St=h("^comment|^</[a-zA-Z][a-zA-Z0-9-]*\\s*>|^<[a-zA-Z][a-zA-Z0-9-]*(?:attribute)*?\\s*/?>|^<\\?[\\s\\S]*?\\?>|^<![a-zA-Z]+\\s[\\s\\S]*?>|^<!\\[CDATA\\[[\\s\\S]*?\\]\\]>").replace("comment",yt).replace("attribute",/\s+[a-zA-Z:_][\w.:-]*(?:\s*=\s*"[^"]*"|\s*=\s*'[^']*'|\s*=\s*[^\s"'=<>`]+)?/).getRegex(),Pe=/\[(?:\\[\s\S]|[^\[\]\\])*\]/,K=h(/(?:\[(?:brackets|\\[\s\S]|[^\[\]\\])*\]|\\[\s\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\])|[^\[\]\\`])*?/).replace("brackets",Pe).getRegex(),_t=h(/^!?\[(label)\]\([ \t\n]*(href)(?:(?:[ \t]+(?:\n[ \t]*)?|\n[ \t]*)(title))?[ \t\n]*\)/).replace("label",K).replace("href",/<(?:\\.|[^\n<>\\])+>|[^ \t\n\x00-\x1f]+|(?=\))/).replace("title",/"(?:\\"?|[^"\\])*"|'(?:\\'?|[^'\\])*'|\((?:\\\)?|[^)\\])*\)/).getRegex(),$t=h(/^!?\[(label)\]\[(ref)\]/).replace("label",K).replace("ref",ne).getRegex(),Lt=h(/^!?\[(ref)\](?:\[\])?/).replace("ref",ne).getRegex(),ge=/(?!\s*\])(?:\\[\s\S]|[^\[\]\\]){1,999}/,At=h(/(?:[^\[\]\\`]*(?:\[(?:brackets|\\[\s\S]|[^\[\]\\])*\]|\\[\s\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\]))){0,999}?[^\[\]\\`]*?/).replace("brackets",Pe).getRegex(),zt=h("reflink|nolink(?!\\()","g").replace("reflink",h(/^!?\[(label)\]\[(ref)\]/).replace("label",At).replace("ref",ge).getRegex()).replace("nolink",h(/^!?\[(ref)\](?:\[\])?/).replace("ref",ge).getRegex()).getRegex(),fe=/[hH][tT][tT][pP][sS]?|[fF][tT][pP]/,Et=/[A-Za-z0-9._+-]+@[a-zA-Z0-9-_]+(?:\.[a-zA-Z0-9-_]*[a-zA-Z0-9])+(?![\w-])/,Mt=h(/(?:mailto:email|xmpp:email(?:\/[A-Za-z0-9@.]+)?)/).replace(/email/g,Et).getRegex(),ie={_backpedal:C,anyPunctuation:Ot,anyPunctuationOutsideCode:wt,autolink:Pt,blockSkip:at,br:Re,code:tt,del:C,delLDelim:C,delRDelim:C,emStrongLDelim:lt,emStrongRDelimAst:ht,emStrongRDelimUnd:ft,escape:et,link:_t,nolink:Lt,punctuation:rt,reflink:$t,reflinkSearch:zt,tag:St,text:nt,url:C},Ct={...ie,emStrongLDelim:ct,emStrongRDelimAst:gt,emStrongRDelimUnd:xt,link:h(/^!?\[(label)\]\((.*?)\)/).replace("label",K).getRegex(),reflink:h(/^!?\[(label)\]\s*\[([^\]]*)\]/).replace("label",K).getRegex()},Y={...ie,emStrongRDelimAst:dt,emStrongLDelim:ut,delLDelim:bt,delRDelim:Tt,url:h(/^emailProtocol|^((?:protocol):\/\/|www\.)(?:[a-zA-Z0-9\-]+\.?)+[^\s<]*|^email/).replace("emailProtocol",Mt).replace("protocol",fe).replace("email",/[A-Za-z0-9._+-]+(@)[a-zA-Z0-9-_]+(?:\.[a-zA-Z0-9-_]*[a-zA-Z0-9])+(?![\w-])/).getRegex(),_backpedal:/(?:[^?!.,:;*_'"~()&]+|\([^)]*\)|&(?![a-zA-Z0-9]+;$)|[?!.,:;*_'"~)]+(?!$))+/,del:/^(~~?)(?=[^\s~])((?:\\[\s\S]|[^\\])*?(?:\\[\s\S]|[^\s~\\]))\1(?=[^~]|$)/,text:h(/^(?:[^a-zA-Z0-9](?=emailProtocol)|(`+|~+|[^`~])(?:(?=[`~])|(?= {2,}\n)|(?=[a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-]+@)|[\s\S]*?(?:(?=[\\<!\[`*~_]|\b_|protocol:\/\/|www\.|$)|[^ ](?= {2,}\n)|[^a-zA-Z0-9](?=emailProtocol)|[^a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-](?=[a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-]+@))))/).replace("protocol",fe).replace(/emailProtocol/g,/(?:mailto|xmpp):/).getRegex()},It={...Y,br:h(Re).replace("{2,}","*").getRegex(),text:h(Y.text).replace("\\b_","\\b_| {2,}\\n").replace(/\{2,\}/g,"*").getRegex()},U={normal:se,gfm:Je,pedantic:Ye},Z={normal:ie,gfm:Y,breaks:It,pedantic:Ct};var Bt={"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"},ye=a=>Bt[a];function P(a,e){if(e){if(x.escapeTest.test(a))return a.replace(x.escapeReplace,ye)}else if(x.escapeTestNoEncode.test(a))return a.replace(x.escapeReplaceNoEncode,ye);return a}function Se(a){return x.numericCharacterReference.test(a)?a.replace(x.numericCharacterReferenceOrAmpersand,(e,t,n)=>{if(t===void 0&&n===void 0)return"&amp;";let i=t===void 0?Number.parseInt(n,16):Number.parseInt(t,10);return i===0||i>1114111||i>=55296&&i<=57343?"\uFFFD":i===38?"&amp;":String.fromCodePoint(i)}):a}function oe(a){try{a=encodeURI(a).replace(x.percentDecode,"%")}catch{return null}return a}function ae(a,e){let t=a.replace(x.findPipe,(r,o,s)=>{let l=!1,u=o;for(;--u>=0&&s[u]==="\\";)l=!l;return l?"|":" |"}),n=t.split(x.splitPipe),i=0;if(n[0].trim()||n.shift(),n.length>0&&!n.at(-1)?.trim()&&n.pop(),e)if(n.length>e)n.splice(e);else for(;n.length<e;)n.push("");for(;i<n.length;i++)n[i]=n[i].trim().replace(x.slashPipe,"|");return n}function z(a,e,t){let n=a.length;if(n===0)return"";let i=0;for(;i<n;){let r=a.charAt(n-i-1);if(r===e&&!t)i++;else if(r!==e&&t)i++;else break}return a.slice(0,n-i)}function le(a){let e=a.split(`
+`),t=e.length-1;for(;t>=0&&x.blankLine.test(e[t]);)t--;return e.length-t<=2?a:e.slice(0,t+1).join(`
+`)}function v(a){return a.trim().toLowerCase().toUpperCase().toLowerCase()}function ue(a,e){if(a.indexOf(e[0])===-1&&a.indexOf(e[1])===-1)return-1;let t=0;for(let n=0;n<a.length;n++)if(a[n]==="\\")n++;else if(a[n]===e[0])t++;else if(a[n]===e[1]&&(t--,t<0))return n;return t>0?-2:-1}function X(a,e=0){let t=e,n="";for(let i of a)if(i==="	"){let r=4-t%4;n+=" ".repeat(r),t+=r}else n+=i,t++;return n}function _e(a,e,t,n,i){let r=e.href,o=e.title||null,s=a[1].replace(i.other.outputLinkReplace,"$1"),l=a[0].charAt(0)==="!",u=n.state.inLink,c=n.state.linkEmitted,p=n.state.inRawBlock;n.state.inLink=!0,n.state.linkEmitted=!1;let d=n.inlineTokens(s),f=n.state.linkEmitted;if(n.state.linkEmitted=c,n.state.inLink=u,!l){if(f){n.state.inRawBlock=p;return}n.state.linkEmitted=!0}return{type:l?"image":"link",raw:t,href:r,title:o,text:s,tokens:d}}function Dt(a,e,t){let n=a.match(t.other.indentCodeCompensation);if(n===null)return e;let i=n[1];return e.split(`
+`).map(r=>{let o=r.match(t.other.beginningSpace);if(o===null)return r;let[s]=o;return r.slice(Math.min(s.length,i.length))}).join(`
+`)}function $e(a,e,t,n){if(!e.includes("<"))return!1;for(let i=0;i<e.length;i++){if(e[i]==="\\"){i++;continue}if(e[i]==="`"){let s=n.inline.code.exec(e.slice(i));if(s){i+=s[0].length-1;continue}}if(e[i]!=="<")continue;let r=a.slice(t+i),o=n.inline.tag.exec(r)||n.inline.autolink.exec(r);if(o){if(o[0].length>e.length-i)return!0;i+=o[0].length-1}}return!1}var S=class{options;rules;lexer;constructor(e){this.options=e||w}space(e){let t=this.rules.block.newline.exec(e);if(t&&t[0].length>0)return{type:"space",raw:t[0]}}code(e){let t=this.rules.block.code.exec(e);if(t){let n=this.options.pedantic?t[0]:le(t[0]),i=n.replace(this.rules.other.codeRemoveIndent,"");return{type:"code",raw:n,codeBlockStyle:"indented",text:i}}}fences(e){let t=this.rules.block.fences.exec(e);if(t){let n=t[0],i=Dt(n,t[3]||"",this.rules);return{type:"code",raw:n,lang:t[2]?t[2].trim().replace(this.rules.inline.anyPunctuation,"$1"):t[2],text:i}}}heading(e){let t=this.rules.block.heading.exec(e);if(t){let n=t[2].trim();if(this.rules.other.endingHash.test(n)){let i=z(n,"#");(this.options.pedantic||!i||this.rules.other.endingSpaceTabChar.test(i))&&(n=i.trim())}return{type:"heading",raw:z(t[0],`
+`),depth:t[1].length,text:n,tokens:this.lexer.inline(n)}}}hr(e){let t=this.rules.block.hr.exec(e);if(t)return{type:"hr",raw:z(t[0],`
+`)}}blockquote(e){let t=this.rules.block.blockquote.exec(e);if(t){let n=z(t[0],`
+`).split(`
+`),i="",r="",o=[];for(;n.length>0;){let s=!1,l=[],u;for(u=0;u<n.length;u++)if(this.rules.other.blockquoteStart.test(n[u]))l.push(n[u]),s=!0;else if(!s)l.push(n[u]);else break;n=n.slice(u);let c=l.join(`
+`),p=c.replace(this.rules.other.blockquoteSetextReplace,`
+    $1`).replace(this.rules.other.blockquoteSetextReplace2,"");i=i?`${i}
+${c}`:c,r=r?`${r}
+${p}`:p;let d=this.lexer.state.top;if(this.lexer.state.top=!0,this.lexer.blockTokens(p,o,!0),this.lexer.state.top=d,n.length===0)break;let f=o.at(-1);if(f?.type==="code"||f?.type==="heading"||f?.type==="hr"||f?.type==="html")break;if(f?.type==="blockquote"){let k=f,y=n.join(`
+`),R=k.raw+`
+`+y.replace(this.rules.other.blockquoteSetextReplace2,""),m=this.blockquote(R);o[o.length-1]=m;let E=R.substring(m.raw.length).replace(/^\n/,""),b=E?E.split(`
+`).length:0,G=b?n.slice(0,-b):n;G.length>0&&(i=`${i}
+${G.join(`
+`)}`),r=r.substring(0,r.length-k.text.length)+m.text;break}else if(f?.type==="list"){let k=f,y=k.raw+`
+`+n.join(`
+`),R=this.list(y);o[o.length-1]=R,i=i.substring(0,i.length-f.raw.length)+R.raw,r=r.substring(0,r.length-k.raw.length)+R.raw,n=y.substring(o.at(-1).raw.length).split(`
+`);continue}}return{type:"blockquote",raw:i,tokens:o,text:r}}}list(e){let t=this.rules.block.list.exec(e);if(t){let n=e,i=()=>n.length-e.length,r=t[1].trim(),o=r.length>1,s={type:"list",raw:"",ordered:o,start:o?+r.slice(0,-1):"",loose:!1,items:[]};r=o?`\\d{1,9}\\${r.slice(-1)}`:`\\${r}`,this.options.pedantic&&(r=o?r:"[*+-]");let l=this.rules.other.listItemRegex(r),u=!1;for(;e;){let p=!1,d="";if(!(t=l.exec(e))||this.rules.block.hr.test(e))break;let f=i();e=e.substring(t[0].length);let k=t[2].split(`
+`,1)[0],y=t[1].length,R=this.options.pedantic?X(k,y):k.replace(this.rules.other.leadingSpaceTab,W=>X(W,y)),m=e.split(`
+`,1)[0],E=!R.trim(),b=0;if(this.options.pedantic?(b=2,d=R.trimStart()):E?b=y+1:(b=R.search(this.rules.other.nonSpaceChar),b=b>4?1:b,d=R.slice(b),b+=y),E&&this.rules.other.blankLine.test(m)&&(e=e.substring(m.length+1),p=!0),!p){let W=this.rules.other.nextBulletRegex(b),pe=this.rules.other.hrRegex(b),ce=this.rules.other.fencesBeginRegex(b),he=this.rules.other.headingBeginRegex(b),Ae=this.rules.other.htmlBeginRegex(b),ze=this.rules.other.blockquoteBeginRegex(b);for(;e;){let de=e.split(`
+`,1)[0],N;if(m=de,this.options.pedantic?(m=m.replace(this.rules.other.listReplaceNesting,"  "),N=m):N=m.replace(this.rules.other.leadingSpaceTab,Ee=>X(Ee)),ce.test(m)||he.test(m)||Ae.test(m)||ze.test(m)||W.test(m)||pe.test(m))break;if(N.search(this.rules.other.nonSpaceChar)>=b||!m.trim())d+=`
+`+N.slice(b);else{if(E||R.replace(this.rules.other.tabCharGlobal,"    ").search(this.rules.other.nonSpaceChar)>=4||ce.test(R)||he.test(R)||pe.test(R))break;d+=`
+`+m}E=!m.trim(),e=e.substring(de.length+1),R=N.slice(b)}}let G=n.slice(f,i());s.loose||(u?s.loose=!0:this.rules.other.doubleBlankLine.test(G)&&(u=!0)),s.items.push({type:"list_item",raw:G,task:!!this.options.gfm&&this.rules.other.listIsTask.test(d),loose:!1,text:d,tokens:[]})}let c=s.items.at(-1);if(c)c.raw=c.raw.trimEnd(),c.text=c.text.trimEnd();else return;s.raw=n.slice(0,i()).trimEnd();for(let p of s.items)if(this.lexer.state.top=!1,p.tokens=this.lexer.blockTokens(p.text,[]),!s.loose){let d=p.tokens.filter(k=>k.type==="space"),f=d.length>0&&d.some(k=>this.rules.other.anyLine.test(k.raw));s.loose=f}for(let p of s.items){let d=p.tokens[0];if(p.task&&(d?.type==="text"||d?.type==="paragraph")){p.text=p.text.replace(this.rules.other.listReplaceTask,""),d.raw=d.raw.replace(this.rules.other.listReplaceTask,""),d.text=d.text.replace(this.rules.other.listReplaceTask,"");for(let k=this.lexer.inlineQueue.length-1;k>=0;k--)if(this.rules.other.listIsTask.test(this.lexer.inlineQueue[k].src)){this.lexer.inlineQueue[k].src=this.lexer.inlineQueue[k].src.replace(this.rules.other.listReplaceTask,"");break}let f=this.rules.other.listTaskCheckbox.exec(p.raw);if(f){let k={type:"checkbox",raw:f[0]+" ",checked:f[0]!=="[ ]"};p.checked=k.checked,s.loose?p.tokens[0]&&["paragraph","text"].includes(p.tokens[0].type)&&"tokens"in p.tokens[0]&&p.tokens[0].tokens?(p.tokens[0].raw=k.raw+p.tokens[0].raw,p.tokens[0].text=k.raw+p.tokens[0].text,p.tokens[0].tokens.unshift(k)):p.tokens.unshift({type:"paragraph",raw:k.raw,text:k.raw,tokens:[k]}):p.tokens.unshift(k)}}else p.task&&(p.task=!1)}if(s.loose)for(let p of s.items){p.loose=!0;for(let d of p.tokens)d.type==="text"&&(d.type="paragraph")}return s}}html(e){let t=this.rules.block.html.exec(e);if(t){let n=le(t[0]);return{type:"html",block:!0,raw:n,pre:t[1]==="pre"||t[1]==="script"||t[1]==="style",text:n}}}def(e){let t=this.rules.block.def.exec(e);if(t){if(!this.rules.other.startAngleBracket.test(t[2])&&ue(t[2],"()")!==-1)return;let n=v(t[1]).replace(this.rules.other.multipleSpaceGlobal," "),i=t[2]?t[2].replace(this.rules.other.hrefBrackets,"$1").replace(this.rules.inline.anyPunctuation,"$1"):"",r=t[3]?t[3].substring(1,t[3].length-1).replace(this.rules.inline.anyPunctuation,"$1"):t[3];return{type:"def",tag:n,raw:z(t[0],`
+`),href:i,title:r}}}table(e){let t=this.rules.block.table.exec(e);if(!t||!this.rules.other.tableDelimiter.test(t[2]))return;let n=ae(t[1]),i=t[2].replace(this.rules.other.tableAlignChars,"").split("|"),r=t[3]?.trim()?t[3].replace(this.rules.other.tableRowBlankLine,"").split(`
+`):[],o={type:"table",raw:z(t[0],`
+`),header:[],align:[],rows:[]};if(n.length===i.length){for(let s of i)this.rules.other.tableAlignRight.test(s)?o.align.push("right"):this.rules.other.tableAlignCenter.test(s)?o.align.push("center"):this.rules.other.tableAlignLeft.test(s)?o.align.push("left"):o.align.push(null);for(let s=0;s<n.length;s++)o.header.push({text:n[s],tokens:this.lexer.inline(n[s]),header:!0,align:o.align[s]});for(let s of r)o.rows.push(ae(s,o.header.length).map((l,u)=>({text:l,tokens:this.lexer.inline(l),header:!1,align:o.align[u]})));return o}}lheading(e){let t=this.rules.block.lheading.exec(e);if(t){let n=t[1].trim();return{type:"heading",raw:z(t[0],`
+`),depth:t[2].charAt(0)==="="?1:2,text:n,tokens:this.lexer.inline(n)}}}paragraph(e){let t=this.rules.block.paragraph.exec(e);if(t){let n=t[1].charAt(t[1].length-1)===`
+`?t[1].slice(0,-1):t[1];return{type:"paragraph",raw:t[0],text:n,tokens:this.lexer.inline(n)}}}text(e){let t=this.rules.block.text.exec(e);if(t)return{type:"text",raw:t[0],text:t[0],tokens:this.lexer.inline(t[0])}}escape(e){let t=this.rules.inline.escape.exec(e);if(t)return{type:"escape",raw:t[0],text:t[1]}}tag(e){let t=this.rules.inline.tag.exec(e);if(t)return!this.lexer.state.inLink&&this.rules.other.startATag.test(t[0])?this.lexer.state.inLink=!0:this.lexer.state.inLink&&this.rules.other.endATag.test(t[0])&&(this.lexer.state.inLink=!1),!this.lexer.state.inRawBlock&&this.rules.other.startPreScriptTag.test(t[0])?this.lexer.state.inRawBlock=!0:this.lexer.state.inRawBlock&&this.rules.other.endPreScriptTag.test(t[0])&&(this.lexer.state.inRawBlock=!1),{type:"html",raw:t[0],inLink:this.lexer.state.inLink,inRawBlock:this.lexer.state.inRawBlock,block:!1,text:t[0]}}link(e){if(this.lexer.state.linkParenPossible===!1)return;let t=this.rules.inline.link.exec(e);if(t){let n=t[0].charAt(0)==="!"?2:1;if(!this.options.pedantic&&$e(e,t[1],n,this.rules))return;let i=t[2].trim();if(!this.options.pedantic&&this.rules.other.startAngleBracket.test(i)){if(!this.rules.other.endAngleBracket.test(i))return;let s=z(i.slice(0,-1),"\\");if((i.length-s.length)%2===0)return}else{let s=ue(t[2],"()");if(s===-2)return;if(s>-1){let u=(t[0].indexOf("!")===0?5:4)+t[1].length+s;t[2]=t[2].substring(0,s),t[0]=t[0].substring(0,u).trim(),t[3]=""}}let r=t[2],o="";if(this.options.pedantic){let s=this.rules.other.pedanticHrefTitle.exec(r);s&&(r=s[1],o=s[3])}else o=t[3]?t[3].slice(1,-1):"";return r=r.trim(),this.rules.other.startAngleBracket.test(r)&&(this.options.pedantic&&!this.rules.other.endAngleBracket.test(i)?r=r.slice(1):r=r.slice(1,-1)),_e(t,{href:r&&r.replace(this.rules.inline.anyPunctuation,"$1"),title:o&&o.replace(this.rules.inline.anyPunctuation,"$1")},t[0],this.lexer,this.rules)}}reflink(e,t){let n;if((n=this.rules.inline.reflink.exec(e))||(n=this.rules.inline.nolink.exec(e))){let i=n[0].charAt(0)==="!"?2:1;if(!this.options.pedantic&&$e(e,n[1],i,this.rules))return;let r=(n[2]||n[1]).replace(this.rules.other.multipleSpaceGlobal," "),o=t[v(r)];if(!o){let s=n[0].charAt(0);return{type:"text",raw:s,text:s}}return _e(n,o,n[0],this.lexer,this.rules)}}emStrong(e,t,n=""){let i=this.rules.inline.emStrongLDelim.exec(e);if(!i||!i[1]&&!i[2]&&!i[3]&&!i[4]||i[4]&&n.match(this.rules.other.unicodeAlphaNumeric))return;if(!(i[1]||i[3]||"")||!n||this.rules.inline.punctuation.exec(n)){let o=[...i[0]].length-1,s,l,u=o,c=0,p=i[0][0],d=n===p,f=p==="*"?this.rules.inline.emStrongRDelimAst:this.rules.inline.emStrongRDelimUnd;for(f.lastIndex=0,t=t.slice(-1*e.length+o);(i=f.exec(t))!==null;){if(s=i[1]||i[2]||i[3]||i[4]||i[5]||i[6],!s)continue;if(l=[...s].length,i[3]||i[4]){u+=l;continue}else if(i[5]||i[6]){if(o%3&&!((o+l)%3)){c+=l;continue}if(d)break}if(u-=l,u>0)continue;l=Math.min(l,l+u+c);let k=[...i[0]][0].length,y=e.slice(0,o+i.index+k+l);if(Math.min(o,l)%2){let m=y.slice(1,-1);return{type:"em",raw:y,text:m,tokens:this.lexer.inlineTokens(m)}}let R=y.slice(2,-2);return{type:"strong",raw:y,text:R,tokens:this.lexer.inlineTokens(R)}}}}codespan(e){let t=this.rules.inline.code.exec(e);if(t){let n=t[2].replace(this.rules.other.newLineCharGlobal," "),i=this.rules.other.nonSpaceChar.test(n),r=this.rules.other.startingSpaceChar.test(n)&&this.rules.other.endingSpaceChar.test(n);return i&&r&&(n=n.substring(1,n.length-1)),{type:"codespan",raw:t[0],text:n}}}br(e){let t=this.rules.inline.br.exec(e);if(t)return{type:"br",raw:t[0]}}del(e,t,n=""){let i=this.rules.inline.delLDelim.exec(e);if(!i)return;if(!(i[1]||"")||!n||this.rules.inline.punctuation.exec(n)){let o=[...i[0]].length-1,s,l,u=o,c=this.rules.inline.delRDelim;for(c.lastIndex=0,t=t.slice(-1*e.length+o);(i=c.exec(t))!==null;){if(s=i[1]||i[2]||i[3]||i[4]||i[5]||i[6],!s||(l=[...s].length,l!==o))continue;if(i[3]||i[4]){u+=l;continue}if(u-=l,u>0)continue;l=Math.min(l,l+u);let p=[...i[0]][0].length,d=e.slice(0,o+i.index+p+l),f=d.slice(o,-o);return{type:"del",raw:d,text:f,tokens:this.lexer.inlineTokens(f)}}}}autolink(e){let t=this.rules.inline.autolink.exec(e);if(t){let n,i;return t[2]==="@"?(n=t[1],i="mailto:"+n):(n=t[1],i=n),{type:"link",raw:t[0],text:n,href:i,autolink:!0,tokens:[{type:"text",raw:n,text:n}]}}}url(e){let t;if(t=this.rules.inline.url.exec(e)){let n,i;if(t[2]==="@")n=t[0],i="mailto:"+n;else{let r;do r=t[0],t[0]=this.rules.inline._backpedal.exec(t[0])?.[0]??"";while(r!==t[0]);n=t[0],t[1]==="www."?i="http://"+t[0]:i=t[0]}return{type:"link",raw:t[0],text:n,href:i,autolink:!0,tokens:[{type:"text",raw:n,text:n}]}}}inlineText(e){let t=this.rules.inline.text.exec(e);if(t){let n=this.lexer.state.inRawBlock;return{type:"text",raw:t[0],text:n?t[0]:Se(t[0]),escaped:n}}}};var T=class a{tokens;options;state;inlineQueue;tokenizer;constructor(e){this.tokens=[],this.tokens.links=Object.create(null),this.options=e||w,this.options.tokenizer=this.options.tokenizer||new S,this.tokenizer=this.options.tokenizer,this.tokenizer.options=this.options,this.tokenizer.lexer=this,this.inlineQueue=[],this.state={inLink:!1,inRawBlock:!1,linkEmitted:!1,linkParenPossible:!0,top:!0};let t={other:x,block:U.normal,inline:Z.normal};this.options.pedantic?(t.block=U.pedantic,t.inline=Z.pedantic):this.options.gfm&&(t.block=U.gfm,this.options.breaks?t.inline=Z.breaks:t.inline=Z.gfm),this.tokenizer.rules=t}static get rules(){return{block:U,inline:Z}}static lex(e,t){return new a(t).lex(e)}static lexInline(e,t){return new a(t).inlineTokens(e)}lex(e){e=e.replace(x.carriageReturn,`
+`),this.blockTokens(e,this.tokens);for(let t=0;t<this.inlineQueue.length;t++){let n=this.inlineQueue[t];this.inlineTokens(n.src,n.tokens)}return this.inlineQueue=[],this.tokens}blockTokens(e,t=[],n=!1){this.tokenizer.lexer=this,this.options.pedantic&&(e=e.replace(x.tabCharGlobal,"    ").replace(x.spaceLine,""));let i=1/0;for(;e;){if(e.length<i)i=e.length;else{this.infiniteLoopError(e.charCodeAt(0));break}let r;if(this.options.extensions?.block?.some(s=>(r=s.call({lexer:this},e,t))?(e=e.substring(r.raw.length),t.push(r),!0):!1))continue;if(r=this.tokenizer.space(e)){e=e.substring(r.raw.length);let s=t.at(-1);r.raw.length===1&&s!==void 0?s.raw+=`
+`:t.push(r);continue}if(r=this.tokenizer.code(e)){e=e.substring(r.raw.length);let s=t.at(-1);s?.type==="paragraph"||s?.type==="text"?(s.raw+=(s.raw.endsWith(`
+`)?"":`
+`)+r.raw,s.text+=`
+`+r.text,this.inlineQueue.at(-1).src=s.text):t.push(r);continue}if(r=this.tokenizer.fences(e)){e=e.substring(r.raw.length),t.push(r);continue}if(r=this.tokenizer.heading(e)){e=e.substring(r.raw.length),t.push(r);continue}if(r=this.tokenizer.hr(e)){e=e.substring(r.raw.length),t.push(r);continue}if(r=this.tokenizer.blockquote(e)){e=e.substring(r.raw.length),t.push(r);continue}if(r=this.tokenizer.list(e)){e=e.substring(r.raw.length),t.push(r);continue}if(r=this.tokenizer.html(e)){e=e.substring(r.raw.length),t.push(r);continue}if(r=this.tokenizer.def(e)){e=e.substring(r.raw.length);let s=t.at(-1);s?.type==="paragraph"||s?.type==="text"?(s.raw+=(s.raw.endsWith(`
+`)?"":`
+`)+r.raw,s.text+=`
+`+r.raw,this.inlineQueue.at(-1).src=s.text):this.tokens.links[r.tag]||(this.tokens.links[r.tag]={href:r.href,title:r.title},t.push(r));continue}if(r=this.tokenizer.table(e)){e=e.substring(r.raw.length),t.push(r);continue}if(r=this.tokenizer.lheading(e)){e=e.substring(r.raw.length),t.push(r);continue}let o=e;if(this.options.extensions?.startBlock){let s=1/0,l=e.slice(1),u;this.options.extensions.startBlock.forEach(c=>{u=c.call({lexer:this},l),typeof u=="number"&&u>=0&&(s=Math.min(s,u))}),s<1/0&&s>=0&&(o=e.substring(0,s+1))}if(this.state.top&&(r=this.tokenizer.paragraph(o))){let s=t.at(-1);n&&s?.type==="paragraph"?(s.raw+=(s.raw.endsWith(`
+`)?"":`
+`)+r.raw,s.text+=`
+`+r.text,this.inlineQueue.pop(),this.inlineQueue.at(-1).src=s.text):t.push(r),n=o.length!==e.length,e=e.substring(r.raw.length);continue}if(r=this.tokenizer.text(e)){e=e.substring(r.raw.length);let s=t.at(-1);s?.type==="text"?(s.raw+=(s.raw.endsWith(`
+`)?"":`
+`)+r.raw,s.text+=`
+`+r.text,this.inlineQueue.pop(),this.inlineQueue.at(-1).src=s.text):t.push(r);continue}if(e){this.infiniteLoopError(e.charCodeAt(0));break}}return this.state.top=!0,t}inline(e,t=[]){return this.inlineQueue.push({src:e,tokens:t}),t}linkInText(e){if(!e.includes("["))return!1;let t=this.tokenizer.rules.inline.link;for(let n of e.matchAll(this.tokenizer.rules.inline.blockSkip))if(t.test(n[0])&&e.charAt(n.index-1)!=="!")return!0;for(let n of e.matchAll(this.tokenizer.rules.inline.reflinkSearch)){let i=n[0],r=i.lastIndexOf("[");if(!(i.charAt(0)==="!"||!Object.hasOwn(this.tokens.links,v(i.slice(r+1,-1))))&&!(r>1&&this.linkInText(i.slice(1,r-1))))return!0}return!1}inlineTokens(e,t=[]){this.tokenizer.lexer=this;let n=this.state.linkParenPossible;this.state.linkParenPossible=n&&e.includes(")");try{return this.#e(e,t)}finally{this.state.linkParenPossible=n}}#e(e,t){let n=e;if(this.tokens.links&&e.includes("[")){let s=this.tokenizer.rules.inline.reflinkSearch,l=u=>{let c=u.lastIndexOf("[");if(!Object.hasOwn(this.tokens.links,v(u.slice(c+1,-1))))return u;if(c>1&&u.charAt(0)!=="!"){let p=u.slice(1,c-1);if(this.linkInText(p))return"["+p.replace(s,l)+"]["+"a".repeat(u.length-c-2)+"]"}return"["+"a".repeat(u.length-2)+"]"};n=n.replace(s,l)}n=n.replace(this.tokenizer.rules.inline.anyPunctuationOutsideCode,(s,l,u)=>u?"+".repeat(s.length):l?l+s.slice(l.length,-l.length).replace(/`/g,"+")+l:s),n=n.replace(this.tokenizer.rules.inline.blockSkip,(s,l,u)=>{let c=u?u.length:0;return s.slice(0,c)+"["+"a".repeat(s.length-c-2)+"]"}),n=this.options.hooks?.emStrongMask?.call({lexer:this},n)??n;let i=!1,r="",o=1/0;for(;e;){if(e.length<o)o=e.length;else{this.infiniteLoopError(e.charCodeAt(0));break}i||(r=""),i=!1;let s;if(this.options.extensions?.inline?.some(u=>(s=u.call({lexer:this},e,t))?(e=e.substring(s.raw.length),t.push(s),!0):!1))continue;if(s=this.tokenizer.escape(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.tag(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.link(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.reflink(e,this.tokens.links)){e=e.substring(s.raw.length);let u=t.at(-1);s.type==="text"&&u?.type==="text"?(u.raw+=s.raw,u.text+=s.text):t.push(s);continue}if(s=this.tokenizer.emStrong(e,n,r)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.codespan(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.br(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.del(e,n,r)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.autolink(e)){e=e.substring(s.raw.length),t.push(s);continue}if(!this.state.inLink&&(s=this.tokenizer.url(e))){e=e.substring(s.raw.length),t.push(s);continue}let l=e;if(this.options.extensions?.startInline){let u=1/0,c=e.slice(1),p;this.options.extensions.startInline.forEach(d=>{p=d.call({lexer:this},c),typeof p=="number"&&p>=0&&(u=Math.min(u,p))}),u<1/0&&u>=0&&(l=e.substring(0,u+1))}if(s=this.tokenizer.inlineText(l)){e=e.substring(s.raw.length),s.raw.slice(-1)!=="_"&&(r=s.raw.slice(-1)),i=!0;let u=t.at(-1);u?.type==="text"?(u.raw+=s.raw,u.text+=s.text):t.push(s);continue}if(e){this.infiniteLoopError(e.charCodeAt(0));break}}return t}infiniteLoopError(e){let t="Infinite loop on byte: "+e;if(this.options.silent)console.error(t);else throw new Error(t)}};var _=class{options;parser;constructor(e){this.options=e||w}space(e){return""}code({text:e,lang:t,escaped:n}){let i=(t||"").match(x.notSpaceStart)?.[0],r=e?e.replace(x.endingNewline,"")+`
+`:"";return i?'<pre><code class="language-'+P(i)+'">'+(n?r:P(r,!0))+`</code></pre>
+`:"<pre><code>"+(n?r:P(r,!0))+`</code></pre>
+`}blockquote({tokens:e}){return`<blockquote>
+${this.parser.parse(e)}</blockquote>
+`}html({text:e}){return e}def(e){return""}heading({tokens:e,depth:t}){return`<h${t}>${this.parser.parseInline(e)}</h${t}>
+`}hr(e){return`<hr>
+`}list(e){let t=e.ordered,n=e.start,i="";for(let s=0;s<e.items.length;s++){let l=e.items[s];i+=this.listitem(l)}let r=t?"ol":"ul",o=t&&n!==1?' start="'+n+'"':"";return"<"+r+o+`>
+`+i+"</"+r+`>
+`}listitem(e){return`<li>${this.parser.parse(e.tokens)}</li>
+`}checkbox({checked:e}){return"<input "+(e?'checked="" ':"")+'disabled="" type="checkbox"> '}paragraph({tokens:e}){return`<p>${this.parser.parseInline(e)}</p>
+`}table(e){let t="",n="";for(let r=0;r<e.header.length;r++)n+=this.tablecell(e.header[r]);t+=this.tablerow({text:n});let i="";for(let r=0;r<e.rows.length;r++){let o=e.rows[r];n="";for(let s=0;s<o.length;s++)n+=this.tablecell(o[s]);i+=this.tablerow({text:n})}return i&&(i=`<tbody>${i}</tbody>`),`<table>
+<thead>
+`+t+`</thead>
+`+i+`</table>
+`}tablerow({text:e}){return`<tr>
+${e}</tr>
+`}tablecell(e){let t=this.parser.parseInline(e.tokens),n=e.header?"th":"td";return(e.align?`<${n} align="${e.align}">`:`<${n}>`)+t+`</${n}>
+`}strong({tokens:e}){return`<strong>${this.parser.parseInline(e)}</strong>`}em({tokens:e}){return`<em>${this.parser.parseInline(e)}</em>`}codespan({text:e}){return`<code>${P(e,!0)}</code>`}br(e){return"<br>"}del({tokens:e}){return`<del>${this.parser.parseInline(e)}</del>`}link({href:e,title:t,text:n,tokens:i,autolink:r}){let o=r?P(n,!0):this.parser.parseInline(i),s=oe(e);if(s===null)return o;e=P(s,r);let l='<a href="'+e+'"';return t&&(l+=' title="'+P(t)+'"'),l+=">"+o+"</a>",l}image({href:e,title:t,text:n,tokens:i}){i&&(n=this.parser.parseInline(i,this.parser.textRenderer));let r=oe(e);if(r===null)return P(n);e=r;let o=`<img src="${P(e)}" alt="${P(n)}"`;return t&&(o+=` title="${P(t)}"`),o+=">",o}text(e){return"tokens"in e&&e.tokens?this.parser.parseInline(e.tokens):"escaped"in e&&e.escaped?e.text:P(e.text)}};var A=class{strong({text:e}){return e}em({text:e}){return e}codespan({text:e}){return e}del({text:e}){return e}html({text:e}){return e}text({text:e}){return e}link({text:e}){return""+e}image({text:e}){return""+e}br(){return""}checkbox({raw:e}){return e}};var O=class a{options;renderer;textRenderer;constructor(e){this.options=e||w,this.options.renderer=this.options.renderer||new _,this.renderer=this.options.renderer,this.renderer.options=this.options,this.renderer.parser=this,this.textRenderer=new A}static parse(e,t){return new a(t).parse(e)}static parseInline(e,t){return new a(t).parseInline(e)}parse(e){this.renderer.parser=this;let t="";for(let n=0;n<e.length;n++){let i=e[n];if(this.options.extensions?.renderers?.[i.type]){let o=i,s=this.options.extensions.renderers[o.type].call({parser:this},o);if(s!==!1||!["space","hr","heading","code","table","blockquote","list","checkbox","html","def","paragraph","text"].includes(o.type)){t+=s||"";continue}}let r=i;switch(r.type){case"space":{t+=this.renderer.space(r);break}case"hr":{t+=this.renderer.hr(r);break}case"heading":{t+=this.renderer.heading(r);break}case"code":{t+=this.renderer.code(r);break}case"table":{t+=this.renderer.table(r);break}case"blockquote":{t+=this.renderer.blockquote(r);break}case"list":{t+=this.renderer.list(r);break}case"checkbox":{t+=this.renderer.checkbox(r);break}case"html":{t+=this.renderer.html(r);break}case"def":{t+=this.renderer.def(r);break}case"paragraph":{t+=this.renderer.paragraph(r);break}case"text":{t+=this.renderer.text(r);break}default:{let o='Token with "'+r.type+'" type was not found.';if(this.options.silent)return console.error(o),"";throw new Error(o)}}}return t}parseInline(e,t=this.renderer){this.renderer.parser=this;let n="";for(let i=0;i<e.length;i++){let r=e[i];if(this.options.extensions?.renderers?.[r.type]){let s=this.options.extensions.renderers[r.type].call({parser:this},r);if(s!==!1||!["escape","html","link","image","checkbox","strong","em","codespan","br","del","text"].includes(r.type)){n+=s||"";continue}}let o=r;switch(o.type){case"escape":{n+=t.text(o);break}case"html":{n+=t.html(o);break}case"link":{n+=t.link(o);break}case"image":{n+=t.image(o);break}case"checkbox":{n+=t.checkbox(o);break}case"strong":{n+=t.strong(o);break}case"em":{n+=t.em(o);break}case"codespan":{n+=t.codespan(o);break}case"br":{n+=t.br(o);break}case"del":{n+=t.del(o);break}case"text":{n+=t.text(o);break}default:{let s='Token with "'+o.type+'" type was not found.';if(this.options.silent)return console.error(s),"";throw new Error(s)}}}return n}};var $=class{options;block;constructor(e){this.options=e||w}static passThroughHooks=new Set(["preprocess","postprocess","processAllTokens","emStrongMask"]);static passThroughHooksRespectAsync=new Set(["preprocess","postprocess","processAllTokens"]);preprocess(e){return e}postprocess(e){return e}processAllTokens(e){return e}emStrongMask(e){return e}provideLexer(e=this.block){return e?T.lex:T.lexInline}provideParser(e=this.block){return e?O.parse:O.parseInline}};function I(a,e){if(Array.isArray(e))for(let t=0;t<e.length;t++)a.push(e[t]);else a.push(e)}var H=class{defaults=M();options=this.setOptions;parse=this.parseMarkdown(!0);parseInline=this.parseMarkdown(!1);Parser=O;Renderer=_;TextRenderer=A;Lexer=T;Tokenizer=S;Hooks=$;constructor(...e){this.use(...e)}walkTokens(e,t){let n=[];for(let i of e)switch(I(n,t.call(this,i)),i.type){case"table":{let r=i;for(let o of r.header)I(n,this.walkTokens(o.tokens,t));for(let o of r.rows)for(let s of o)I(n,this.walkTokens(s.tokens,t));break}case"list":{let r=i;I(n,this.walkTokens(r.items,t));break}default:{let r=i;this.defaults.extensions?.childTokens?.[r.type]?this.defaults.extensions.childTokens[r.type].forEach(o=>{let s=r[o].flat(1/0);I(n,this.walkTokens(s,t))}):r.tokens&&I(n,this.walkTokens(r.tokens,t))}}return n}use(...e){let t=this.defaults.extensions||{renderers:{},childTokens:{}};return e.forEach(n=>{let i={...n};if(i.async=this.defaults.async||i.async||!1,n.extensions&&(n.extensions.forEach(r=>{if(!r.name)throw new Error("extension name required");if("renderer"in r){let o=t.renderers[r.name];o?t.renderers[r.name]=function(...s){let l=r.renderer.apply(this,s);return l===!1&&(l=o.apply(this,s)),l}:t.renderers[r.name]=r.renderer}if("tokenizer"in r){if(!r.level||r.level!=="block"&&r.level!=="inline")throw new Error("extension level must be 'block' or 'inline'");let o=t[r.level];o?o.unshift(r.tokenizer):t[r.level]=[r.tokenizer],r.start&&(r.level==="block"?t.startBlock?t.startBlock.push(r.start):t.startBlock=[r.start]:r.level==="inline"&&(t.startInline?t.startInline.push(r.start):t.startInline=[r.start]))}"childTokens"in r&&r.childTokens&&(t.childTokens[r.name]=r.childTokens)}),i.extensions=t),n.renderer){let r=this.defaults.renderer||new _(this.defaults);for(let o in n.renderer){if(!(o in r))throw new Error(`renderer '${o}' does not exist`);if(["options","parser"].includes(o))continue;let s=o,l=n.renderer[s],u=r[s];r[s]=(...c)=>{let p=l.apply(r,c);return p===!1&&(p=u.apply(r,c)),p||""}}i.renderer=r}if(n.tokenizer){let r=this.defaults.tokenizer||new S(this.defaults);for(let o in n.tokenizer){if(!(o in r))throw new Error(`tokenizer '${o}' does not exist`);if(["options","rules","lexer"].includes(o))continue;let s=o,l=n.tokenizer[s],u=r[s];r[s]=(...c)=>{let p=l.apply(r,c);return p===!1&&(p=u.apply(r,c)),p}}i.tokenizer=r}if(n.hooks){let r=this.defaults.hooks||new $;for(let o in n.hooks){if(!(o in r))throw new Error(`hook '${o}' does not exist`);if(["options","block"].includes(o))continue;let s=o,l=n.hooks[s],u=r[s];$.passThroughHooks.has(o)?r[s]=c=>{if(this.defaults.async&&$.passThroughHooksRespectAsync.has(o))return(async()=>{let d=await l.call(r,c);return u.call(r,d)})();let p=l.call(r,c);return u.call(r,p)}:r[s]=(...c)=>{if(this.defaults.async)return(async()=>{let d=await l.apply(r,c);return d===!1&&(d=await u.apply(r,c)),d})();let p=l.apply(r,c);return p===!1&&(p=u.apply(r,c)),p}}i.hooks=r}if(n.walkTokens){let r=this.defaults.walkTokens,o=n.walkTokens;i.walkTokens=function(s){let l=[];return l.push(o.call(this,s)),r&&I(l,r.call(this,s)),l}}this.defaults={...this.defaults,...i}}),this}setOptions(e){return this.defaults={...this.defaults,...e},this}lexer(e,t){return T.lex(e,t??this.defaults)}parser(e,t){return O.parse(e,t??this.defaults)}parseMarkdown(e){return(n,i)=>{let r={...i},o={...this.defaults,...r},s=this.onError(!!o.silent,!!o.async);if(this.defaults.async===!0&&r.async===!1)return s(new Error("marked(): The async option was set to true by an extension. Remove async: false from the parse options object to return a Promise."));if(typeof n>"u"||n===null)return s(new Error("marked(): input parameter is undefined or null"));if(typeof n!="string")return s(new Error("marked(): input parameter is of type "+Object.prototype.toString.call(n)+", string expected"));if(o.hooks&&(o.hooks.options=o,o.hooks.block=e),o.async)return(async()=>{let l=o.hooks?await o.hooks.preprocess(n):n,c=await(o.hooks?await o.hooks.provideLexer(e):e?T.lex:T.lexInline)(l,o),p=o.hooks?await o.hooks.processAllTokens(c):c;o.walkTokens&&await Promise.all(this.walkTokens(p,o.walkTokens));let f=await(o.hooks?await o.hooks.provideParser(e):e?O.parse:O.parseInline)(p,o);return o.hooks?await o.hooks.postprocess(f):f})().catch(s);try{o.hooks&&(n=o.hooks.preprocess(n));let u=(o.hooks?o.hooks.provideLexer(e):e?T.lex:T.lexInline)(n,o);o.hooks&&(u=o.hooks.processAllTokens(u)),o.walkTokens&&this.walkTokens(u,o.walkTokens);let p=(o.hooks?o.hooks.provideParser(e):e?O.parse:O.parseInline)(u,o);return o.hooks&&(p=o.hooks.postprocess(p)),p}catch(l){return s(l)}}}onError(e,t){return n=>{if(n.message+=`
+Please report this to https://github.com/markedjs/marked.`,e){let i="<p>An error occurred:</p><pre>"+P(n.message+"",!0)+"</pre>";return t?Promise.resolve(i):i}if(t)return Promise.reject(n);throw n}}};var B=new H;function g(a,e){return B.parse(a,e)}g.options=g.setOptions=function(a){return B.setOptions(a),g.defaults=B.defaults,J(g.defaults),g};g.getDefaults=M;g.defaults=w;function Le(...a){return B.use(...a),g.defaults=B.defaults,J(g.defaults),g}g.use=Le;g.walkTokens=function(a,e){return B.walkTokens(a,e)};g.parseInline=B.parseInline;g.Parser=O;g.parser=O.parse;g.Renderer=_;g.TextRenderer=A;g.Lexer=T;g.lexer=T.lex;g.Tokenizer=S;g.Hooks=$;g.parse=g;var qt=g.options,Zt=g.setOptions,vt=g.walkTokens,Ht=g.parseInline,Gt=g,Nt=O.parse,Qt=T.lex;
+
+if(__exports != exports)module.exports = exports;return module.exports}));
+//# sourceMappingURL=marked.umd.js.map
+</script>
+<script id="sdflow-app">
+(function () {
+  'use strict';
+
+  var MERMAID_URL = 'https://cdn.jsdelivr.net/npm/mermaid@12.2.0/dist/mermaid.min.js';
+  var MERMAID_SRI = 'sha384-8xUhuLNMjW/cI2Dacg3DR4WliYznvIg0LVG1stctThKD/YVrJFI9TNCFxft5NYgp';
+  var MERMAID_SLOW_MS = 10000;
+  // 用拼接写注释记号：避免脚本源码里出现字面 "<" + "!--"，不与 HTML 脚本数据状态的转义规则纠缠。
+  var COMMENT_RE = new RegExp('<' + '!--[\\s\\S]*?--' + '>', 'g');
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  var docs = JSON.parse(document.getElementById('sdflow-docs').textContent);
+  var currentDoc = null;
+
+  // ── 纯函数（不碰 window / document；node --test 按下面两个标记切出本段单测）────────────
+  // @@PURE-BEGIN
+  // 浏览器解析 URL 时会丢掉控制字符与空白（"java\tscript:" 等），先同样处理再判协议。
+  function squash(url) {
+    return String(url || '').replace(/[\u0000-\u0020\u007f-\u009f]/g, '');
+  }
+
+  function dirOf(path) {
+    var i = path.lastIndexOf('/');
+    return i < 0 ? '' : path.slice(0, i);
+  }
+
+  function normalizePath(path) {
+    var out = [];
+    path.split('/').forEach(function (seg) {
+      if (seg === '' || seg === '.') return;
+      if (seg === '..') { out.pop(); return; }
+      out.push(seg);
+    });
+    return out.join('/');
+  }
+
+  function docIndexOf(docs, path) {
+    if (!path) return -1;
+    var target = normalizePath(path);
+    for (var i = 0; i < docs.length; i++) if (normalizePath(docs[i].path) === target) return i;
+    return -1;
+  }
+
+  // GitHub 标题 slug（同 github-slugger）：转小写；保留字母（含 Alphabetic 属性的符号，如 Ⓐ）、
+  // 组合标记、十进制数字、字母数字（如 Ⅻ）、连接标点（如 _）、空格与 -，其余删掉（含 ² 这类其他数字）；
+  // 空格换连字符；重名依次加 -1、-2，跳过已被占用的 slug（字面标题 risks-1 先到或后到都不会与重名后缀相撞）。
+  // texts 为同一份文档里按出现顺序排列的标题文字，返回等长的 slug 数组。
+  function githubSlugs(texts) {
+    var used = Object.create(null);
+    return texts.map(function (t) {
+      var base = String(t).toLowerCase().replace(/[^\p{L}\p{M}\p{Nd}\p{Nl}\p{Pc}\p{Alphabetic} \-]/gu, '').replace(/ /g, '-');
+      var slug = base;
+      while (slug in used) { used[base] += 1; slug = base + '-' + used[base]; }
+      used[slug] = 0;
+      return slug;
+    });
+  }
+
+  // 片段先解码（失败用原串）并转小写再查「slug → 标题 id」表；查不到返回 null。
+  function lookupAnchor(table, fragment) {
+    if (!table || !fragment) return null;
+    var key = fragment;
+    try { key = decodeURIComponent(fragment); } catch (e) { /* 非法转义：沿用原串 */ }
+    key = key.toLowerCase();
+    return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : null;
+  }
+
+  // 返回 {href, external} 或 null（null = 按纯文本显示）。
+  // docs 为页内文档列表，currentPath 为正在渲染的文档路径（无则相对链接一律降级）。
+  // anchors[i] 为第 i 份文档的「slug → 标题 id」表；标题在链接之后才有 id，渲染期传 null：
+  // 依赖该表的链接返回 {pending: true}，待所有文档渲染完再用完整的表重新判定。
+  function classifyLink(rawHref, docs, currentPath, anchors) {
+    var h = squash(rawHref);
+    if (!h) return null;
+    if (h.charAt(0) === '#') {
+      if (!anchors) return { href: h, external: false, pending: true };
+      var cur = docIndexOf(docs, currentPath);
+      var own = cur < 0 ? null : lookupAnchor(anchors[cur], h.slice(1));
+      return own ? { href: '#' + own, external: false } : null;
+    }
+    if (/^(\/\/|\\\\)/.test(h)) return null;
+    var scheme = /^([a-zA-Z][a-zA-Z0-9+.\-]*):/.exec(h);
+    if (scheme) {
+      var p = scheme[1].toLowerCase();
+      if (p === 'http' || p === 'https' || p === 'mailto') return { href: h, external: p !== 'mailto' };
+      return null;
+    }
+    var pathOnly = h.split('#')[0].split('?')[0];
+    if (!/\.md$/i.test(pathOnly) || !currentPath) return null;
+    var base = pathOnly.charAt(0) === '/' ? '' : dirOf(currentPath);
+    var i = docIndexOf(docs, pathOnly.charAt(0) === '/' ? pathOnly : base + '/' + pathOnly);
+    if (i < 0) return null;
+    var hashAt = h.indexOf('#');
+    var fragment = hashAt >= 0 ? h.slice(hashAt + 1) : '';
+    if (!fragment) return { href: '#doc-' + i, external: false };
+    if (!anchors) return { href: h, external: false, pending: true };
+    var hit = lookupAnchor(anchors[i], fragment);
+    return { href: hit ? '#' + hit : '#doc-' + i, external: false };
+  }
+
+  // 图片只放行 data:，返回可用的 src 或 null。
+  function classifyImage(rawHref) {
+    var href = squash(rawHref);
+    return /^data:/i.test(href) ? href : null;
+  }
+
+  // 页面当前的仓库相对路径：pathname 先解码（失败用原串），去 Windows 盘符前的 "/"，
+  // 取最后一个 "/openspec/" 段起的后缀（外层目录也叫 openspec 时取最内层）；没有该段则用解码后的路径。
+  function pagePathFromPathname(pathname) {
+    var p = String(pathname);
+    try { p = decodeURIComponent(p); } catch (e) { /* 非法转义：沿用原串 */ }
+    if (/^\/[A-Za-z]:\//.test(p)) p = p.slice(1);
+    var i = p.lastIndexOf('/openspec/');
+    return i >= 0 ? p.slice(i + 1) : p;
+  }
+
+  function notesPathFromPathname(pathname) {
+    var dir = dirOf(pagePathFromPathname(pathname));
+    return (dir ? dir + '/' : '') + 'review-notes.md';
+  }
+
+  var QUOTE_MAX = 500;
+  var CONTEXT_MAX = 32;
+  function isHigh(c) { return c >= 0xD800 && c <= 0xDBFF; }
+  function isLow(c) { return c >= 0xDC00 && c <= 0xDFFF; }
+
+  // 取前 max 个码点，不把代理对切开；末尾若剩孤立高位代理项（输入本身被切过）一并去掉。
+  function headCodepoints(text, max) {
+    var s = String(text), i = 0, count = 0;
+    while (i < s.length && count < max) {
+      i += (isHigh(s.charCodeAt(i)) && i + 1 < s.length && isLow(s.charCodeAt(i + 1))) ? 2 : 1;
+      count += 1;
+    }
+    var out = s.slice(0, i);
+    if (out.length && isHigh(out.charCodeAt(out.length - 1))) out = out.slice(0, -1);
+    return out;
+  }
+
+  // 取后 max 个码点；开头若是孤立低位代理项（输入本身被切过）去掉。
+  function tailCodepoints(text, max) {
+    var s = String(text), i = s.length, count = 0;
+    while (i > 0 && count < max) {
+      i -= (isLow(s.charCodeAt(i - 1)) && i - 2 >= 0 && isHigh(s.charCodeAt(i - 2))) ? 2 : 1;
+      count += 1;
+    }
+    var out = s.slice(i);
+    if (out.length && isLow(out.charCodeAt(0))) out = out.slice(1);
+    return out;
+  }
+
+  function truncateQuote(text) { return headCodepoints(text, QUOTE_MAX); }
+
+  // 选区在文档纯文本 text 里从 start 起、长 length。返回截断后的原文与前后文。
+  // 后文从截断后原文的末尾起算，与原文相邻，「前文 + 原文 + 后文」才能在全文里原样找到。
+  function selectionContext(text, start, length) {
+    var quote = truncateQuote(text.slice(start, start + length));
+    var end = start + quote.length;
+    return {
+      quote: quote,
+      before: tailCodepoints(text.slice(Math.max(0, start - 2 * CONTEXT_MAX), start), CONTEXT_MAX),
+      after: headCodepoints(text.slice(end, end + 2 * CONTEXT_MAX), CONTEXT_MAX),
+    };
+  }
+
+  var NOTE_ID_RE = /^[0-9a-f]{16}$/;
+  function isNoteId(s) { return typeof s === 'string' && NOTE_ID_RE.test(s); }
+  function idFromBytes(bytes) {
+    var out = '';
+    for (var i = 0; i < bytes.length; i++) out += (bytes[i] < 16 ? '0' : '') + bytes[i].toString(16);
+    return out;
+  }
+
+  // 在文档纯文本里找意见原文的起点；找不到返回 -1。
+  // 先用「前文 + 原文 + 后文」，再「前文 + 原文」，最后原文全篇唯一才采用。
+  // 前两级只在对应的上下文非空时才用（与生成脚本的 locate_line 一致）：上下文为空时它们退化成
+  // 「取第一处」，原文出现多处时会高亮到错的位置。
+  function locateNote(hay, note) {
+    var q = note.quote;
+    if (!q) return -1;
+    var before = note.before || '';
+    var after = note.after || '';
+    var i;
+    if (before || after) {
+      i = hay.indexOf(before + q + after);
+      if (i >= 0) return i + before.length;
+    }
+    if (before) {
+      i = hay.indexOf(before + q);
+      if (i >= 0) return i + before.length;
+    }
+    i = hay.indexOf(q);
+    if (i >= 0 && hay.indexOf(q, i + 1) < 0) return i;
+    return -1;
+  }
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function formatLocalTime(d) {
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' +
+      pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+  }
+
+  function oneLine(s) { return String(s).replace(/\s*[\r\n]+\s*/g, ' ').trim(); }
+
+  // 复制文本：落盘指示 + 按序正文 + 末尾 JSON 块（v2，一行）。
+  // args = {title, pathname, copiedAt, notes:[{n, id, doc, path, heading, quote, before, after, comment, inFigure}]}；
+  // pathname 为 location.pathname 原串。inFigure（在图内划选）每条都写成布尔值，回显时据此标「未在正文高亮」。
+  function buildCopyText(args) {
+    var pagePath = pagePathFromPathname(args.pathname);
+    var parts = [];
+    parts.push('请先把下面全文原样追加到 `' + notesPathFromPathname(args.pathname) + '`（不存在则新建），再逐条处理这些意见。');
+    parts.push('');
+    parts.push('# 评审意见 · ' + oneLine(args.title));
+    parts.push('');
+    parts.push('页面：`' + pagePath + '`');
+    parts.push('复制于：' + args.copiedAt);
+    args.notes.forEach(function (n) {
+      var head = '## ' + n.n + '. ' + oneLine(n.doc) + (n.path ? '（' + oneLine(n.path) + '）' : '') +
+        (n.heading ? ' › ' + oneLine(n.heading) : '');
+      var quote = String(n.quote).replace(/\r\n?/g, '\n').split('\n').map(function (l) { return '> ' + l; });
+      var comment = String(n.comment).replace(/\r\n?/g, '\n').split('\n').map(function (l) {
+        return l.charAt(0) === '#' ? '\\' + l : l;
+      });
+      parts.push('');
+      parts.push(head);
+      parts.push('');
+      parts.push(quote.join('\n'));
+      parts.push('');
+      parts.push(comment.join('\n'));
+    });
+    var json = JSON.stringify({
+      v: 2,
+      page: pagePath,
+      copied_at: args.copiedAt,
+      notes: args.notes.map(function (n) {
+        return { n: n.n, id: n.id, doc: n.doc, path: n.path || '', heading: n.heading, quote: n.quote,
+          before: n.before || '', after: n.after || '', comment: n.comment, inFigure: n.inFigure === true };
+      }),
+    });
+    var body = parts.join('\n');
+    var longest = 0;
+    (body + '\n' + json).replace(/`+/g, function (run) { if (run.length > longest) longest = run.length; return run; });
+    var fence = new Array(Math.max(3, longest + 1) + 1).join('`');
+    return body + '\n\n' + fence + 'json\n' + json + '\n' + fence + '\n';
+  }
+
+  // 解析嵌入的已落盘意见数据块文本。返回 {ok, notes}；非法 JSON 或不是数组时 ok=false。
+  // 每条带 key（高亮与意见栏用的键：id，无 id 时用序位）与 status（定位结果，restoreHighlights 填）。
+  function parseSavedNotes(text) {
+    var data;
+    try { data = JSON.parse(text); } catch (e) { return { ok: false, notes: [] }; }
+    if (!Array.isArray(data)) return { ok: false, notes: [] };
+    function str(v) { return typeof v === 'string' ? v : ''; }
+    var out = [];
+    data.forEach(function (r) {
+      if (!r || typeof r !== 'object' || typeof r.quote !== 'string' || typeof r.comment !== 'string') return;
+      var id = isNoteId(r.id) ? r.id : '';
+      out.push({
+        id: id, key: id || 'idx-' + out.length, status: null, n: typeof r.n === 'number' ? r.n : 0,
+        doc: str(r.doc), path: str(r.path), heading: str(r.heading), quote: r.quote,
+        before: str(r.before), after: str(r.after), comment: r.comment, copied_at: str(r.copied_at),
+        line: typeof r.line === 'number' && r.line > 0 ? r.line : null, inFigure: r.inFigure === true,
+      });
+    });
+    return { ok: true, notes: out };
+  }
+
+  // 合并浏览器暂存与已落盘意见：返回要显示的暂存意见 [{note, modified}]。
+  // 同 id：暂存版已复制，或意见正文与已落盘版相同 → 只显示已落盘版（暂存版不出现）；
+  //        暂存版未复制且正文不同 → 两条都显示，暂存版 modified=true。
+  // 已落盘意见无 id：doc + quote + comment 都相同的暂存意见视为同一条。
+  function mergeNotes(staged, saved) {
+    var byId = {}, byText = {};
+    saved.forEach(function (s) {
+      if (s.id) byId[s.id] = s;
+      else byText[JSON.stringify([s.doc, s.quote, s.comment])] = true;
+    });
+    var out = [];
+    staged.forEach(function (n) {
+      if (byText[JSON.stringify([n.doc, n.quote, n.comment])]) return;
+      var s = Object.prototype.hasOwnProperty.call(byId, n.id) ? byId[n.id] : null;
+      if (!s) { out.push({ note: n, modified: false }); return; }
+      if (n.copied || n.comment === s.comment) return;
+      out.push({ note: n, modified: true });
+    });
+    return out;
+  }
+
+  // 文档开头的 frontmatter 判定（RVP-21）：先去 BOM，比较行内容时忽略行尾 \r。
+  // 首行为 ---、第二行形如「键:」（字母开头）、其后某行恰为 --- 时，两行之间是元数据，其余是正文。
+  // 任一条件不满足：meta 为 null，body 是去掉 BOM 的整篇原文。语法面有界（两行字面量加一个键行），不做 YAML 解析。
+  // 已知边界：文档以 --- 加「键:」开头、正文后另有分隔线 --- 时，中间整段会被当成元数据。
+  // 这是有界启发式的取舍，不再补语法分支。
+  function splitFrontmatter(text) {
+    var src = String(text);
+    if (src.charCodeAt(0) === 0xFEFF) src = src.slice(1);
+    var lines = src.split('\n');
+    function bare(l) { return l.charAt(l.length - 1) === '\r' ? l.slice(0, -1) : l; }
+    if (lines.length < 3 || bare(lines[0]) !== '---' || !/^[A-Za-z][A-Za-z0-9_.\-]*:/.test(bare(lines[1]))) {
+      return { meta: null, body: src };
+    }
+    for (var i = 2; i < lines.length; i++) {
+      if (bare(lines[i]) === '---') return { meta: lines.slice(1, i).map(bare).join('\n'), body: lines.slice(i + 1).join('\n') };
+    }
+    return { meta: null, body: src };
+  }
+
+  // 修改日志数据块（sdflow-revisions）。返回 {ok, revisions}；非法 JSON、顶层不是对象、
+  // revisions 不是数组、条目不是对象时 ok=false。条目只取显示用的字段，缺的补默认值。
+  function parseRevisions(text) {
+    var bad = { ok: false, revisions: [] };
+    var data;
+    try { data = JSON.parse(text); } catch (e) { return bad; }
+    if (!data || typeof data !== 'object' || !Array.isArray(data.revisions)) return bad;
+    var out = [];
+    for (var i = 0; i < data.revisions.length; i++) {
+      var r = data.revisions[i];
+      if (!r || typeof r !== 'object' || Array.isArray(r)) return bad;
+      out.push({
+        n: typeof r.n === 'number' ? r.n : 0,
+        at: typeof r.at === 'string' ? r.at : '',
+        event: typeof r.event === 'string' ? r.event : '',
+        changed: Array.isArray(r.changed) ? r.changed.filter(function (x) { return typeof x === 'string'; }) : [],
+        notes: typeof r.notes === 'number' ? r.notes : 0,
+        dispositions: typeof r.dispositions === 'number' ? r.dispositions : 0,
+      });
+    }
+    return { ok: true, revisions: out };
+  }
+
+  // 页头文字：生成时间和版本号都取最后一条日志（版本号是它的 n，不是条数）。没有日志返回空串。
+  function headerText(revisions) {
+    if (!revisions.length) return '';
+    return '生成于 ' + revisions[revisions.length - 1].at + ' · 第 ' + revisions[revisions.length - 1].n + ' 版';
+  }
+
+  // 处置数据块（sdflow-dispositions）：{意见 id: {action, detail, issue}}。
+  // 返回 {ok, map}；顶层不是对象时 ok=false。map 无原型，id 为 __proto__ 一类的键也只是普通键。
+  function parseDispositions(text) {
+    var data;
+    try { data = JSON.parse(text); } catch (e) { return { ok: false, map: Object.create(null) }; }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return { ok: false, map: Object.create(null) };
+    var map = Object.create(null);
+    Object.keys(data).forEach(function (id) {
+      var d = data[id];
+      if (!d || typeof d !== 'object' || typeof d.action !== 'string' || !d.action) return;
+      map[id] = {
+        action: d.action,
+        detail: typeof d.detail === 'string' ? d.detail : '',
+        issue: typeof d.issue === 'string' ? d.issue : '',
+      };
+    });
+    return { ok: true, map: map };
+  }
+
+  // 一条处置的显示文字：类别 [+ 编号] [：说明]；没有处置显示「未记录处理」。
+  function dispositionText(d) {
+    if (!d) return '未记录处理';
+    return d.action + (d.issue ? ' ' + d.issue : '') + (d.detail ? '：' + d.detail : '');
+  }
+  // @@PURE-END
+
+  var md = new marked.Marked({ gfm: true });
+  md.use({
+    renderer: {
+      // 块级与行内两种 html token：先删注释（保留同一 token 里的其余文字），再整体转义。
+      html: function (token) {
+        var text = String(token.text).replace(COMMENT_RE, '');
+        if (token.block) {
+          if (!/\S/.test(text)) return '';
+          return '<pre class="raw-html">' + esc(text.replace(/\n+$/, '')) + '</pre>\n';
+        }
+        return esc(text);
+      },
+      link: function (token) {
+        var inner = this.parser.parseInline(token.tokens);
+        var ok = classifyLink(token.href, docs, currentDoc && currentDoc.path, null);
+        if (!ok) return inner;
+        var title = token.title ? ' title="' + esc(token.title) + '"' : '';
+        // 标题 id 在整份文档渲染后才有：先留占位，全部文档渲染完由 resolvePendingLinks 重新判定。
+        if (ok.pending) return '<a href="#" data-pending-href="' + esc(token.href) + '"' + title + '>' + inner + '</a>';
+        var extra = ok.external ? ' target="_blank" rel="noopener noreferrer"' : '';
+        return '<a href="' + esc(ok.href) + '"' + title + extra + '>' + inner + '</a>';
+      },
+      image: function (token) {
+        var src = classifyImage(token.href);
+        if (src) {
+          var title = token.title ? ' title="' + esc(token.title) + '"' : '';
+          return '<img src="' + esc(src) + '" alt="' + esc(token.text) + '"' + title + '>';
+        }
+        return '[图片：' + esc(token.text) + ']';
+      }
+    }
+  });
+
+  // ── 渲染文档 ────────────────────────────────────────────────────────────────
+  var docsRoot = document.getElementById('docs');
+  var tocRoot = document.getElementById('toc');
+  var tocList = document.createElement('ul');
+  tocRoot.appendChild(tocList);
+
+  var anchors = [];   // anchors[i]：第 i 份文档的「slug → 标题 id」表
+
+  function renderDoc(doc, index) {
+    var section = document.createElement('section');
+    section.className = 'doc';
+    section.id = 'doc-' + index;
+    section.setAttribute('data-doc-index', String(index));
+    section.setAttribute('data-label', doc.label);
+
+    var head = document.createElement('div');
+    head.className = 'doc-head';
+    var label = document.createElement('span');
+    label.className = 'doc-label';
+    label.textContent = doc.label;
+    var path = document.createElement('code');
+    path.className = 'doc-path';
+    path.textContent = doc.path;
+    head.appendChild(label);
+    head.appendChild(path);
+
+    var body = document.createElement('div');
+    body.className = 'doc-body';
+    currentDoc = doc;
+    var parts = splitFrontmatter(doc.text);
+    try {
+      body.innerHTML = md.parse(parts.body);
+    } catch (err) {
+      body.innerHTML = '';
+      var box = document.createElement('div');
+      box.className = 'doc-error';
+      box.setAttribute('role', 'alert');
+      box.textContent = '这份文档渲染失败：' + (err && err.message ? err.message : String(err)) + '。下面是原文。';
+      var pre = document.createElement('pre');
+      var code = document.createElement('code');
+      code.textContent = doc.text;
+      pre.appendChild(code);
+      body.appendChild(box);
+      body.appendChild(pre);
+    }
+    currentDoc = null;
+
+    section.appendChild(head);
+    if (parts.meta !== null) {
+      // 元数据放在 .doc-body 之外：不进目录、不参与划选与定位；一律纯文本。
+      var meta = document.createElement('details');
+      meta.className = 'doc-meta';
+      var metaSummary = document.createElement('summary');
+      metaSummary.textContent = '元数据';
+      var metaPre = document.createElement('pre');
+      metaPre.textContent = parts.meta;
+      meta.appendChild(metaSummary);
+      meta.appendChild(metaPre);
+      section.appendChild(meta);
+    }
+    section.appendChild(body);
+    docsRoot.appendChild(section);
+
+    Array.prototype.forEach.call(body.querySelectorAll('table'), function (table) {
+      var wrap = document.createElement('div');
+      wrap.className = 'table-wrap';
+      table.parentNode.insertBefore(wrap, table);
+      wrap.appendChild(table);
+    });
+
+    // marked 18 不生成标题 id：按「文档序号-序号」自己生成，重名标题不冲突。
+    var tocItem = document.createElement('li');
+    var docLink = document.createElement('a');
+    docLink.className = 'doc-link';
+    docLink.href = '#doc-' + index;
+    docLink.textContent = doc.label;
+    tocItem.appendChild(docLink);
+    var sub = document.createElement('ul');
+    tocItem.appendChild(sub);
+    var counter = 0;
+    var headingEls = [];
+    Array.prototype.forEach.call(body.querySelectorAll('h1, h2, h3, h4, h5, h6'), function (h) {
+      counter += 1;
+      h.id = 'd' + index + '-' + counter;
+      headingEls.push(h);
+      var level = Number(h.tagName.charAt(1));
+      if (level > 3) return;
+      var li = document.createElement('li');
+      li.className = 'lvl-' + level;
+      var a = document.createElement('a');
+      a.href = '#' + h.id;
+      a.textContent = h.textContent;
+      li.appendChild(a);
+      sub.appendChild(li);
+    });
+    tocList.appendChild(tocItem);
+
+    var table = Object.create(null);
+    githubSlugs(headingEls.map(function (h) { return h.textContent; })).forEach(function (slug, k) {
+      table[slug] = headingEls[k].id;
+    });
+    anchors[index] = table;
+  }
+
+  docs.forEach(renderDoc);
+
+  // ── 页头：生成时间与版本（修改日志数据块）。数据块损坏只影响页头与页尾两节，文档照常渲染。
+  function blockText(id) {
+    var el = document.getElementById(id);
+    return el ? el.textContent : '';
+  }
+  var revisionsParsed = parseRevisions(blockText('sdflow-revisions'));
+  var dispositionsParsed = parseDispositions(blockText('sdflow-dispositions'));
+  document.getElementById('sdflow-gen-meta').textContent = revisionsParsed.ok ? headerText(revisionsParsed.revisions) : '修改日志无法读取';
+
+  // 页内 #片段 与跨文档 x.md#片段：所有文档的标题 id 都就绪后再判定。
+  // 命中改写为真实标题 id；同文档未命中降为纯文字；跨文档未命中跳到该文档开头。
+  Array.prototype.slice.call(document.querySelectorAll('a[data-pending-href]')).forEach(function (a) {
+    var section = a.closest('section.doc');
+    var ok = classifyLink(a.getAttribute('data-pending-href'), docs, docs[Number(section.getAttribute('data-doc-index'))].path, anchors);
+    if (!ok) {
+      while (a.firstChild) a.parentNode.insertBefore(a.firstChild, a);
+      a.parentNode.removeChild(a);
+      return;
+    }
+    a.setAttribute('href', ok.href);
+    a.removeAttribute('data-pending-href');
+  });
+
+  // ── 窄屏：目录折叠到顶部 ────────────────────────────────────────────────────
+  var details = document.getElementById('toc-details');
+  var narrow = window.matchMedia('(max-width: 899px)');
+  function syncToc() { details.open = !narrow.matches; }
+  syncToc();
+  if (narrow.addEventListener) narrow.addEventListener('change', syncToc);
+  else if (narrow.addListener) narrow.addListener(syncToc);
+
+  // ── mermaid：渲染后发现 language-mermaid 块才加载 ───────────────────────────
+  var mermaidBlocks = Array.prototype.slice.call(document.querySelectorAll('pre > code.language-mermaid'));
+  if (mermaidBlocks.length) loadMermaid(mermaidBlocks);
+
+  function setNote(blocks, text) {
+    blocks.forEach(function (code) {
+      var pre = code.parentNode;
+      if (!pre || !pre.parentNode) return;
+      var note = pre.previousElementSibling;
+      if (!note || !note.classList.contains('mermaid-note')) {
+        note = document.createElement('p');
+        note.className = 'mermaid-note';
+        note.setAttribute('role', 'status');
+        pre.parentNode.insertBefore(note, pre);
+      }
+      note.textContent = text;
+    });
+  }
+
+  function clearNotes(blocks) {
+    blocks.forEach(function (code) {
+      var pre = code.parentNode;
+      var note = pre && pre.previousElementSibling;
+      if (note && note.classList.contains('mermaid-note')) note.parentNode.removeChild(note);
+    });
+  }
+
+  function renderMermaid(blocks) {
+    try {
+      window.mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' });
+    } catch (err) {
+      setNote(blocks, 'mermaid 初始化失败：' + (err && err.message ? err.message : String(err)));
+      return;
+    }
+    blocks.forEach(function (code, i) {
+      var pre = code.parentNode;
+      Promise.resolve()
+        .then(function () { return window.mermaid.render('sdflow-mmd-' + i, code.textContent); })
+        .then(function (result) {
+          var fig = document.createElement('div');
+          fig.className = 'mermaid-fig';
+          // 信任边界：result.svg 来自 securityLevel:'strict' 的 mermaid；脚本执行另由 CSP 拦住。
+          fig.innerHTML = result.svg;
+          pre.parentNode.replaceChild(fig, pre);
+        })
+        .catch(function (err) {
+          setNote([code], 'mermaid 渲染失败：' + (err && err.message ? err.message : String(err)));
+        });
+    });
+  }
+
+  function loadMermaid(blocks) {
+    var settled = false;
+    var timer = setTimeout(function () {
+      if (!settled) setNote(blocks, 'mermaid 未加载（离线或网络慢）');
+    }, MERMAID_SLOW_MS);
+    var s = document.createElement('script');
+    s.src = MERMAID_URL;
+    s.integrity = MERMAID_SRI;
+    s.crossOrigin = 'anonymous';
+    s.async = true;
+    s.addEventListener('load', function () {
+      settled = true;
+      clearTimeout(timer);
+      clearNotes(blocks);
+      renderMermaid(blocks);
+    });
+    s.addEventListener('error', function () {
+      settled = true;
+      clearTimeout(timer);
+      setNote(blocks, '离线，mermaid 图未渲染');
+    });
+    document.head.appendChild(s);
+  }
+
+  // ── 标注与复制 ──────────────────────────────────────────────────────────────
+  var STORE_KEY = 'sdflow-review:' + location.pathname;
+  var state = { next: 1, notes: [] };
+  // 已落盘意见（生成脚本嵌入，只读）。解析失败按空列表处理并在意见栏提示。
+  var savedNotes = [];
+  var savedUnreadable = false;
+  (function () {
+    var el = document.getElementById('sdflow-saved-notes');
+    var parsed = parseSavedNotes(el ? el.textContent : '[]');
+    savedNotes = parsed.notes;
+    savedUnreadable = !parsed.ok;
+  })();
+  // 页尾两节：意见与处理记录、修改日志。不用 section.doc / .doc-body：划选只认 .doc-body，所以两节不可划选写意见。
+  // 全部内容以 textContent 写入。记录一节只取处置，与意见能否在正文定位无关。
+  function addFooterSection(id, title) {
+    var sec = document.createElement('section');
+    sec.className = 'review-section';
+    sec.id = id;
+    var h = document.createElement('h2');
+    h.textContent = title;
+    sec.appendChild(h);
+    docsRoot.parentNode.appendChild(sec);
+    var li = document.createElement('li');
+    var a = document.createElement('a');
+    a.className = 'doc-link';
+    a.href = '#' + id;
+    a.textContent = title;
+    li.appendChild(a);
+    tocList.appendChild(li);
+    return sec;
+  }
+
+  function emptyLine(parent, text) {
+    var p = document.createElement('p');
+    p.className = 'sdflow-empty';
+    p.textContent = text;
+    parent.appendChild(p);
+  }
+
+  function drawRecordsSection() {
+    var sec = addFooterSection('review-records', '意见与处理记录');
+    if (savedUnreadable) { emptyLine(sec, '已落盘意见无法读取'); return; }
+    if (!savedNotes.length) { emptyLine(sec, '暂无已落盘意见'); return; }
+    // 分组顺序：先按页面文档顺序，再是对不上任何文档的标签（按出现顺序）。
+    var groups = Object.create(null), order = [];
+    docs.forEach(function (d) { groups[d.label] = []; });
+    savedNotes.forEach(function (sn) {
+      var label = sn.doc || '（未记录文档）';
+      if (!(label in groups)) { groups[label] = []; order.push(label); }
+      groups[label].push(sn);
+    });
+    docs.map(function (d) { return d.label; }).concat(order).forEach(function (label) {
+      if (!groups[label].length) return;
+      var h = document.createElement('h3');
+      h.textContent = label;
+      var list = document.createElement('ol');
+      list.className = 'notes-list';
+      groups[label].forEach(function (sn) {
+        var where = sn.path ? '（' + sn.path + (sn.line ? ':' + sn.line : '') + '）' : '';
+        list.appendChild(buildNoteItem({
+          className: 'note-item record-item', kind: 'record', key: sn.key,
+          head: (sn.doc || '（未记录文档）') + where + (sn.heading ? ' › ' + sn.heading : ''),
+          badges: [], quote: sn.quote, comment: sn.comment, disposition: dispositionLine(sn), buttons: [],
+        }));
+      });
+      sec.appendChild(h);
+      sec.appendChild(list);
+    });
+  }
+
+  function drawRevisionsSection() {
+    var sec = addFooterSection('review-revisions', '修改日志');
+    if (!revisionsParsed.ok) { emptyLine(sec, '无法读取'); return; }
+    if (!revisionsParsed.revisions.length) { emptyLine(sec, '暂无记录'); return; }
+    var list = document.createElement('ol');
+    list.className = 'notes-list';
+    revisionsParsed.revisions.slice().reverse().forEach(function (rev) {
+      var li = document.createElement('li');
+      li.className = 'note-item rev-item';
+      [
+        '第 ' + rev.n + ' 版 · ' + rev.at + ' · ' + rev.event,
+        '变化的文档：' + (rev.changed.length ? rev.changed.join('、') : '无'),
+        '意见 ' + rev.notes + ' 条 · 处置 ' + rev.dispositions + ' 条',
+      ].forEach(function (text) {
+        var line = document.createElement('div');
+        line.textContent = text;
+        li.appendChild(line);
+      });
+      list.appendChild(li);
+    });
+    sec.appendChild(list);
+  }
+
+  // 意见栏当前显示的暂存意见（mergeNotes 的结果，[{note, modified}]）。只在 refreshView 里重算。
+  var view = [];
+  var pending = null;        // 当前暂存的选区：{range, docLabel, heading, quote, before, after}
+  var dlg = null;            // 意见对话框状态：{mode: 'new'|'edit', noteId, returnFocus}
+  var copyState = null;      // 复制文本框状态：{ids, returnFocus}
+  var warningEl = null;
+
+  function showStorageWarning() {
+    if (warningEl) return;
+    warningEl = document.createElement('div');
+    warningEl.className = 'notice';
+    warningEl.setAttribute('role', 'alert');
+    warningEl.textContent = '意见无法跨刷新保留，请及时复制';
+    document.body.insertBefore(warningEl, document.body.firstChild);
+  }
+
+  function newNoteId() {
+    return idFromBytes(crypto.getRandomValues(new Uint8Array(8)));
+  }
+
+  function pathOfDoc(label) {
+    for (var i = 0; i < docs.length; i++) if (docs[i].label === label) return docs[i].path;
+    return '';
+  }
+
+  function storable(n) {
+    return { id: n.id, n: n.n, doc: n.doc, heading: n.heading, quote: n.quote, before: n.before, after: n.after,
+      comment: n.comment, copied: !!n.copied, inFigure: !!n.inFigure };
+  }
+
+  function saveState() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({ next: state.next, notes: state.notes.map(storable) }));
+    } catch (e) { showStorageWarning(); }
+  }
+
+  function loadState() {
+    // 先探一次写入：隐私模式等环境读得出、写不进。探测键无论成败都删掉，不留在暂存里。
+    try {
+      localStorage.setItem(STORE_KEY + ':probe', '1');
+    } catch (e) {
+      showStorageWarning();
+      return;
+    } finally {
+      try { localStorage.removeItem(STORE_KEY + ':probe'); } catch (e2) { /* 删不掉也不影响使用 */ }
+    }
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (!data || !Array.isArray(data.notes)) return;
+      var maxN = 0, repaired = false;
+      data.notes.forEach(function (n) {
+        if (!n || typeof n.quote !== 'string' || typeof n.comment !== 'string' || typeof n.n !== 'number') return;
+        var id = n.id;
+        if (!isNoteId(id)) { id = newNoteId(); repaired = true; }
+        state.notes.push({
+          id: id, n: n.n, doc: String(n.doc || ''), heading: String(n.heading || ''), quote: n.quote,
+          before: String(n.before || ''), after: String(n.after || ''), comment: n.comment, copied: !!n.copied,
+          inFigure: n.inFigure === true,
+        });
+        if (n.n > maxN) maxN = n.n;
+      });
+      state.next = Math.max(Number(data.next) || 1, maxN + 1);
+      if (repaired) saveState();
+    } catch (e) { /* 存档损坏：当作没有意见 */ }
+  }
+
+  function findNote(id) {
+    for (var i = 0; i < state.notes.length; i++) if (state.notes[i].id === id) return state.notes[i];
+    return null;
+  }
+
+  // ── 高亮：按文本节点分段包 <mark>，跨粗体、跨列表项的选区每段各包一个 ─────────────
+  function docBodyByLabel(label) {
+    var sections = document.querySelectorAll('section.doc');
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].getAttribute('data-label') === label) return sections[i].querySelector('.doc-body');
+    }
+    return null;
+  }
+
+  function rangeAt(root, start, length) {
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    var pos = 0, node, range = document.createRange(), startSet = false, end = start + length;
+    while ((node = walker.nextNode())) {
+      var len = node.data.length;
+      if (!startSet && start < pos + len) { range.setStart(node, start - pos); startSet = true; }
+      if (startSet && end <= pos + len) { range.setEnd(node, end - pos); return range; }
+      pos += len;
+    }
+    return null;
+  }
+
+  // 节点本身是元素就取它，文本节点取父元素。
+  function elementOf(node) {
+    return node && (node.nodeType === 1 ? node : node.parentElement);
+  }
+
+  // 图内（SVG 的 <text> 或 foreignObject 里的 HTML）与 mermaid 源码块内不插 <mark>：
+  // SVG 文字里插入 HTML 元素会让文字消失，源码块在图渲染后整块被替换。
+  function inUnmarkable(node) {
+    var el = elementOf(node);
+    return !!(el && (el.closest('svg') || el.closest('pre > code.language-mermaid')));
+  }
+
+  // 收集 Range 覆盖的文本分段 [{node, start, end}]（只读，不改 DOM）。
+  // 端点落在元素上时由 intersectsNode 归到文本节点：终点在下一个块元素偏移 0 时，那个块里的文字不相交。
+  // 跳过纯空白分段（块与块之间的换行节点）与不可插 <mark> 的节点。
+  function textSegments(range) {
+    var root = range.commonAncestorContainer;
+    if (root.nodeType === 3) root = root.parentNode;
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    var out = [], node;
+    while ((node = walker.nextNode())) {
+      if (!range.intersectsNode(node)) continue;
+      var start = node === range.startContainer ? range.startOffset : 0;
+      var end = node === range.endContainer ? range.endOffset : node.data.length;
+      if (end <= start || !/\S/.test(node.data.slice(start, end)) || inUnmarkable(node)) continue;
+      out.push({ node: node, start: start, end: end });
+    }
+    return out;
+  }
+
+  // kind: 'note'（暂存意见，data-note）| 'saved'（已落盘意见，data-saved）；key 一律是 id（或无 id 时的序位键）。
+  // 同一条意见的每个分段各包一个 <mark>，共用 key。至少包上一段即返回 true。
+  function wrapRange(range, key, kind) {
+    var segs = textSegments(range);   // 先收集清单，再统一改写 DOM
+    var marks = [];
+    segs.forEach(function (seg) {
+      var target = seg.node;
+      // 同一文本节点内：先按止点切分，再按起点切分
+      if (seg.end < target.data.length) target.splitText(seg.end);
+      if (seg.start > 0) target = target.splitText(seg.start);
+      var mark = document.createElement('mark');
+      if (kind === 'saved') {
+        mark.className = 'sdflow-saved-hl';
+        mark.dataset.saved = key;
+      } else {
+        mark.className = 'sdflow-hl';
+        mark.dataset.note = key;
+      }
+      target.parentNode.insertBefore(mark, target);
+      mark.appendChild(target);
+      marks.push(mark);
+    });
+    if (kind === 'saved' && marks.length > 1) {
+      marks.forEach(function (m, i) {
+        m.dataset.seg = i === 0 ? 'first' : i === marks.length - 1 ? 'last' : 'mid';
+      });
+    }
+    return marks.length > 0;
+  }
+
+  // 以 dataset 比对取 mark，不把 id 拼进选择器。
+  function marksOf(kind, key) {
+    var cls = kind === 'saved' ? 'mark.sdflow-saved-hl' : 'mark.sdflow-hl';
+    return Array.prototype.filter.call(document.querySelectorAll(cls), function (m) {
+      return (kind === 'saved' ? m.dataset.saved : m.dataset.note) === key;
+    });
+  }
+
+  function unwrapMarks(key) {
+    marksOf('note', key).forEach(function (m) {
+      var parent = m.parentNode;
+      while (m.firstChild) parent.insertBefore(m.firstChild, m);
+      parent.removeChild(m);
+      parent.normalize();
+    });
+  }
+
+  // 给每条意见定位并（能的话）高亮；status: 'hl' | 'unmarked'（已定位但没高亮上）| 'orphan'（对不上）。
+  // 找不到起点时：图内划选的意见、或原文在正文出现多处而前后文无法区分，都记 unmarked，不记 orphan。
+  function unlocatedStatus(body, note) {
+    if (!body) return 'orphan';
+    return note.inFigure || (note.quote && body.textContent.indexOf(note.quote) >= 0) ? 'unmarked' : 'orphan';
+  }
+
+  // 定位一条意见并（能的话）高亮，返回 status。图内划选的意见不在正文里找：
+  // 原文与正文某处同名时会被高亮到那里（RVP-13）。
+  function highlightOne(note, key, kind) {
+    var body = docBodyByLabel(note.doc);
+    if (body && note.inFigure) return 'unmarked';
+    var idx = body ? locateNote(body.textContent, note) : -1;
+    if (idx < 0) return unlocatedStatus(body, note);
+    var range = rangeAt(body, idx, note.quote.length);
+    return range && wrapRange(range, key, kind) ? 'hl' : 'unmarked';
+  }
+
+  function restoreHighlights() {
+    // 与已落盘版重复的暂存意见不在 view 里，不显示也不高亮。
+    view.forEach(function (v) { v.note.status = highlightOne(v.note, v.note.id, 'note'); });
+    savedNotes.forEach(function (sn) { sn.status = highlightOne(sn, sn.key, 'saved'); });
+  }
+
+  // ── 选区暂存与「写意见」按钮 ─────────────────────────────────────────────────
+  var annotateBtn = document.createElement('button');
+  annotateBtn.type = 'button';
+  annotateBtn.id = 'sdflow-annotate';
+  annotateBtn.textContent = '写意见';
+  annotateBtn.hidden = true;
+  document.body.appendChild(annotateBtn);
+
+  function bodyOf(node) {
+    var el = elementOf(node);
+    return el && el.closest ? el.closest('#main .doc-body') : null;
+  }
+
+  function captureSelection() {
+    var sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+    var r = sel.getRangeAt(0);
+    var body = bodyOf(r.startContainer);
+    if (!body) return null;
+    var endBody = bodyOf(r.endContainer);
+    if (!endBody) {
+      // 终点在正文之外时，只接受三击末段的形态：终点紧接本正文之后（两者之间只有空白），
+      // 此时收到本正文末尾。其余（拖到侧栏、页尾两节、其他文档标题，或途经其他 .doc-body）一律拒绝。
+      var tail = document.createRange();
+      tail.setStart(body, body.childNodes.length);
+      tail.setEnd(r.endContainer, r.endOffset);
+      // 「写意见」按钮可能停靠在正文之后，它的文字不算选区跨过的内容。
+      var gap = tail.cloneContents();
+      var dock = gap.querySelector ? gap.querySelector('#sdflow-annotate') : null;
+      if (dock) dock.parentNode.removeChild(dock);
+      if (/\S/.test(gap.textContent)) return null;
+      r = r.cloneRange();
+      r.setEnd(body, body.childNodes.length);
+    } else if (endBody !== body) {
+      return null;
+    }
+    var full = r.toString();
+    if (!/\S/.test(full)) return null;
+    var pre = document.createRange();
+    pre.selectNodeContents(body);
+    pre.setEnd(r.startContainer, r.startOffset);
+    var start = pre.toString().length;
+    var ctx = selectionContext(body.textContent, start, full.length);
+    var heading = '';
+    Array.prototype.forEach.call(body.querySelectorAll('h1, h2, h3, h4, h5, h6'), function (h) {
+      if (r.comparePoint(h, 0) === -1) heading = h.textContent.replace(/\s+/g, ' ').trim();
+    });
+    var startEl = elementOf(r.startContainer);
+    return {
+      range: r.cloneRange(),
+      body: body,
+      start: start,
+      truncated: ctx.quote.length < full.length,
+      section: body.parentNode,
+      inFigure: !!(startEl && startEl.closest('svg')),
+      docLabel: body.parentNode.getAttribute('data-label'),
+      heading: heading,
+      quote: ctx.quote,
+      before: ctx.before,
+      after: ctx.after,
+    };
+  }
+
+  // 按钮紧随选区所在的文档节之后，划选后按 Tab 先到它，不必越过后面所有文档里的链接（D14）。
+  // 按钮正拿着焦点时不挪：挪动会让它失焦。
+  function dockAnnotateBtn() {
+    if (!pending || !pending.section || document.activeElement === annotateBtn) return;
+    if (annotateBtn.previousElementSibling !== pending.section) {
+      pending.section.parentNode.insertBefore(annotateBtn, pending.section.nextSibling);
+    }
+  }
+
+  function placeAnnotateBtn() {
+    if (!pending || annotateBtn.hidden) return;
+    var rects = pending.range.getClientRects();
+    var rect = rects.length ? rects[rects.length - 1] : pending.range.getBoundingClientRect();
+    var top = rect.bottom + 8;
+    if (top > window.innerHeight - 44) top = rect.top - 44;
+    // 选区滚出视口时按钮钉在视口边缘，仍然点得到。
+    top = Math.min(Math.max(8, top), window.innerHeight - 44);
+    var left = Math.min(Math.max(8, rect.right), window.innerWidth - 100);
+    annotateBtn.style.top = top + 'px';
+    annotateBtn.style.left = left + 'px';
+  }
+
+  function hideAnnotateBtn() { annotateBtn.hidden = true; }
+
+  document.addEventListener('selectionchange', function () {
+    if (dlg || copyState) return;
+    var cap = captureSelection();
+    if (cap) {
+      pending = cap;
+      dockAnnotateBtn();
+      annotateBtn.hidden = false;
+      placeAnnotateBtn();
+    } else if (document.activeElement !== annotateBtn) {
+      pending = null;
+      hideAnnotateBtn();
+    }
+  });
+  window.addEventListener('scroll', placeAnnotateBtn, { passive: true });
+  window.addEventListener('resize', placeAnnotateBtn);
+  // 点按钮会让选区丢失：mousedown 阻止默认行为，选区保持，pending 里也另存了 Range。
+  annotateBtn.addEventListener('mousedown', function (e) { e.preventDefault(); });
+  annotateBtn.addEventListener('click', function () { if (pending) openDialog('new', null, annotateBtn); });
+
+  // ── 对话框：意见输入 ────────────────────────────────────────────────────────
+  function makeButton(text, cls) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sdflow-btn' + (cls ? ' ' + cls : '');
+    b.textContent = text;
+    return b;
+  }
+
+  function makeOverlay(id, titleText) {
+    var overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.hidden = true;
+    var panel = document.createElement('div');
+    panel.className = 'dlg-panel';
+    panel.id = id;
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-labelledby', id + '-title');
+    var h = document.createElement('h2');
+    h.id = id + '-title';
+    h.textContent = titleText;
+    panel.appendChild(h);
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+    return { overlay: overlay, panel: panel, title: h };
+  }
+
+  var noteDlg = makeOverlay('sdflow-note-dialog', '写意见');
+  var dlgQuote = document.createElement('blockquote');
+  dlgQuote.className = 'dlg-quote';
+  var dlgLabel = document.createElement('label');
+  dlgLabel.htmlFor = 'sdflow-note-text';
+  dlgLabel.className = 'sr-only';
+  dlgLabel.textContent = '意见';
+  var dlgText = document.createElement('textarea');
+  dlgText.id = 'sdflow-note-text';
+  dlgText.rows = 5;
+  dlgText.setAttribute('aria-describedby', 'sdflow-note-error');
+  // 空意见的错误写进这个 role=status 节点（平时为空），读屏才会读出来。
+  var dlgError = document.createElement('p');
+  dlgError.className = 'dlg-error';
+  dlgError.id = 'sdflow-note-error';
+  dlgError.setAttribute('role', 'status');
+  var dlgHint = document.createElement('p');
+  dlgHint.className = 'dlg-hint';
+  var HINT = 'Ctrl/⌘ + Enter 保存，Esc 取消';
+  dlgHint.textContent = HINT;
+  var dlgActions = document.createElement('div');
+  dlgActions.className = 'dlg-actions';
+  var dlgCancel = makeButton('取消');
+  var dlgSave = makeButton('保存', 'primary');
+  dlgActions.appendChild(dlgCancel);
+  dlgActions.appendChild(dlgSave);
+  [dlgQuote, dlgLabel, dlgText, dlgError, dlgHint, dlgActions].forEach(function (el) { noteDlg.panel.appendChild(el); });
+
+  function focusables(panel) {
+    return Array.prototype.filter.call(panel.querySelectorAll('textarea, button'), function (el) {
+      return !el.disabled && !el.hidden && el.getClientRects().length > 0;
+    });
+  }
+
+  // 对话框打开期间在 document 上统一处理键盘：焦点落到页面主体时 Esc 也能关闭、Tab 能回到对话框内。
+  // 输入法组字期间的按键留给输入法；对话框关闭后这里什么都不做。
+  document.addEventListener('keydown', function (e) {
+    var open = copyState ? copyDlg : dlg ? noteDlg : null;
+    if (!open) return;
+    if (e.isComposing || e.keyCode === 229) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (open === copyDlg) closeCopy(); else closeDialog(true);
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    var items = focusables(open.panel);
+    if (!items.length) return;
+    var first = items[0], last = items[items.length - 1];
+    if (!open.panel.contains(document.activeElement)) { e.preventDefault(); first.focus(); return; }
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+
+  // 正文区域平时不带 tabindex：带了的话，在正文里按下鼠标划选会让 main 拿到焦点，
+  // 之后的 Tab 从正文开头起算而不是从选区起算，「写意见」按钮紧随文档节之后就白放了（D14）。
+  // 只在要把焦点移到正文时临时设上，失焦即撤掉。
+  var mainEl = document.getElementById('main');
+  function focusMain() {
+    mainEl.tabIndex = -1;
+    mainEl.focus();
+  }
+  mainEl.addEventListener('blur', function () { mainEl.removeAttribute('tabindex'); });
+  // 「跳到正文」照旧把焦点移进正文（默认的锚点跳转只滚动，main 不带 tabindex 时拿不到焦点）。
+  document.querySelector('.skip-link').addEventListener('click', focusMain);
+
+  // 关闭对话框后还原焦点：目标仍在文档中、未隐藏、未禁用、有布局盒才聚焦，否则聚焦正文区域。
+  function restoreFocus(target) {
+    if (target && document.body.contains(target) && !target.hidden && !target.disabled && target.getClientRects().length > 0) {
+      target.focus();
+      return;
+    }
+    focusMain();
+  }
+
+  function clearNoteError() {
+    dlgError.textContent = '';
+    dlgText.removeAttribute('aria-invalid');
+  }
+
+  function openDialog(mode, note, opener) {
+    dlg = { mode: mode, noteId: note ? note.id : null, returnFocus: opener || document.activeElement };
+    noteDlg.title.textContent = mode === 'edit' ? '编辑意见' : '写意见';
+    dlgQuote.textContent = (note ? note.quote : pending.quote).slice(0, 300);
+    dlgText.value = note ? note.comment : '';
+    clearNoteError();
+    dlgHint.textContent = HINT;
+    noteDlg.overlay.hidden = false;
+    dlgText.focus();
+  }
+
+  function closeDialog(restoreSelection) {
+    var d = dlg;
+    if (!d) return;
+    dlg = null;
+    noteDlg.overlay.hidden = true;
+    if (d.mode === 'new' && restoreSelection && pending) {
+      // 取消：把选区放回去，「写意见」按钮仍在。
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(pending.range);
+      annotateBtn.hidden = false;
+      placeAnnotateBtn();
+    }
+    restoreFocus(d.returnFocus);
+  }
+
+  function saveDialog() {
+    var comment = dlgText.value.trim();
+    if (!comment) {
+      dlgError.textContent = '意见不能为空';
+      dlgText.setAttribute('aria-invalid', 'true');
+      dlgText.focus();
+      return;
+    }
+    var d = dlg;
+    if (d.mode === 'edit') {
+      var existing = findNote(d.noteId);
+      if (existing) { existing.comment = comment; existing.copied = false; }
+      saveState();
+      renderNotes();
+      // 「编辑」按钮随意见栏重建；改回与已落盘版相同的意见不再显示，找不到就交给 restoreFocus 落到正文。
+      var item = noteItemOf('note', d.noteId);
+      d.returnFocus = item ? item.querySelector('.edit-btn') : null;
+      closeDialog(false);
+      return;
+    }
+    var note = {
+      id: newNoteId(), n: state.next++, doc: pending.docLabel, heading: pending.heading, quote: pending.quote,
+      before: pending.before, after: pending.after, comment: comment, copied: false, inFigure: !!pending.inFigure,
+    };
+    window.getSelection().removeAllRanges();
+    // 引用被截断时按截断后的引用重算范围，与重新加载后按引用定位的范围一致。
+    var saveRange = pending.truncated ? rangeAt(pending.body, pending.start, pending.quote.length) : null;
+    note.status = wrapRange(saveRange || pending.range, note.id, 'note') ? 'hl' : 'unmarked';
+    state.notes.push(note);
+    saveState();
+    renderNotes();
+    pending = null;
+    hideAnnotateBtn();
+    d.returnFocus = null;
+    closeDialog(false);
+  }
+
+  dlgSave.addEventListener('click', saveDialog);
+  dlgCancel.addEventListener('click', function () { closeDialog(true); });
+  dlgText.addEventListener('input', clearNoteError);
+  dlgText.addEventListener('keydown', function (e) {
+    if (e.isComposing || e.keyCode === 229) return;
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveDialog(); }
+  });
+
+  // ── 意见栏 ──────────────────────────────────────────────────────────────────
+  var notesRoot = document.getElementById('sdflow-notes');
+  var notesTitle = document.createElement('h2');
+  notesTitle.tabIndex = -1;
+  var notesEmpty = document.createElement('p');
+  notesEmpty.className = 'notes-empty';
+  notesEmpty.textContent = '在正文划选文字，点「写意见」。';
+  var notesActions = document.createElement('div');
+  notesActions.className = 'notes-actions';
+  var copyBtn = makeButton('复制意见', 'primary');
+  copyBtn.id = 'sdflow-copy-new';
+  var copyAllBtn = makeButton('复制全部');
+  copyAllBtn.id = 'sdflow-copy-all';
+  var clearBtn = makeButton('清空');
+  clearBtn.id = 'sdflow-clear';
+  [copyBtn, copyAllBtn, clearBtn].forEach(function (b) { notesActions.appendChild(b); });
+  var notesList = document.createElement('ol');
+  notesList.className = 'notes-list';
+  // 「定位」找不到高亮时在这里提示（role=status，平时为空）。
+  var jumpHint = document.createElement('p');
+  jumpHint.className = 'notes-hint';
+  jumpHint.id = 'sdflow-jump-hint';
+  jumpHint.setAttribute('role', 'status');
+  var savedWarn = document.createElement('p');
+  savedWarn.className = 'notes-empty';
+  savedWarn.setAttribute('role', 'status');
+  savedWarn.textContent = '已落盘意见无法读取';
+  savedWarn.hidden = !savedUnreadable;
+  var savedGroup = document.createElement('section');
+  savedGroup.className = 'saved-group';
+  savedGroup.setAttribute('aria-label', '已落盘意见');
+  savedGroup.hidden = true;
+  var savedTitle = document.createElement('h3');
+  var savedList = document.createElement('ol');
+  savedList.className = 'notes-list';
+  savedGroup.appendChild(savedTitle);
+  savedGroup.appendChild(savedList);
+  [notesTitle, notesEmpty, notesActions, jumpHint, notesList, savedWarn, savedGroup].forEach(function (el) { notesRoot.appendChild(el); });
+  notesRoot.hidden = false;
+  document.body.classList.add('has-notes');
+
+  var STATUS_TEXT = { orphan: '原文已对不上，仅列出', unmarked: '未在正文高亮' };
+  var SAVED_STATUS_TEXT = { orphan: '原文已变', unmarked: '未在正文高亮' };
+  var clearTimer = null;
+
+  function appendBadge(parent, text) {
+    var b = document.createElement('span');
+    b.className = 'note-badge';
+    b.textContent = text;
+    parent.appendChild(b);
+  }
+
+  // 暂存意见被合并掉（不显示）时，它在正文的暂存高亮一并拿掉，不留无主的 mark。
+  // 编辑回与已落盘版相同、或改过的意见复制后（RVP-19）都会从列表消失。
+  function refreshView() {
+    view = mergeNotes(state.notes, savedNotes);
+    var shown = Object.create(null);
+    view.forEach(function (v) { shown[v.note.id] = true; });
+    state.notes.forEach(function (n) { if (!shown[n.id]) unwrapMarks(n.id); });
+  }
+
+  // 已落盘意见的处理行：取该意见 id 对应的处置；处置块读不出来显示「无法读取」。
+  function dispositionLine(sn) {
+    if (!dispositionsParsed.ok) return '处理：无法读取';
+    return '处理：' + dispositionText(sn.id ? dispositionsParsed.map[sn.id] : null);
+  }
+
+  // 意见栏的一条。o = {className, kind, key, head, badges, quote, comment, disposition?, buttons}；
+  // kind 即 dataset 名（'note' → data-note，'saved' → data-saved）。内容一律 textContent，没有按钮时不建按钮行。
+  function buildNoteItem(o) {
+    var li = document.createElement('li');
+    li.className = o.className;
+    li.dataset[o.kind] = o.key;
+    var head = document.createElement('div');
+    head.className = 'note-head';
+    head.textContent = o.head;
+    o.badges.forEach(function (text) { appendBadge(head, text); });
+    var quote = document.createElement('div');
+    quote.className = 'note-quote';
+    quote.textContent = o.quote;
+    var comment = document.createElement('div');
+    comment.className = 'note-comment';
+    comment.textContent = o.comment;
+    [head, quote, comment].forEach(function (el) { li.appendChild(el); });
+    if (o.disposition) {
+      var disposition = document.createElement('div');
+      disposition.className = 'note-disposition';
+      disposition.textContent = o.disposition;
+      li.appendChild(disposition);
+    }
+    if (o.buttons.length) {
+      var actions = document.createElement('div');
+      actions.className = 'note-actions';
+      o.buttons.forEach(function (b) { actions.appendChild(b); });
+      li.appendChild(actions);
+    }
+    return li;
+  }
+
+  // 「定位」只给找得到位置的意见（已高亮，或已定位但没高亮上）。
+  function jumpButtons(kind, key, status) {
+    if (status !== 'hl' && status !== 'unmarked') return [];
+    var jump = makeButton('定位');
+    jump.classList.add('jump-btn');
+    jump.addEventListener('click', function () { jumpTo(kind, key); });
+    return [jump];
+  }
+
+  // 意见栏里某条意见的 <li>：以 dataset 比对取（同 marksOf，不把 id 拼进选择器）；找不到返回 null。
+  function noteItemOf(kind, key) {
+    var list = kind === 'saved' ? savedList : notesList;
+    return Array.prototype.filter.call(list.children, function (li) { return li.dataset[kind] === key; })[0] || null;
+  }
+
+  // 暂存或已落盘意见有变动后调用：重算 view 再重画意见栏。
+  function renderNotes() {
+    refreshView();
+    drawNotes();
+  }
+
+  function drawNotes() {
+    // 重置「清空」确认态前先撤掉旧定时器，否则它会把之后新进入的确认态提前还原。
+    clearTimeout(clearTimer);
+    jumpHint.textContent = '';
+    var total = view.length;
+    var fresh = view.filter(function (v) { return !v.note.copied; }).length;
+    notesTitle.textContent = '意见（' + total + '）';
+    notesEmpty.hidden = total > 0;
+    copyBtn.disabled = fresh === 0;
+    copyBtn.textContent = '复制意见' + (total ? '（' + fresh + '）' : '');
+    copyBtn.title = total === 0 ? '还没有意见' : fresh === 0 ? '没有未复制的意见，可用「复制全部」' : '';
+    copyAllBtn.disabled = total === 0;
+    clearBtn.disabled = state.notes.length === 0;
+    clearBtn.textContent = '清空';
+    clearBtn.dataset.armed = '';
+    while (notesList.firstChild) notesList.removeChild(notesList.firstChild);
+    view.forEach(function (v) {
+      var note = v.note;
+      var badges = [];
+      if (v.modified) badges.push('已修改，未落盘');
+      if (note.copied) badges.push('已复制');
+      if (STATUS_TEXT[note.status]) badges.push(STATUS_TEXT[note.status]);
+      var edit = makeButton('编辑');
+      edit.classList.add('edit-btn');
+      edit.addEventListener('click', function () { openDialog('edit', note, edit); });
+      var del = makeButton('删除');
+      del.classList.add('del-btn');
+      del.addEventListener('click', function () { deleteNote(note.id); });
+      notesList.appendChild(buildNoteItem({
+        className: 'note-item', kind: 'note', key: note.id,
+        head: '#' + note.n + ' ' + note.doc + (note.heading ? ' › ' + note.heading : ''),
+        badges: badges, quote: note.quote, comment: note.comment,
+        buttons: jumpButtons('note', note.id, note.status).concat([edit, del]),
+      }));
+    });
+    renderSaved();
+  }
+
+  // 已落盘意见：只读；0 条时整组不显示。
+  function renderSaved() {
+    while (savedList.firstChild) savedList.removeChild(savedList.firstChild);
+    savedGroup.hidden = savedNotes.length === 0;
+    savedTitle.textContent = '已落盘意见（' + savedNotes.length + '）';
+    savedNotes.forEach(function (sn, k) {
+      var where = sn.path ? sn.path + (sn.line ? ':' + sn.line : '') : sn.doc;
+      savedList.appendChild(buildNoteItem({
+        className: 'note-item saved-item', kind: 'saved', key: sn.key,
+        head: '已落盘 ' + (k + 1) + ' ' + where + (sn.heading ? ' › ' + sn.heading : ''),
+        badges: SAVED_STATUS_TEXT[sn.status] ? [SAVED_STATUS_TEXT[sn.status]] : [],
+        quote: sn.quote, comment: sn.comment, disposition: dispositionLine(sn),
+        buttons: jumpButtons('saved', sn.key, sn.status),
+      }));
+    });
+  }
+
+  function findSaved(key) {
+    for (var i = 0; i < savedNotes.length; i++) if (savedNotes[i].key === key) return savedNotes[i];
+    return null;
+  }
+
+  function jumpTo(kind, key) {
+    var marks = marksOf(kind, key);
+    if (marks.length) {
+      jumpHint.textContent = '';
+      marks[0].scrollIntoView({ block: 'center' });
+      marks.forEach(function (m) { m.classList.add('flash'); });
+      setTimeout(function () { marks.forEach(function (m) { m.classList.remove('flash'); }); }, 1200);
+      return;
+    }
+    // 没有高亮可去（图内划选、原文出现多处，或高亮已被拿掉）：滚到所在文档并提示。
+    var note = kind === 'saved' ? findSaved(key) : findNote(key);
+    if (!note) return;
+    var body = docBodyByLabel(note.doc);
+    if (body) body.parentNode.scrollIntoView({ block: 'start' });
+    if (note.status === 'hl') {
+      // 记着已高亮、mark 却不在了：改标「未在正文高亮」，重画后焦点放回这条的「定位」。
+      note.status = 'unmarked';
+      renderNotes();
+      var item = noteItemOf(kind, key);
+      var btn = item && item.querySelector('.jump-btn');
+      if (btn) btn.focus();
+    }
+    jumpHint.textContent = '未在正文高亮';
+  }
+
+  function deleteNote(id) {
+    unwrapMarks(id);
+    state.notes = state.notes.filter(function (x) { return x.id !== id; });
+    saveState();
+    renderNotes();
+    notesTitle.focus();
+  }
+
+  // 清空要点两次：第一次变成「再点一次确认」，4 秒内不点就还原。
+  clearBtn.addEventListener('click', function () {
+    if (clearBtn.dataset.armed === '1') {
+      clearTimeout(clearTimer);
+      state.notes.forEach(function (x) { unwrapMarks(x.id); });
+      state.notes = [];
+      saveState();
+      renderNotes();
+      notesTitle.focus();
+      return;
+    }
+    clearBtn.dataset.armed = '1';
+    clearBtn.textContent = '再点一次确认清空';
+    clearTimer = setTimeout(function () { clearBtn.dataset.armed = ''; clearBtn.textContent = '清空'; }, 4000);
+  });
+
+  // ── 复制 ────────────────────────────────────────────────────────────────────
+  var copyDlg = makeOverlay('sdflow-copy-dialog', '复制意见');
+  var copyStatus = document.createElement('p');
+  copyStatus.className = 'dlg-hint';
+  copyStatus.id = 'sdflow-copy-status';
+  copyStatus.setAttribute('role', 'status');
+  var copyLabel = document.createElement('label');
+  copyLabel.htmlFor = 'sdflow-copy-text';
+  copyLabel.className = 'sr-only';
+  copyLabel.textContent = '意见全文';
+  var copyText = document.createElement('textarea');
+  copyText.id = 'sdflow-copy-text';
+  copyText.rows = 14;
+  copyText.readOnly = true;
+  var copyActions = document.createElement('div');
+  copyActions.className = 'dlg-actions';
+  var markBtn = makeButton('标记为已复制');
+  markBtn.hidden = true;
+  var copyClose = makeButton('关闭', 'primary');
+  copyClose.id = 'sdflow-copy-close';
+  copyActions.appendChild(markBtn);
+  copyActions.appendChild(copyClose);
+  [copyStatus, copyLabel, copyText, copyActions].forEach(function (el) { copyDlg.panel.appendChild(el); });
+
+  function markCopied(ids) {
+    state.notes.forEach(function (n) { if (ids.indexOf(n.id) >= 0) n.copied = true; });
+    saveState();
+    renderNotes();
+  }
+
+  // 依次试 Clipboard API、execCommand；resolve(true/false)，不抛错。
+  function autoCopy(text) {
+    return new Promise(function (resolve) {
+      function legacy() {
+        var ok = false;
+        try { copyText.focus(); copyText.select(); ok = document.execCommand('copy'); } catch (e) { ok = false; }
+        resolve(ok);
+      }
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () { resolve(true); }, legacy);
+          return;
+        }
+      } catch (e) { /* 落到 execCommand */ }
+      legacy();
+    });
+  }
+
+  function doCopy(all, opener) {
+    var picked = view.map(function (v) { return v.note; })
+      .filter(function (n) { return all || !n.copied; });
+    if (!picked.length) return;
+    var text = buildCopyText({
+      title: document.title,
+      pathname: location.pathname,
+      copiedAt: formatLocalTime(new Date()),
+      notes: picked.map(function (n) {
+        var out = storable(n);
+        out.path = pathOfDoc(n.doc);
+        return out;
+      }),
+    });
+    var ids = picked.map(function (n) { return n.id; });
+    var myState = { ids: ids, returnFocus: opener };
+    copyState = myState;
+    copyText.value = text;
+    copyStatus.textContent = '正在复制…';
+    markBtn.hidden = true;
+    copyDlg.overlay.hidden = false;
+    copyText.focus();
+    copyText.select();
+    autoCopy(text).then(function (ok) {
+      // 剪贴板已写入就标已复制，不论对话框此时是否还是本次那个
+      if (ok) markCopied(ids);
+      if (copyState !== myState) return;
+      copyText.focus();
+      copyText.select();
+      if (ok) {
+        copyStatus.textContent = '已复制 ' + ids.length + ' 条意见到剪贴板。若粘贴不出来，可在下面已全选的文本框里手动复制。';
+      } else {
+        copyStatus.textContent = '自动复制失败。下面的全文已全选，请按 Ctrl/⌘ + C 手动复制。';
+        markBtn.hidden = false;
+      }
+    });
+  }
+
+  function closeCopy() {
+    var c = copyState;
+    if (!c) return;
+    copyState = null;
+    copyDlg.overlay.hidden = true;
+    restoreFocus(c.returnFocus);
+  }
+
+  copyBtn.addEventListener('click', function () { doCopy(false, copyBtn); });
+  copyAllBtn.addEventListener('click', function () { doCopy(true, copyAllBtn); });
+  copyClose.addEventListener('click', closeCopy);
+  markBtn.addEventListener('click', function () {
+    if (copyState) markCopied(copyState.ids);
+    markBtn.hidden = true;
+    copyStatus.textContent = '已标记为已复制。';
+  });
+
+  drawRecordsSection();
+  drawRevisionsSection();
+
+  loadState();
+  refreshView();
+  restoreHighlights();
+  drawNotes();
+})();
+</script>
+</body>
+</html>

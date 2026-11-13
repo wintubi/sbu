@@ -1,0 +1,29 @@
+{
+  "v": 1,
+  "page": "shipped.html",
+  "revisions": [
+    {
+      "n": 1,
+      "at": "2026-11-13T18:36:29+08:00",
+      "event": "首次生成",
+      "docs": {
+        "hand-off": {
+          "path": null,
+          "sha256": "bf6712db82ed22d701029765523b7a4c386d24e2b80728c45d7f5d598d1d942e"
+        },
+        "verify-report": {
+          "path": null,
+          "sha256": "6b870acc45d13bbcee9feaade83f04d9f90128090c666dbd41bad4b79a33cede"
+        },
+        "code-review-report": {
+          "path": null,
+          "sha256": "278be36e1a067a79f9abe71e66acf99f91d94ead58d6a0f0cccee28dceb7f983"
+        }
+      },
+      "notes": 0,
+      "dispositions": 0,
+      "changed": [],
+      "fp": "abb3da3460e081791ed8b2f4a3a6f747214202a1fe2bc3020083a53c9ab16f2e"
+    }
+  ]
+}
